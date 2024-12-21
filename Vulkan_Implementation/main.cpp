@@ -64,14 +64,11 @@ public:
 		CreateVulkanShader(&gVulkan, "triangle_vs.spv", VERTEX, &gVertexShader);
 		CreateVulkanShader(&gVulkan, "triangle_ps.spv", PIXEL, &gPixelShader);
 
-		SEVulkanBindingDesc bindingDesc{};
 		SEVulkanVertexBindingInfo bindingInfo{};
 		bindingInfo.binding = 0;
 		bindingInfo.stride = sizeof(Vertex);
 		bindingInfo.inputRate = SE_PER_VERTEX;
-		CreateVulkanBindingDescription(&bindingInfo, &bindingDesc);
 
-		SEVulkanAttributeDescription attribDesc{};
 		SEVulkanAttributeInfo attribInfo[2]{};
 		attribInfo[0].binding = 0;
 		attribInfo[0].location = 0;
@@ -82,7 +79,6 @@ public:
 		attribInfo[1].location = 1;
 		attribInfo[1].format = SE_FORMAT_R32G32B32A32_FLOAT;
 		attribInfo[1].offset = 16;
-		CreateVulkanAttributeDescription(attribInfo, &attribDesc, 2);
 
 		SEVulkanPipleineInfo pipelineInfo{};
 		pipelineInfo.topology = TRIANGLE_LIST;
@@ -92,8 +88,8 @@ public:
 		pipelineInfo.shaders[0] = gVertexShader;
 		pipelineInfo.shaders[1] = gPixelShader;
 		pipelineInfo.swapChainFormat = gSwapChain.format;
-		pipelineInfo.bindingDesc = bindingDesc;
-		pipelineInfo.attributeDesc = &attribDesc;
+		pipelineInfo.bindingInfo = bindingInfo;
+		pipelineInfo.attributeInfo = attribInfo;
 
 		CreateVulkanPipeline(&gVulkan, &pipelineInfo, &gPipeline);
 

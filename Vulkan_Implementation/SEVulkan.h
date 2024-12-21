@@ -173,13 +173,6 @@ struct SEVulkanVertexBindingInfo
 	SEVulkanInputRate inputRate;
 };
 
-struct SEVulkanBindingDesc
-{
-	VkVertexInputBindingDescription bindingDesc;
-};
-
-void CreateVulkanBindingDescription(SEVulkanVertexBindingInfo* bindingInfo, SEVulkanBindingDesc* desc);
-
 struct SEVulkanAttributeInfo
 {
 	uint32_t binding;
@@ -187,13 +180,6 @@ struct SEVulkanAttributeInfo
 	SEFormat format;
 	uint32_t offset;
 };
-
-struct SEVulkanAttributeDescription
-{
-	VkVertexInputAttributeDescription attribDesc[8];
-};
-
-void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, SEVulkanAttributeDescription* desc, uint32_t numDesc);
 
 struct SEVulkanPipleineInfo
 {
@@ -210,9 +196,9 @@ struct SEVulkanPipleineInfo
 
 	VkFormat swapChainFormat;
 
-	SEVulkanBindingDesc bindingDesc;
-	SEVulkanAttributeDescription* attributeDesc;
-	uint32_t numAttributeDescs;
+	SEVulkanVertexBindingInfo bindingInfo;
+	SEVulkanAttributeInfo* attributeInfo;
+	uint32_t numAttributeInfos;
 };
 
 struct SEVulkanPipeline
@@ -333,3 +319,24 @@ void VulkanWaitDeviceIdle(SEVulkan* vulk);
 void VulkanWaitQueueIdle(SEVulkanQueue* queue);
 
 void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapChain, SEVulkanPipeline* pipeline);
+
+enum SEVulkanBufferUsageFlags
+{
+	VERTEX_BUFFER
+};
+
+struct SEVulkanBufferInfo
+{
+	uint32_t size;
+	SEVulkanBufferUsageFlags usage;
+
+};
+
+struct SEVulkanBuffer
+{
+	VkBuffer buffer;
+};
+
+void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer);
+
+void DestroyVulkanBuffer(SEVulkan* vulk, SEVulkanBuffer* buffer);

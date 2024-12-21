@@ -794,25 +794,27 @@ void CreateRenderPass(SEVulkan* vulk, SEVulkanPipeline* pipeline, VkFormat forma
 	ExitIfFailed(vkCreateRenderPass(vulk->logicalDevice, &renderPassInfo, nullptr, &pipeline->renderPass));
 }
 
-void CreateVulkanBindingDescription(SEVulkanVertexBindingInfo* bindingInfo, SEVulkanBindingDesc* desc)
+void CreateVulkanBindingDescription(SEVulkanVertexBindingInfo* bindingInfo, VkVertexInputBindingDescription* desc)
 {
-	VkVertexInputBindingDescription bindingDescription{};
-	bindingDescription.binding = bindingInfo->binding;
-	bindingDescription.stride = bindingInfo->stride;
+	desc->binding = bindingInfo->binding;
+	desc->stride = bindingInfo->stride;
 
 	switch (bindingInfo->inputRate)
 	{
 	case SE_PER_VERTEX:
-		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		desc->inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		break;
 
 	case SE_PER_INSTANCE:
-		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+		desc->inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 		break;
 	}
-
-	desc->bindingDesc = bindingDescription;
 }
+
+struct SEVulkanAttributeDescription
+{
+	VkVertexInputAttributeDescription attribDesc[8];
+};
 
 void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, SEVulkanAttributeDescription* desc, uint32_t numDesc)
 {
@@ -828,20 +830,28 @@ void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, SEVulka
 	}
 }
 
-void CreateVertexDescriptions(SEVulkanPipleineInfo* pipelineInfo, VkPipelineVertexInputStateCreateInfo* createInfo)
+void CreateVertexDescriptions(SEVulkanPipleineInfo* pipelineInfo, 
+	VkVertexInputBindingDescription* bindingDesc, SEVulkanAttributeDescription* attribDesc,
+	VkPipelineVertexInputStateCreateInfo* createInfo)
 {
+	CreateVulkanBindingDescription(&pipelineInfo->bindingInfo, bindingDesc);
+
+	CreateVulkanAttributeDescription(pipelineInfo->attributeInfo, attribDesc, pipelineInfo->numAttributeInfos);
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.pVertexBindingDescriptions = &pipelineInfo->bindingDesc.bindingDesc;
-	vertexInputInfo.vertexAttributeDescriptionCount = pipelineInfo->numAttributeDescs;
-	vertexInputInfo.pVertexAttributeDescriptions = pipelineInfo->attributeDesc->attribDesc;
+	createInfo->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	createInfo->vertexBindingDescriptionCount = 1;
+	createInfo->pVertexBindingDescriptions = bindingDesc;
+	createInfo->vertexAttributeDescriptionCount = pipelineInfo->numAttributeInfos;
+	createInfo->pVertexAttributeDescriptions = attribDesc->attribDesc;
 }
 
 void CreateVulkanPipeline(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPipeline* pipeline)
 {
+	VkVertexInputBindingDescription bindingDesc{};
+	SEVulkanAttributeDescription attribDesc{};
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-	CreateVertexDescriptions(info, &vertexInputInfo);
+	CreateVertexDescriptions(info, &bindingDesc, &attribDesc, &vertexInputInfo);
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
 	CreateInputAssemblyInfo(info, &inputAssemblyInfo);
@@ -1182,4 +1192,31 @@ void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapCha
 	CreateVulkanSwapChain(vulk, window, swapChain);
 
 	CreateVulkanFrameBuffer(vulk, swapChain, &pipeline->renderPass);
+}
+
+void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer)
+{
+	VkBufferCreateInfo bufferCreateInfo{};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.pNext = nullptr;
+	bufferCreateInfo.flags = 0;
+	bufferCreateInfo.size = bufferInfo->size;
+
+	switch (bufferInfo->usage)
+	{
+	case VERTEX_BUFFER:
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		break;
+	}
+
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	bufferCreateInfo.queueFamilyIndexCount = 0;
+	bufferCreateInfo.pQueueFamilyIndices = nullptr;
+
+	ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &buffer->buffer));
+}
+
+void DestroyVulkanBuffer(SEVulkan* vulk, SEVulkanBuffer* buffer)
+{
+	vkDestroyBuffer(vulk->logicalDevice, buffer->buffer, nullptr);
 }
