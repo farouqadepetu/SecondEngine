@@ -1,4 +1,5 @@
 #include "SEApp.h"
+#include "SEVulkan.h"
 #include "math_header.h"
 
 SEWindow gMainWindow;
@@ -22,6 +23,7 @@ SEVulkanSemaphore gRenderFinishedSemaphores[gNumFrames];
 SEVulkanFence gFences[gNumFrames];
 
 SEVulkanBuffer gVertexBuffer;
+SEVulkanBuffer gIndexBuffer;
 
 uint32_t gCurrentFrame = 0;
 
@@ -37,6 +39,16 @@ const Vertex triangleVertices[3] =
 	{{vec4(0.5f, 0.5f, 0.0f, 1.0f)}, {vec4(0.0f, 1.0f, 0.0f, 1.0f)}},
 	{{vec4(-0.5f, 0.5f, 0.0f, 1.0f)}, {vec4(0.0f, 0.0f, 1.0f, 1.0f)}}
 };
+
+const Vertex quadVertices[4] =
+{
+	{{vec4(-0.5f, -0.5f, 0.0f, 1.0f)}, {vec4(1.0f, 0.0f, 0.0f, 1.0f)}},
+	{{vec4(0.5f, -0.5f, 0.0f, 1.0f)}, {vec4(0.0f, 1.0f, 0.0f, 1.0f)}},
+	{{vec4(0.5f, 0.5f, 0.0f, 1.0f)}, {vec4(0.0f, 0.0f, 1.0f, 1.0f)}},
+	{{vec4(-0.5f, 0.5f, 0.0f, 1.0f)}, {vec4(1.0f, 1.0f, 1.0f, 1.0f)}}
+};
+
+const uint32_t quadIndices[6] = { 0, 1, 2, 2, 3, 0 };
 
 void OnResize()
 {
@@ -67,16 +79,20 @@ public:
 		CreateVulkanShader(&gVulkan, "triangle_ps.spv", PIXEL, &gPixelShader);
 
 		SEVulkanBufferInfo vbInfo{};
-		vbInfo.size = 3 * sizeof(Vertex);
+		vbInfo.size = 4 * sizeof(Vertex);
 		vbInfo.type = SE_VERTEX_BUFFER;
-		vbInfo.access = SE_CPU_GPU;
+		vbInfo.access = SE_GPU;
+		vbInfo.data = (void*)quadVertices;
 
 		CreateVulkanBuffer(&gVulkan, &vbInfo, &gVertexBuffer);
 
-		void* data = nullptr;
-		MapMemory(&gVulkan, &gVertexBuffer, 0, vbInfo.size, &data);
-		memcpy(data, triangleVertices, vbInfo.size);
-		UnmapMemory(&gVulkan, &gVertexBuffer);
+		SEVulkanBufferInfo ibInfo{};
+		ibInfo.size = 6 * sizeof(uint32_t);
+		ibInfo.type = SE_INDEX_BUFFER;
+		ibInfo.access = SE_GPU;
+		ibInfo.data = (void*)quadIndices;
+
+		CreateVulkanBuffer(&gVulkan, &ibInfo, &gIndexBuffer);
 
 		SEVulkanVertexBindingInfo bindingInfo{};
 		bindingInfo.binding = 0;
@@ -138,6 +154,7 @@ public:
 		DestroyVulkanCommandPool(&gVulkan, &gCommandPool);
 
 		DestroyVulkanPipeline(&gVulkan, &gPipeline);
+		DestroyVulkanBuffer(&gVulkan, &gIndexBuffer);
 		DestroyVulkanBuffer(&gVulkan, &gVertexBuffer);
 		DestroyVulkanShader(&gVulkan, &gVertexShader);
 		DestroyVulkanShader(&gVulkan, &gPixelShader);
@@ -185,8 +202,9 @@ public:
 		VulkanSetScissor(&gCommandBuffers[gCurrentFrame], &scissorInfo);
 
 		VulkanBindBuffer(&gCommandBuffers[gCurrentFrame], 0, &gVertexBuffer, 0, SE_VERTEX_BUFFER);
+		VulkanBindBuffer(&gCommandBuffers[gCurrentFrame], 0, &gIndexBuffer, 0, SE_INDEX_BUFFER);
 
-		VulkanDraw(&gCommandBuffers[gCurrentFrame], 3, 1, 0, 0);
+		VulkanDrawIndexed(&gCommandBuffers[gCurrentFrame], 6, 1, 0, 0, 0);
 
 		VulkanEndCommandBuffer(&gCommandBuffers[gCurrentFrame]);
 

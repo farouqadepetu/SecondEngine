@@ -1,3 +1,4 @@
+#define VMA_IMPLEMENTATION
 #include "SEVulkan.h"
 
 //DEBUG 
@@ -219,15 +220,19 @@ void CreatePhysicalDevice(SEVulkan* vulk)
 		}
 	}
 
-	MessageBox(nullptr, L"Couldn't find a discrete gpu. Exiting Program!", L"No discrete GPU found.", MB_OK);
+	MessageBox(nullptr, L"Couldn't find a discrete gpu. Exiting Program.", L"No discrete GPU found.", MB_OK);
 	ExitProcess(2);
 }
+
+#define GRAPHICS_FAM_INDEX 0
+#define TRANSFER_FAM_INDEX 1
+#define COMPUTE_FAM_INDEX 2
 
 void FindQueueFamilies(SEVulkan* vulk)
 {
 	bool graphicsFam = false;
 	bool computeFam = false;
-	VkBool32 presentSupport = false;
+	bool transferFam = false;
 
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(vulk->physicalDevice, &queueFamilyCount, nullptr);
@@ -237,24 +242,42 @@ void FindQueueFamilies(SEVulkan* vulk)
 
 	for (uint32_t i = 0; i < queueFamilyCount; ++i)
 	{
+		std::string qFam = "Index i = " + std::to_string(i) + " the queue family flags = "
+			+ std::to_string(queueFamilies[i].queueFlags) + "\n";
+		OutputDebugStringA(qFam.c_str());
+
 		//Looking for a queue family that supports graphics
-		if ((queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-			&& (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
+		if ((queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
 		{
+			qFam = "Graphics queue family index = " + std::to_string(i) + "\n";
+			OutputDebugStringA(qFam.c_str());
 			graphicsFam = true;
-			vulk->graphicsFamilyIndex = i;
+			vulk->familyIndices[GRAPHICS_FAM_INDEX] = i;
 		}
 
-		//Looking for a queue that supports compute only (a dedicated compute queue)
-		else if ((queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-			&& (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
+		//Looking for a queue family that supports compute only (a dedicated compute queue)
+		else if ((queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && 
+			(queueFamilies[i].queueFlags & ~VK_QUEUE_GRAPHICS_BIT))
 		{
-			vulk->computeFamilyIndex = i;
+			qFam = "Compute queue family index = " + std::to_string(i) + "\n";
+			OutputDebugStringA(qFam.c_str());
+			vulk->familyIndices[COMPUTE_FAM_INDEX] = i;
 			computeFam = true;
+		}
+
+		//Looking for a queue family that supports transfer only
+		else if ((queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) &&
+			(queueFamilies[i].queueFlags & ~VK_QUEUE_GRAPHICS_BIT) && 
+			(queueFamilies[i].queueFlags & ~VK_QUEUE_COMPUTE_BIT))
+		{
+			qFam = "Transfer queue family index = " + std::to_string(i) + "\n";
+			OutputDebugStringA(qFam.c_str());
+			vulk->familyIndices[TRANSFER_FAM_INDEX] = i;
+			transferFam = true;
 		}
 	}
 
-	if (!(graphicsFam && computeFam))
+	if (!(graphicsFam && computeFam && transferFam))
 	{
 		MessageBox(nullptr, L"Not all queue families are supported. Exiting Program.", L"All necessary queue families not found.", MB_OK);
 		free(queueFamilies);
@@ -266,7 +289,7 @@ void FindQueueFamilies(SEVulkan* vulk)
 
 void CreateLogicalDevice(SEVulkan* vulk)
 {
-	VkDeviceQueueCreateInfo* queueCreateInfos = (VkDeviceQueueCreateInfo*)calloc(2, sizeof(VkDeviceQueueCreateInfo));
+	VkDeviceQueueCreateInfo* queueCreateInfos = (VkDeviceQueueCreateInfo*)calloc(3, sizeof(VkDeviceQueueCreateInfo));
 
 	float queuePrio = 1.0f;
 
@@ -274,7 +297,7 @@ void CreateLogicalDevice(SEVulkan* vulk)
 	queueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	queueCreateInfos[0].pNext = nullptr;
 	//queueCreateInfos[0].flags = 0;
-	queueCreateInfos[0].queueFamilyIndex = vulk->graphicsFamilyIndex;
+	queueCreateInfos[0].queueFamilyIndex = vulk->familyIndices[GRAPHICS_FAM_INDEX];
 	queueCreateInfos[0].queueCount = 1;
 	queueCreateInfos[0].pQueuePriorities = &queuePrio;
 
@@ -282,9 +305,17 @@ void CreateLogicalDevice(SEVulkan* vulk)
 	queueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	queueCreateInfos[1].pNext = nullptr;
 	//queueCreateInfos[1].flags = 0;
-	queueCreateInfos[1].queueFamilyIndex = vulk->computeFamilyIndex;
+	queueCreateInfos[1].queueFamilyIndex = vulk->familyIndices[COMPUTE_FAM_INDEX];
 	queueCreateInfos[1].queueCount = 1;
 	queueCreateInfos[1].pQueuePriorities = &queuePrio;
+
+	//Dedicated transfer queue
+	queueCreateInfos[2].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfos[2].pNext = nullptr;
+	//queueCreateInfos[2].flags = 0;
+	queueCreateInfos[2].queueFamilyIndex = vulk->familyIndices[TRANSFER_FAM_INDEX];
+	queueCreateInfos[2].queueCount = 1;
+	queueCreateInfos[2].pQueuePriorities = &queuePrio;
 
 	//NEED TO DO LATER
 	VkPhysicalDeviceFeatures deviceFeatures{};
@@ -300,7 +331,7 @@ void CreateLogicalDevice(SEVulkan* vulk)
 	VkDeviceCreateInfo deviceCreateInfo{};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceCreateInfo.pNext = nullptr;
-	deviceCreateInfo.queueCreateInfoCount = 2;
+	deviceCreateInfo.queueCreateInfoCount = 3;
 	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
 	deviceCreateInfo.enabledExtensionCount = 1;
 	deviceCreateInfo.ppEnabledExtensionNames = extensions;
@@ -323,6 +354,62 @@ void CreateSurface(SEVulkan* vulk, SEWindow* window)
 	ExitIfFailed(vkCreateWin32SurfaceKHR(vulk->instance, &surfaceInfo, nullptr, &vulk->surface));
 }
 
+void InitVma(SEVulkan* vulk)
+{
+
+	VmaAllocatorCreateInfo allocatorCreateInfo = {};
+	allocatorCreateInfo.flags = 0;
+	allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+	allocatorCreateInfo.physicalDevice = vulk->physicalDevice;
+	allocatorCreateInfo.device = vulk->logicalDevice;
+	allocatorCreateInfo.instance = vulk->instance;
+
+	vmaCreateAllocator(&allocatorCreateInfo, &vulk->allocator);
+}
+
+void DestroyVma(SEVulkan* vulk)
+{
+	vmaDestroyAllocator(vulk->allocator);
+}
+
+struct VulkanCopyEngine
+{
+	VkQueue transferQueue;
+	VkCommandPool commandPool;
+	VkCommandBuffer commandBuffer;
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	VmaAllocation stagingBufferAllocation;
+}gVulkanCopyEngine;
+
+void InitCopyEngine(SEVulkan* vulk)
+{
+	vkGetDeviceQueue(vulk->logicalDevice, vulk->familyIndices[TRANSFER_FAM_INDEX], 0, &gVulkanCopyEngine.transferQueue);
+
+	VkCommandPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.pNext = nullptr;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = vulk->familyIndices[TRANSFER_FAM_INDEX];
+
+	ExitIfFailed(vkCreateCommandPool(vulk->logicalDevice, &poolInfo, nullptr, &gVulkanCopyEngine.commandPool));
+
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.pNext = nullptr;
+	allocInfo.commandPool = gVulkanCopyEngine.commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = 1;
+
+	ExitIfFailed(vkAllocateCommandBuffers(vulk->logicalDevice, &allocInfo, &gVulkanCopyEngine.commandBuffer));
+}
+
+void DestroyCopyEngine(SEVulkan* vulk)
+{
+	vkDestroyCommandPool(vulk->logicalDevice, gVulkanCopyEngine.commandPool, nullptr);
+}
+
+
 void InitVulkan(SEVulkan* vulk, SEWindow* window, const char* appName)
 {
 	CreateInstance(vulk, appName);
@@ -339,10 +426,18 @@ void InitVulkan(SEVulkan* vulk, SEWindow* window, const char* appName)
 	FindQueueFamilies(vulk);
 
 	CreateLogicalDevice(vulk);
+
+	InitVma(vulk);
+
+	InitCopyEngine(vulk);
 }
 
 void DestroyVulkan(SEVulkan* vulk)
 {
+	DestroyCopyEngine(vulk);
+
+	DestroyVma(vulk);
+
 	vkDestroyDevice(vulk->logicalDevice, nullptr);
 
 	if (vulk->enableValidationLayers)
@@ -360,11 +455,11 @@ void GetQueueHandle(const SEVulkan* vulk, const SEVulkanQueueInfo* queueInfo, SE
 	switch (queueInfo->queueType)
 	{
 	case GRAPHICS_QUEUE:
-		vkGetDeviceQueue(vulk->logicalDevice, vulk->graphicsFamilyIndex, queueInfo->index, &queue->queue);
+		vkGetDeviceQueue(vulk->logicalDevice, vulk->familyIndices[GRAPHICS_FAM_INDEX], queueInfo->index, &queue->queue);
 		return;
 
 	case COMPUTE_QUEUE:
-		vkGetDeviceQueue(vulk->logicalDevice, vulk->computeFamilyIndex, queueInfo->index, &queue->queue);
+		vkGetDeviceQueue(vulk->logicalDevice, vulk->familyIndices[COMPUTE_FAM_INDEX], queueInfo->index, &queue->queue);
 		return;
 	}
 }
@@ -976,11 +1071,11 @@ void CreateVulkanCommandPool(SEVulkan* vulk, SEVulkanCommandPool* commandPool, S
 	switch (queueType)
 	{
 	case GRAPHICS_QUEUE:
-		poolInfo.queueFamilyIndex = vulk->graphicsFamilyIndex;
+		poolInfo.queueFamilyIndex = vulk->familyIndices[GRAPHICS_FAM_INDEX];
 		break;
 
 	case COMPUTE_QUEUE:
-		poolInfo.queueFamilyIndex = vulk->computeFamilyIndex;
+		poolInfo.queueFamilyIndex = vulk->familyIndices[COMPUTE_FAM_INDEX];
 		break;
 	}
 
@@ -1081,6 +1176,12 @@ void VulkanDraw(SEVulkanCommandBuffer* commandBuffer, uint32_t vertexCount,
 	uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
 	vkCmdDraw(commandBuffer->commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+void VulkanDrawIndexed(SEVulkanCommandBuffer* commandBuffer, uint32_t indexCount,
+	uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance)
+{
+	vkCmdDrawIndexed(commandBuffer->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
 void VulkanEndCommandBuffer(SEVulkanCommandBuffer* commandBuffer)
@@ -1187,6 +1288,8 @@ void VulkanWaitQueueIdle(SEVulkanQueue* queue)
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------
 
+//RESIZE
+//-------------------------------------------------------------------------------------------------------------------------------------------
 void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapChain, SEVulkanPipeline* pipeline)
 {
 	if (vulk->instance == nullptr)
@@ -1200,13 +1303,16 @@ void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapCha
 
 	CreateVulkanFrameBuffer(vulk, swapChain, &pipeline->renderPass);
 }
+//-------------------------------------------------------------------------------------------------------------------------------------------
 
+//BUFFERS
+//-------------------------------------------------------------------------------------------------------------------------------------------
 uint32_t FindMemoryType(SEVulkan* vulk, uint32_t typeFilter, VkMemoryPropertyFlags requestedMemoryType)
 {
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(vulk->physicalDevice, &memProperties);
 
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) 
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
 	{
 		if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & requestedMemoryType) == requestedMemoryType)
 		{
@@ -1220,27 +1326,8 @@ uint32_t FindMemoryType(SEVulkan* vulk, uint32_t typeFilter, VkMemoryPropertyFla
 	ExitProcess(2);
 }
 
-void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer)
+/*void VulkanAllocateMemory(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer)
 {
-	VkBufferCreateInfo bufferCreateInfo{};
-	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferCreateInfo.pNext = nullptr;
-	bufferCreateInfo.flags = 0;
-	bufferCreateInfo.size = bufferInfo->size;
-
-	switch (bufferInfo->type)
-	{
-	case SE_VERTEX_BUFFER:
-		bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-		break;
-	}
-
-	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	bufferCreateInfo.queueFamilyIndexCount = 0;
-	bufferCreateInfo.pQueueFamilyIndices = nullptr;
-
-	ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &buffer->buffer));
-
 	VkMemoryRequirements memRequirements;
 	vkGetBufferMemoryRequirements(vulk->logicalDevice, buffer->buffer, &memRequirements);
 
@@ -1255,31 +1342,167 @@ void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkan
 		memFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		break;
 	case SE_CPU_GPU:
-		memFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+		memFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		break;
 	}
-	memFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	allocInfo.memoryTypeIndex = FindMemoryType(vulk, memRequirements.memoryTypeBits, memFlags);
 
 	ExitIfFailed(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &buffer->memory));
 
-	ExitIfFailed(vkBindBufferMemory(vulk->logicalDevice, buffer->buffer, buffer->memory, 0));
+}*/
+void VulkanCreateStagingBuffer(SEVulkan* vulk, void* srcData, VkDeviceSize size)
+{
+	VkBufferCreateInfo bufferCreateInfo{};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.pNext = nullptr;
+	bufferCreateInfo.flags = 0;
+	bufferCreateInfo.size = size;
+	bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+	bufferCreateInfo.queueFamilyIndexCount = 3;
+	bufferCreateInfo.pQueueFamilyIndices = vulk->familyIndices;
+
+	/*ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &gVulkanCopyEngine.stagingBuffer));
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(vulk->logicalDevice, gVulkanCopyEngine.stagingBuffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = FindMemoryType(vulk, memRequirements.memoryTypeBits,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	ExitIfFailed(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &gVulkanCopyEngine.stagingBufferMemory));
+
+	ExitIfFailed(vkBindBufferMemory(vulk->logicalDevice, gVulkanCopyEngine.stagingBuffer,
+		gVulkanCopyEngine.stagingBufferMemory, 0));*/
+
+	VmaAllocationCreateInfo allocCreateInfo = {};
+	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+	vmaCreateBuffer(vulk->allocator, &bufferCreateInfo, &allocCreateInfo, &gVulkanCopyEngine.stagingBuffer,
+		&gVulkanCopyEngine.stagingBufferAllocation, nullptr);
+
+	void* data = nullptr;
+	vkMapMemory(vulk->logicalDevice, gVulkanCopyEngine.stagingBufferAllocation->GetMemory(), 0, size, 0, &data);
+	memcpy(data, srcData, size);
+	vkUnmapMemory(vulk->logicalDevice, gVulkanCopyEngine.stagingBufferAllocation->GetMemory());
+}
+
+void VulkanDestroyStagingBuffer(SEVulkan* vulk)
+{
+	vmaDestroyBuffer(vulk->allocator, gVulkanCopyEngine.stagingBuffer, gVulkanCopyEngine.stagingBufferAllocation);
+
+	//vkDestroyBuffer(vulk->logicalDevice, gVulkanCopyEngine.stagingBuffer, nullptr);
+	//vkFreeMemory(vulk->logicalDevice, gVulkanCopyEngine.stagingBufferMemory, nullptr);
+}
+
+void VulkanCopyBuffer(SEVulkan* vulk, void* srcData, VkBuffer* dstBuffer, VkDeviceSize size)
+{
+	VulkanCreateStagingBuffer(vulk, srcData, size);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.pNext = nullptr;
+	beginInfo.flags = 0;
+	beginInfo.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(gVulkanCopyEngine.commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion{};
+	copyRegion.srcOffset = 0;
+	copyRegion.dstOffset = 0;
+	copyRegion.size = size;
+	vkCmdCopyBuffer(gVulkanCopyEngine.commandBuffer, gVulkanCopyEngine.stagingBuffer, *dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(gVulkanCopyEngine.commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &gVulkanCopyEngine.commandBuffer;
+
+	vkQueueSubmit(gVulkanCopyEngine.transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(gVulkanCopyEngine.transferQueue);
+
+	VulkanDestroyStagingBuffer(vulk);
+}
+
+void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer)
+{
+	bool copyData = false;
+	if (bufferInfo->data && bufferInfo->access == SE_GPU)
+	{
+		copyData = true;
+	}
+
+	VkBufferCreateInfo bufferCreateInfo{};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.pNext = nullptr;
+	bufferCreateInfo.flags = 0;
+	bufferCreateInfo.size = bufferInfo->size;
+
+	switch (bufferInfo->type)
+	{
+	case SE_VERTEX_BUFFER:
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		break;
+	case SE_INDEX_BUFFER:
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		break;
+	}
+
+	if (copyData)
+		bufferCreateInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+	bufferCreateInfo.queueFamilyIndexCount = 3;
+	bufferCreateInfo.pQueueFamilyIndices = vulk->familyIndices;
+
+	/*ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &buffer->buffer));
+
+	VulkanAllocateMemory(vulk, bufferInfo, buffer);
+
+	ExitIfFailed(vkBindBufferMemory(vulk->logicalDevice, buffer->buffer, buffer->memory, 0));*/
+
+	VmaAllocationCreateInfo allocationInfo{};
+	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+	switch (bufferInfo->access)
+	{
+	case SE_GPU:
+		allocationInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+		break;
+	case SE_CPU_GPU:
+		allocationInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+		break;
+	}
+
+	vmaCreateBuffer(vulk->allocator, &bufferCreateInfo, &allocationInfo, &buffer->buffer, 
+		&buffer->allocation, nullptr);
+
+	if (copyData)
+		VulkanCopyBuffer(vulk, bufferInfo->data, &buffer->buffer, bufferInfo->size);
 }
 
 void DestroyVulkanBuffer(SEVulkan* vulk, SEVulkanBuffer* buffer)
 {
-	vkDestroyBuffer(vulk->logicalDevice, buffer->buffer, nullptr);
-	vkFreeMemory(vulk->logicalDevice, buffer->memory, nullptr);
+	vmaDestroyBuffer(vulk->allocator, buffer->buffer, buffer->allocation);
+
+	//vkDestroyBuffer(vulk->logicalDevice, buffer->buffer, nullptr);
+	//vkFreeMemory(vulk->logicalDevice, buffer->memory, nullptr);
 }
 
-void MapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer, uint32_t offset, uint32_t size, void** data)
+void VulkanMapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer, uint32_t offset, uint32_t size, void** data)
 {
-	vkMapMemory(vulk->logicalDevice, buffer->memory, offset, size, 0, data);
+	vkMapMemory(vulk->logicalDevice, buffer->allocation->GetMemory(), offset, size, 0, data);
 }
 
-void UnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer)
+void VulkanUnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer)
 {
-	vkUnmapMemory(vulk->logicalDevice, buffer->memory);
+	vkUnmapMemory(vulk->logicalDevice, buffer->allocation->GetMemory());
 }
 
 void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLocation,
@@ -1291,5 +1514,10 @@ void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLoca
 	case SE_VERTEX_BUFFER:
 		vkCmdBindVertexBuffers(commandBuffer->commandBuffer, bindingLocation, 1, &buffer->buffer, &offs);
 		break;
+
+	case SE_INDEX_BUFFER:
+		vkCmdBindIndexBuffer(commandBuffer->commandBuffer, buffer->buffer, offs, VK_INDEX_TYPE_UINT32);
+		break;
 	}
 }
+//-------------------------------------------------------------------------------------------------------------------------------------------

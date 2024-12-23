@@ -9,6 +9,8 @@
 #include "SEWindow.h"
 #include "SEFileSystem.h"
 
+#include "vma/vk_mem_alloc.h"
+
 inline std::wstring AnsiToWString(const std::string& str)
 {
 	WCHAR buffer[512];
@@ -46,12 +48,13 @@ struct SEVulkan
 
 	VkPhysicalDevice physicalDevice;
 
-	uint32_t graphicsFamilyIndex;
-	uint32_t computeFamilyIndex;
+	uint32_t familyIndices[3];
 
 	VkDevice logicalDevice;
 
 	VkSurfaceKHR surface;
+
+	VmaAllocator allocator;
 };
 
 
@@ -267,6 +270,9 @@ void VulkanSetScissor(SEVulkanCommandBuffer* commandBuffer, SEScissorInfo* sciss
 void VulkanDraw(SEVulkanCommandBuffer* commandBuffer, uint32_t vertexCount,
 	uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 
+void VulkanDrawIndexed(SEVulkanCommandBuffer* commandBuffer, uint32_t indexCount,
+	uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance);
+
 void VulkanEndCommandBuffer(SEVulkanCommandBuffer* commandBuffer);
 
 
@@ -324,7 +330,8 @@ void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapCha
 
 enum SEVulkanBufferType
 {
-	SE_VERTEX_BUFFER
+	SE_VERTEX_BUFFER,
+	SE_INDEX_BUFFER
 };
 
 enum SEVulkanAccessFlags
@@ -338,21 +345,24 @@ struct SEVulkanBufferInfo
 	uint32_t size;
 	SEVulkanBufferType type;
 	SEVulkanAccessFlags access;
+
+	//Will only copy data when creating the buffer if access = SE_GPU
+	void* data;
 };
 
 struct SEVulkanBuffer
 {
 	VkBuffer buffer;
-	VkDeviceMemory memory;
+	VmaAllocation allocation;
 };
 
 void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer);
 
 void DestroyVulkanBuffer(SEVulkan* vulk, SEVulkanBuffer* buffer);
 
-void MapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer, uint32_t offset, uint32_t size, void** data);
+void VulkanMapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer, uint32_t offset, uint32_t size, void** data);
 
-void UnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer);
+void VulkanUnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer);
 
 void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLocation,
 	SEVulkanBuffer* buffer, uint32_t offset, SEVulkanBufferType bufferType);

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "SEVulkan.h"
-
 bool gAppPaused = false;
 
 class App
