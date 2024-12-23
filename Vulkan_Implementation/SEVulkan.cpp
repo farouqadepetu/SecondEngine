@@ -202,13 +202,25 @@ void CreatePhysicalDevice(SEVulkan* vulk)
 		ExitProcess(2);
 	}
 
-	deviceCount = 1;
-	vkEnumeratePhysicalDevices(vulk->instance, &deviceCount, &vulk->physicalDevice);
+	VkPhysicalDevice* device = (VkPhysicalDevice*)calloc(deviceCount, sizeof(VkPhysicalDevice));
+	vkEnumeratePhysicalDevices(vulk->instance, &deviceCount, device);
 
-	/*VkPhysicalDeviceProperties deviceProperties;
-	VkPhysicalDeviceFeatures deviceFeatures;
-	vkGetPhysicalDeviceProperties(*device, &deviceProperties);
-	vkGetPhysicalDeviceFeatures(*device, &deviceFeatures);*/
+	for (uint32_t i = 0; i < deviceCount; ++i)
+	{
+		VkPhysicalDeviceProperties deviceProperties;
+		VkPhysicalDeviceFeatures deviceFeatures;
+		vkGetPhysicalDeviceProperties(device[i], &deviceProperties);
+		vkGetPhysicalDeviceFeatures(device[i], &deviceFeatures);
+
+		if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		{
+			vulk->physicalDevice = device[i];
+			return;
+		}
+	}
+
+	MessageBox(nullptr, L"Couldn't find a discrete gpu. Exiting Program!", L"No discrete GPU found.", MB_OK);
+	ExitProcess(2);
 }
 
 void FindQueueFamilies(SEVulkan* vulk)
@@ -811,14 +823,9 @@ void CreateVulkanBindingDescription(SEVulkanVertexBindingInfo* bindingInfo, VkVe
 	}
 }
 
-struct SEVulkanAttributeDescription
+void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, VkVertexInputAttributeDescription* desc, uint32_t numInfos)
 {
-	VkVertexInputAttributeDescription attribDesc[8];
-};
-
-void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, SEVulkanAttributeDescription* desc, uint32_t numDesc)
-{
-	for (uint32_t i = 0; i < numDesc; ++i)
+	for (uint32_t i = 0; i < numInfos; ++i)
 	{
 		VkVertexInputAttributeDescription attribDesc{};
 		attribDesc.binding = attribInfo[i].binding;
@@ -826,32 +833,32 @@ void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, SEVulka
 		attribDesc.format = GetVulkanFormat(attribInfo[i].format);
 		attribDesc.offset = attribInfo[i].offset;
 
-		desc->attribDesc[i] = attribDesc;
+		desc[i] = attribDesc;
 	}
 }
 
 void CreateVertexDescriptions(SEVulkanPipleineInfo* pipelineInfo, 
-	VkVertexInputBindingDescription* bindingDesc, SEVulkanAttributeDescription* attribDesc,
+	VkVertexInputBindingDescription* bindingDesc, VkVertexInputAttributeDescription* attribDesc,
 	VkPipelineVertexInputStateCreateInfo* createInfo)
 {
 	CreateVulkanBindingDescription(&pipelineInfo->bindingInfo, bindingDesc);
 
-	CreateVulkanAttributeDescription(pipelineInfo->attributeInfo, attribDesc, pipelineInfo->numAttributeInfos);
+	CreateVulkanAttributeDescription(pipelineInfo->attributeInfo, attribDesc, pipelineInfo->numAttributes);
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	createInfo->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	createInfo->vertexBindingDescriptionCount = 1;
 	createInfo->pVertexBindingDescriptions = bindingDesc;
-	createInfo->vertexAttributeDescriptionCount = pipelineInfo->numAttributeInfos;
-	createInfo->pVertexAttributeDescriptions = attribDesc->attribDesc;
+	createInfo->vertexAttributeDescriptionCount = pipelineInfo->numAttributes;
+	createInfo->pVertexAttributeDescriptions = attribDesc;
 }
 
 void CreateVulkanPipeline(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPipeline* pipeline)
 {
 	VkVertexInputBindingDescription bindingDesc{};
-	SEVulkanAttributeDescription attribDesc{};
+	VkVertexInputAttributeDescription attribDesc[NUM_ATTRIBUTES]{};
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-	CreateVertexDescriptions(info, &bindingDesc, &attribDesc, &vertexInputInfo);
+	CreateVertexDescriptions(info, &bindingDesc, attribDesc, &vertexInputInfo);
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
 	CreateInputAssemblyInfo(info, &inputAssemblyInfo);
@@ -1194,6 +1201,25 @@ void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapCha
 	CreateVulkanFrameBuffer(vulk, swapChain, &pipeline->renderPass);
 }
 
+uint32_t FindMemoryType(SEVulkan* vulk, uint32_t typeFilter, VkMemoryPropertyFlags requestedMemoryType)
+{
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(vulk->physicalDevice, &memProperties);
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) 
+	{
+		if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & requestedMemoryType) == requestedMemoryType)
+		{
+			return i;
+		}
+	}
+
+	MessageBox(nullptr, L"Buffer does not support requested memory or the requested memory type is not supported by the GPU."
+		"Exiting Prorgam!",
+		L"Requested Memory Type Error.", MB_OK);
+	ExitProcess(2);
+}
+
 void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer)
 {
 	VkBufferCreateInfo bufferCreateInfo{};
@@ -1202,9 +1228,9 @@ void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkan
 	bufferCreateInfo.flags = 0;
 	bufferCreateInfo.size = bufferInfo->size;
 
-	switch (bufferInfo->usage)
+	switch (bufferInfo->type)
 	{
-	case VERTEX_BUFFER:
+	case SE_VERTEX_BUFFER:
 		bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 		break;
 	}
@@ -1214,9 +1240,56 @@ void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkan
 	bufferCreateInfo.pQueueFamilyIndices = nullptr;
 
 	ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &buffer->buffer));
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(vulk->logicalDevice, buffer->buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+
+	VkMemoryPropertyFlags memFlags{};
+	switch (bufferInfo->access)
+	{
+	case SE_GPU:
+		memFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		break;
+	case SE_CPU_GPU:
+		memFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+		break;
+	}
+	memFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	allocInfo.memoryTypeIndex = FindMemoryType(vulk, memRequirements.memoryTypeBits, memFlags);
+
+	ExitIfFailed(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &buffer->memory));
+
+	ExitIfFailed(vkBindBufferMemory(vulk->logicalDevice, buffer->buffer, buffer->memory, 0));
 }
 
 void DestroyVulkanBuffer(SEVulkan* vulk, SEVulkanBuffer* buffer)
 {
 	vkDestroyBuffer(vulk->logicalDevice, buffer->buffer, nullptr);
+	vkFreeMemory(vulk->logicalDevice, buffer->memory, nullptr);
+}
+
+void MapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer, uint32_t offset, uint32_t size, void** data)
+{
+	vkMapMemory(vulk->logicalDevice, buffer->memory, offset, size, 0, data);
+}
+
+void UnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer)
+{
+	vkUnmapMemory(vulk->logicalDevice, buffer->memory);
+}
+
+void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLocation,
+	SEVulkanBuffer* buffer, uint32_t offset, SEVulkanBufferType bufferType)
+{
+	VkDeviceSize offs = offset;
+	switch (bufferType)
+	{
+	case SE_VERTEX_BUFFER:
+		vkCmdBindVertexBuffers(commandBuffer->commandBuffer, bindingLocation, 1, &buffer->buffer, &offs);
+		break;
+	}
 }

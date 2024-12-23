@@ -21,6 +21,8 @@ SEVulkanSemaphore gImageAvailableSemaphores[gNumFrames];
 SEVulkanSemaphore gRenderFinishedSemaphores[gNumFrames];
 SEVulkanFence gFences[gNumFrames];
 
+SEVulkanBuffer gVertexBuffer;
+
 uint32_t gCurrentFrame = 0;
 
 struct Vertex
@@ -64,6 +66,18 @@ public:
 		CreateVulkanShader(&gVulkan, "triangle_vs.spv", VERTEX, &gVertexShader);
 		CreateVulkanShader(&gVulkan, "triangle_ps.spv", PIXEL, &gPixelShader);
 
+		SEVulkanBufferInfo vbInfo{};
+		vbInfo.size = 3 * sizeof(Vertex);
+		vbInfo.type = SE_VERTEX_BUFFER;
+		vbInfo.access = SE_CPU_GPU;
+
+		CreateVulkanBuffer(&gVulkan, &vbInfo, &gVertexBuffer);
+
+		void* data = nullptr;
+		MapMemory(&gVulkan, &gVertexBuffer, 0, vbInfo.size, &data);
+		memcpy(data, triangleVertices, vbInfo.size);
+		UnmapMemory(&gVulkan, &gVertexBuffer);
+
 		SEVulkanVertexBindingInfo bindingInfo{};
 		bindingInfo.binding = 0;
 		bindingInfo.stride = sizeof(Vertex);
@@ -89,7 +103,9 @@ public:
 		pipelineInfo.shaders[1] = gPixelShader;
 		pipelineInfo.swapChainFormat = gSwapChain.format;
 		pipelineInfo.bindingInfo = bindingInfo;
-		pipelineInfo.attributeInfo = attribInfo;
+		pipelineInfo.attributeInfo[0] = attribInfo[0];
+		pipelineInfo.attributeInfo[1] = attribInfo[1];
+		pipelineInfo.numAttributes = 2;
 
 		CreateVulkanPipeline(&gVulkan, &pipelineInfo, &gPipeline);
 
@@ -122,6 +138,7 @@ public:
 		DestroyVulkanCommandPool(&gVulkan, &gCommandPool);
 
 		DestroyVulkanPipeline(&gVulkan, &gPipeline);
+		DestroyVulkanBuffer(&gVulkan, &gVertexBuffer);
 		DestroyVulkanShader(&gVulkan, &gVertexShader);
 		DestroyVulkanShader(&gVulkan, &gPixelShader);
 		DestroyVulkanSwapChain(&gVulkan, &gSwapChain);
@@ -166,6 +183,8 @@ public:
 		scissorInfo.width = gSwapChain.extent.width;
 		scissorInfo.height = gSwapChain.extent.height;
 		VulkanSetScissor(&gCommandBuffers[gCurrentFrame], &scissorInfo);
+
+		VulkanBindBuffer(&gCommandBuffers[gCurrentFrame], 0, &gVertexBuffer, 0, SE_VERTEX_BUFFER);
 
 		VulkanDraw(&gCommandBuffers[gCurrentFrame], 3, 1, 0, 0);
 
