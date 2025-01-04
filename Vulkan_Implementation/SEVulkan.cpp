@@ -1,5 +1,6 @@
 #define VMA_IMPLEMENTATION
 #include "SEVulkan.h"
+#include "SEDDSLoader.h"
 
 //DEBUG 
 //-------------------------------------------------------------------------------------------------------------------------------------------
@@ -60,7 +61,7 @@ void SetupDebugMessenger(SEVulkan* vulk)
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 	PopulateDebugMessengerCreateInfo(&debugCreateInfo);
 
-	ExitIfFailed(CreateDebugUtilsMessengerEXT(vulk->instance, &debugCreateInfo, nullptr, &vulk->debugMessenger));
+	VULKAN_ERROR_CHECK(CreateDebugUtilsMessengerEXT(vulk->instance, &debugCreateInfo, nullptr, &vulk->debugMessenger));
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------
@@ -170,7 +171,7 @@ void CreateInstance(SEVulkan* vulk, const char* appName)
 		{
 			MessageBox(nullptr, L"Validation Layers Requested, But Not Available! Exiting Program.", L"Validation Error", MB_OK);
 			free(extNames);
-			ExitProcess(2);
+			exit(2);
 		}
 
 		createInfo.enabledLayerCount = 1;
@@ -187,7 +188,7 @@ void CreateInstance(SEVulkan* vulk, const char* appName)
 		createInfo.ppEnabledLayerNames = nullptr;
 	}
 
-	ExitIfFailed(vkCreateInstance(&createInfo, nullptr, &vulk->instance));
+	VULKAN_ERROR_CHECK(vkCreateInstance(&createInfo, nullptr, &vulk->instance));
 
 	free(extNames);
 	free(extensions);
@@ -200,7 +201,7 @@ void CreatePhysicalDevice(SEVulkan* vulk)
 	if (deviceCount == 0)
 	{
 		MessageBox(nullptr, L"Failed to find any GPUs with Vulkan Support. Exiting Program.", L"No Vulkan Supported GPU Found", MB_OK);
-		ExitProcess(2);
+		exit(2);
 	}
 
 	VkPhysicalDevice* device = (VkPhysicalDevice*)calloc(deviceCount, sizeof(VkPhysicalDevice));
@@ -221,7 +222,7 @@ void CreatePhysicalDevice(SEVulkan* vulk)
 	}
 
 	MessageBox(nullptr, L"Couldn't find a discrete gpu. Exiting Program.", L"No discrete GPU found.", MB_OK);
-	ExitProcess(2);
+	exit(2);
 }
 
 #define GRAPHICS_FAM_INDEX 0
@@ -281,7 +282,7 @@ void FindQueueFamilies(SEVulkan* vulk)
 	{
 		MessageBox(nullptr, L"Not all queue families are supported. Exiting Program.", L"All necessary queue families not found.", MB_OK);
 		free(queueFamilies);
-		ExitProcess(2);
+		exit(2);
 	}
 
 	free(queueFamilies);
@@ -325,7 +326,7 @@ void CreateLogicalDevice(SEVulkan* vulk)
 	{
 		MessageBox(nullptr, L"No swapchain support. Exiting Program.", L"Swapchain error.", MB_OK);
 		free(queueCreateInfos);
-		ExitProcess(2);
+		exit(2);
 	}
 
 	VkDeviceCreateInfo deviceCreateInfo{};
@@ -337,7 +338,7 @@ void CreateLogicalDevice(SEVulkan* vulk)
 	deviceCreateInfo.ppEnabledExtensionNames = extensions;
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 
-	ExitIfFailed(vkCreateDevice(vulk->physicalDevice, &deviceCreateInfo, nullptr, &vulk->logicalDevice));
+	VULKAN_ERROR_CHECK(vkCreateDevice(vulk->physicalDevice, &deviceCreateInfo, nullptr, &vulk->logicalDevice));
 
 	free(queueCreateInfos);
 }
@@ -351,7 +352,7 @@ void CreateSurface(SEVulkan* vulk, SEWindow* window)
 	surfaceInfo.hinstance = GetModuleHandle(nullptr);
 	surfaceInfo.hwnd = window->wndHandle;
 
-	ExitIfFailed(vkCreateWin32SurfaceKHR(vulk->instance, &surfaceInfo, nullptr, &vulk->surface));
+	VULKAN_ERROR_CHECK(vkCreateWin32SurfaceKHR(vulk->instance, &surfaceInfo, nullptr, &vulk->surface));
 }
 
 void InitVma(SEVulkan* vulk)
@@ -392,7 +393,7 @@ void InitCopyEngine(SEVulkan* vulk)
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = vulk->familyIndices[TRANSFER_FAM_INDEX];
 
-	ExitIfFailed(vkCreateCommandPool(vulk->logicalDevice, &poolInfo, nullptr, &gVulkanCopyEngine.commandPool));
+	VULKAN_ERROR_CHECK(vkCreateCommandPool(vulk->logicalDevice, &poolInfo, nullptr, &gVulkanCopyEngine.commandPool));
 
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -401,7 +402,7 @@ void InitCopyEngine(SEVulkan* vulk)
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = 1;
 
-	ExitIfFailed(vkAllocateCommandBuffers(vulk->logicalDevice, &allocInfo, &gVulkanCopyEngine.commandBuffer));
+	VULKAN_ERROR_CHECK(vkAllocateCommandBuffers(vulk->logicalDevice, &allocInfo, &gVulkanCopyEngine.commandBuffer));
 }
 
 void DestroyCopyEngine(SEVulkan* vulk)
@@ -409,6 +410,30 @@ void DestroyCopyEngine(SEVulkan* vulk)
 	vkDestroyCommandPool(vulk->logicalDevice, gVulkanCopyEngine.commandPool, nullptr);
 }
 
+#define MAX_NUM_DESCRIPTORS 16
+VkDescriptorPool gDescriptorPool;
+void CreateVulkanDescriptorPool(SEVulkan* vulk)
+{
+	VkDescriptorPoolSize poolSize[2]{};
+
+	poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize[0].descriptorCount = MAX_NUM_DESCRIPTORS;
+
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.pNext = nullptr;
+	poolInfo.flags = 0;
+	poolInfo.maxSets = MAX_NUM_DESCRIPTORS;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = poolSize;
+
+	VULKAN_ERROR_CHECK(vkCreateDescriptorPool(vulk->logicalDevice, &poolInfo, nullptr, &gDescriptorPool));
+}
+
+void DestroyVulkanDescriptorPool(SEVulkan* vulk)
+{
+	vkDestroyDescriptorPool(vulk->logicalDevice, gDescriptorPool, nullptr);
+}
 
 void InitVulkan(SEVulkan* vulk, SEWindow* window, const char* appName)
 {
@@ -430,10 +455,14 @@ void InitVulkan(SEVulkan* vulk, SEWindow* window, const char* appName)
 	InitVma(vulk);
 
 	InitCopyEngine(vulk);
+
+	CreateVulkanDescriptorPool(vulk);
 }
 
 void DestroyVulkan(SEVulkan* vulk)
 {
+	DestroyVulkanDescriptorPool(vulk);
+
 	DestroyCopyEngine(vulk);
 
 	DestroyVma(vulk);
@@ -454,57 +483,14 @@ void GetQueueHandle(const SEVulkan* vulk, const SEVulkanQueueInfo* queueInfo, SE
 {
 	switch (queueInfo->queueType)
 	{
-	case GRAPHICS_QUEUE:
+	case SE_GRAPHICS_QUEUE:
 		vkGetDeviceQueue(vulk->logicalDevice, vulk->familyIndices[GRAPHICS_FAM_INDEX], queueInfo->index, &queue->queue);
 		return;
 
-	case COMPUTE_QUEUE:
+	case SE_COMPUTE_QUEUE:
 		vkGetDeviceQueue(vulk->logicalDevice, vulk->familyIndices[COMPUTE_FAM_INDEX], queueInfo->index, &queue->queue);
 		return;
 	}
-}
-
-VkFormat GetVulkanFormat(SEFormat format)
-{
-	switch (format)
-	{
-	case SE_FORMAT_R8G8B8A8_SRGB:
-		return VK_FORMAT_R8G8B8A8_SRGB;
-
-	case SE_FORMAT_R32_FLOAT:
-		return VK_FORMAT_R32_SFLOAT;
-
-	case SE_FORMAT_R32G32_FLOAT:
-		return VK_FORMAT_R32G32_SFLOAT;
-
-	case SE_FORMAT_R32G32B32_FLOAT:
-		return VK_FORMAT_R32G32B32_SFLOAT;
-
-	case SE_FORMAT_R32G32B32A32_FLOAT:
-		return VK_FORMAT_R32G32B32A32_SFLOAT;
-	}
-}
-
-SEFormat GetSEFormat(VkFormat format)
-{
-	switch (format)
-	{
-	case VK_FORMAT_R8G8B8A8_SRGB:
-		return SE_FORMAT_R8G8B8A8_SRGB;
-
-	case VK_FORMAT_R32_SFLOAT:
-		return SE_FORMAT_R32_FLOAT;
-
-	case VK_FORMAT_R32G32_SFLOAT:
-		return SE_FORMAT_R32G32_FLOAT;
-
-	case VK_FORMAT_R32G32B32_SFLOAT:
-		return SE_FORMAT_R32G32B32_FLOAT;
-
-	case VK_FORMAT_R32G32B32A32_SFLOAT:
-		return SE_FORMAT_R32G32B32A32_FLOAT;
-	}
-
 }
 
 //SWAPCHAIN
@@ -535,7 +521,7 @@ void QuerySwapChainSupport(const SEVulkan* vulk, SwapChainInfo* sci)
 	if (sci->formatCount == 0)
 	{
 		MessageBox(nullptr, L"No surface formats are supported by the GPU. Exiting Progamr.", L"Surface formats error.", MB_OK);
-		ExitProcess(2);
+		exit(2);
 	}
 	sci->formats = (VkSurfaceFormatKHR*)calloc(sci->formatCount, sizeof(VkSurfaceFormatKHR));
 	vkGetPhysicalDeviceSurfaceFormatsKHR(vulk->physicalDevice, vulk->surface, &sci->formatCount, sci->formats);
@@ -545,7 +531,7 @@ void QuerySwapChainSupport(const SEVulkan* vulk, SwapChainInfo* sci)
 	{
 		MessageBox(nullptr, L"No present modes are supported by the GPU. Exiting Progamr.", L"Present modes error.", MB_OK);
 		free(sci->formats);
-		ExitProcess(2);
+		exit(2);
 	}
 	sci->presentModes = (VkPresentModeKHR*)calloc(sci->presentModeCount, sizeof(VkPresentModeKHR));
 	vkGetPhysicalDeviceSurfacePresentModesKHR(vulk->physicalDevice, vulk->surface, &sci->presentModeCount, sci->presentModes);
@@ -641,7 +627,7 @@ void CreateVulkanSwapChain(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* 
 	swapCreateInfo.clipped = VK_TRUE;
 	swapCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	ExitIfFailed(vkCreateSwapchainKHR(vulk->logicalDevice, &swapCreateInfo, nullptr, &swapChain->swapChain));
+	VULKAN_ERROR_CHECK(vkCreateSwapchainKHR(vulk->logicalDevice, &swapCreateInfo, nullptr, &swapChain->swapChain));
 
 	vkGetSwapchainImagesKHR(vulk->logicalDevice, swapChain->swapChain, &swapChain->imageCount, nullptr);
 	swapChain->images = (VkImage*)calloc(swapChain->imageCount, sizeof(VkImage));
@@ -659,7 +645,7 @@ void CreateVulkanSwapChain(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* 
 		SEImageViewInfo info{};
 		info.image = swapChain->images[i];
 		info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		info.format = GetSEFormat(swapChain->format);
+		info.format = TinyImageFormat_FromVkFormat((TinyImageFormat_VkFormat)swapChain->format);
 		info.firstMipLevel = 0;
 		info.numMipLevels = 1;
 		info.firstArrayLayer = 0;
@@ -692,7 +678,7 @@ void CreateImageView(SEVulkan* vulk, SEImageViewInfo* info, SEVulkanImageView* i
 	createInfo.flags = 0;
 	createInfo.image = info->image;
 	createInfo.viewType = info->viewType;
-	createInfo.format = GetVulkanFormat(info->format);
+	createInfo.format = (VkFormat)TinyImageFormat_ToVkFormat(info->format);
 	createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 	createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 	createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -703,7 +689,7 @@ void CreateImageView(SEVulkan* vulk, SEImageViewInfo* info, SEVulkanImageView* i
 	createInfo.subresourceRange.baseArrayLayer = info->firstArrayLayer;
 	createInfo.subresourceRange.layerCount = info->numLayers;
 
-	ExitIfFailed(vkCreateImageView(vulk->logicalDevice, &createInfo, nullptr, &imageView->imageView));
+	VULKAN_ERROR_CHECK(vkCreateImageView(vulk->logicalDevice, &createInfo, nullptr, &imageView->imageView));
 }
 
 void DestroyImageView(SEVulkan* vulk, SEVulkanImageView* imageView)
@@ -714,7 +700,7 @@ void DestroyImageView(SEVulkan* vulk, SEVulkanImageView* imageView)
 
 //SHADERS
 //-------------------------------------------------------------------------------------------------------------------------------------------
-void CreateVulkanShader(SEVulkan* vulk, const char* filename, ShaderType type, SEVulkanShader* shader)
+void CreateVulkanShader(SEVulkan* vulk, const char* filename, SEShaderType type, SEVulkanShader* shader)
 {
 	char* buffer = nullptr;
 	uint32_t fileSize = 0;
@@ -731,7 +717,7 @@ void CreateVulkanShader(SEVulkan* vulk, const char* filename, ShaderType type, S
 	createInfo.codeSize = newSize;
 	createInfo.pCode = (uint32_t*)code;
 
-	ExitIfFailed(vkCreateShaderModule(vulk->logicalDevice, &createInfo, nullptr, &shader->shaderModule));
+	VULKAN_ERROR_CHECK(vkCreateShaderModule(vulk->logicalDevice, &createInfo, nullptr, &shader->shaderModule));
 
 	VkPipelineShaderStageCreateInfo stageCreateInfo{};
 	stageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -739,15 +725,15 @@ void CreateVulkanShader(SEVulkan* vulk, const char* filename, ShaderType type, S
 	stageCreateInfo.flags = 0;
 	switch (type)
 	{
-	case VERTEX:
+	case SE_VERTEX_SHADER:
 		stageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 		break;
 
-	case PIXEL:
+	case SE_PIXEL_SHADER:
 		stageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 		break;
 
-	case COMPUTE:
+	case SE_COMPUTE_SHADER:
 		stageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 		break;
 	}
@@ -777,23 +763,23 @@ void CreateInputAssemblyInfo(SEVulkanPipleineInfo* info, VkPipelineInputAssembly
 
 	switch (info->topology)
 	{
-	case POINT_LIST:
+	case SE_POINT_LIST:
 		inputAssemblyInfo->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 		break;
 
-	case LINE_LIST:
+	case SE_LINE_LIST:
 		inputAssemblyInfo->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 		break;
 
-	case LINE_STRIP:
+	case SE_LINE_STRIP:
 		inputAssemblyInfo->topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 		break;
 
-	case TRIANGLE_LIST:
+	case SE_TRIANGLE_LIST:
 		inputAssemblyInfo->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		break;
 
-	case TRIANGLE_STRIP:
+	case SE_TRIANGLE_STRIP:
 		inputAssemblyInfo->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
 		break;
 	}
@@ -812,26 +798,26 @@ void CreateRasterizerInfo(SEVulkanPipleineInfo* info, VkPipelineRasterizationSta
 
 	switch (info->rasInfo.cullMode)
 	{
-	case NONE:
+	case SE_CULL_NONE:
 		rasInfo->cullMode = VK_CULL_MODE_NONE;
 		break;
 
-	case FRONT:
+	case SE_CULL_FRONT:
 		rasInfo->cullMode = VK_CULL_MODE_FRONT_BIT;
 		break;
 
-	case BACK:
+	case SE_CULL_BACK:
 		rasInfo->cullMode = VK_CULL_MODE_BACK_BIT;
 		break;
 	}
 
 	switch (info->rasInfo.faceMode)
 	{
-	case CLOCKWISE:
+	case SE_FACE_CLOCKWISE:
 		rasInfo->frontFace = VK_FRONT_FACE_CLOCKWISE;
 		break;
 
-	case COUNTER_CLOCKWISE:
+	case SE_FACE_COUNTER_CLOCKWISE:
 		rasInfo->frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 		break;
 	}
@@ -841,18 +827,6 @@ void CreateRasterizerInfo(SEVulkanPipleineInfo* info, VkPipelineRasterizationSta
 	rasInfo->depthBiasClamp = 0.0f;
 	rasInfo->depthBiasSlopeFactor = 0.0f;
 	rasInfo->lineWidth = info->rasInfo.lineWidth;
-}
-
-void CreatePipelineLayout(SEVulkan* vulk, SEVulkanPipeline* pipeline)
-{
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pSetLayouts = nullptr;
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
-	pipelineLayoutInfo.pPushConstantRanges = nullptr;
-
-	ExitIfFailed(vkCreatePipelineLayout(vulk->logicalDevice, &pipelineLayoutInfo, nullptr, &pipeline->pipelineLayout));
 }
 
 void CreateRenderPass(SEVulkan* vulk, SEVulkanPipeline* pipeline, VkFormat format)
@@ -898,7 +872,7 @@ void CreateRenderPass(SEVulkan* vulk, SEVulkanPipeline* pipeline, VkFormat forma
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-	ExitIfFailed(vkCreateRenderPass(vulk->logicalDevice, &renderPassInfo, nullptr, &pipeline->renderPass));
+	VULKAN_ERROR_CHECK(vkCreateRenderPass(vulk->logicalDevice, &renderPassInfo, nullptr, &pipeline->renderPass));
 }
 
 void CreateVulkanBindingDescription(SEVulkanVertexBindingInfo* bindingInfo, VkVertexInputBindingDescription* desc)
@@ -925,7 +899,7 @@ void CreateVulkanAttributeDescription(SEVulkanAttributeInfo* attribInfo, VkVerte
 		VkVertexInputAttributeDescription attribDesc{};
 		attribDesc.binding = attribInfo[i].binding;
 		attribDesc.location = attribInfo[i].location;
-		attribDesc.format = GetVulkanFormat(attribInfo[i].format);
+		attribDesc.format = (VkFormat)TinyImageFormat_ToVkFormat(attribInfo[i].format);
 		attribDesc.offset = attribInfo[i].offset;
 
 		desc[i] = attribDesc;
@@ -946,6 +920,62 @@ void CreateVertexDescriptions(SEVulkanPipleineInfo* pipelineInfo,
 	createInfo->pVertexBindingDescriptions = bindingDesc;
 	createInfo->vertexAttributeDescriptionCount = pipelineInfo->numAttributes;
 	createInfo->pVertexAttributeDescriptions = attribDesc;
+}
+
+void CreateVulkanDescriptorSetLayout(SEVulkan* vulk, SEVulkanDescritporSetLayoutInfo* info, SEVulkanDescriptorSetLayout* dsl)
+{
+	VkDescriptorSetLayoutBinding layoutBinding[MAX_NUM_DESCRIPTOR_SET_LAYOUT_BINDINGS]{};
+	for (uint32_t i = 0; i < info->numBindings; ++i)
+	{
+		layoutBinding[i].binding = info->bindingInfo[i].binding;
+
+		switch (info->bindingInfo[i].type)
+		{
+		case SE_DESCRITPTOR_UNIFORM_BUFFER:
+			layoutBinding[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			break;
+		}
+
+		layoutBinding[i].descriptorCount = info->bindingInfo[i].numDescriptors;
+
+		if (info->bindingInfo[i].stages & SE_VERTEX_STAGE)
+		{
+			layoutBinding[i].stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+		}
+
+		if (info->bindingInfo[i].stages & SE_PIXEL_STAGE)
+		{
+			layoutBinding[i].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+		}
+
+		layoutBinding[i].pImmutableSamplers = nullptr;
+	}
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.pNext = nullptr;
+	layoutInfo.flags = 0;
+	layoutInfo.bindingCount = info->numBindings;
+	layoutInfo.pBindings = layoutBinding;
+
+	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(vulk->logicalDevice, &layoutInfo, nullptr, &dsl->descriptorSetLayout))
+}
+
+void CreatePipelineLayout(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPipeline* pipeline)
+{
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &info->descriptorSetLayout->descriptorSetLayout;
+	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+	VULKAN_ERROR_CHECK(vkCreatePipelineLayout(vulk->logicalDevice, &pipelineLayoutInfo, nullptr, &pipeline->pipelineLayout));
+}
+
+void DestroyVulkanDescriptorSetLayout(SEVulkan* vulk, SEVulkanDescriptorSetLayout* dsl)
+{
+	vkDestroyDescriptorSetLayout(vulk->logicalDevice, dsl->descriptorSetLayout, nullptr);
 }
 
 void CreateVulkanPipeline(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPipeline* pipeline)
@@ -998,7 +1028,7 @@ void CreateVulkanPipeline(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPi
 	colorBlending.blendConstants[2] = 0.0f;
 	colorBlending.blendConstants[3] = 0.0f;
 
-	CreatePipelineLayout(vulk, pipeline);
+	CreatePipelineLayout(vulk, info, pipeline);
 	CreateRenderPass(vulk, pipeline, info->swapChainFormat);
 
 	VkPipelineShaderStageCreateInfo shaders[] = { info->shaders[0].shaderCreateInfo, info->shaders[1].shaderCreateInfo };
@@ -1024,7 +1054,7 @@ void CreateVulkanPipeline(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPi
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; 
 	pipelineInfo.basePipelineIndex = -1;
 
-	ExitIfFailed(vkCreateGraphicsPipelines(vulk->logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->pipeline));
+	VULKAN_ERROR_CHECK(vkCreateGraphicsPipelines(vulk->logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->pipeline));
 }
 
 void DestroyVulkanPipeline(SEVulkan* vulk, SEVulkanPipeline* pipeline)
@@ -1049,7 +1079,7 @@ void CreateVulkanFrameBuffer(SEVulkan* vulk, SEVulkanSwapChain* swapChain, VkRen
 		frameBufferCreateInfo.height = swapChain->extent.height;
 		frameBufferCreateInfo.layers = 1;
 
-		ExitIfFailed(vkCreateFramebuffer(vulk->logicalDevice, &frameBufferCreateInfo, nullptr, &swapChain->frameBuffers[i]));
+		VULKAN_ERROR_CHECK(vkCreateFramebuffer(vulk->logicalDevice, &frameBufferCreateInfo, nullptr, &swapChain->frameBuffers[i]));
 	}
 }
 
@@ -1070,16 +1100,16 @@ void CreateVulkanCommandPool(SEVulkan* vulk, SEVulkanCommandPool* commandPool, S
 
 	switch (queueType)
 	{
-	case GRAPHICS_QUEUE:
+	case SE_GRAPHICS_QUEUE:
 		poolInfo.queueFamilyIndex = vulk->familyIndices[GRAPHICS_FAM_INDEX];
 		break;
 
-	case COMPUTE_QUEUE:
+	case SE_COMPUTE_QUEUE:
 		poolInfo.queueFamilyIndex = vulk->familyIndices[COMPUTE_FAM_INDEX];
 		break;
 	}
 
-	ExitIfFailed(vkCreateCommandPool(vulk->logicalDevice, &poolInfo, nullptr, &commandPool->commandPool));
+	VULKAN_ERROR_CHECK(vkCreateCommandPool(vulk->logicalDevice, &poolInfo, nullptr, &commandPool->commandPool));
 }
 
 void DestroyVulkanCommandPool(SEVulkan* vulk, SEVulkanCommandPool* commandPool)
@@ -1097,7 +1127,7 @@ void CreateVulkanCommandBuffer(SEVulkan* vulk, SEVulkanCommandPool* commandPool,
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = numCommandBuffers;
 
-	ExitIfFailed(vkAllocateCommandBuffers(vulk->logicalDevice, &allocInfo, &commandBuffer->commandBuffer));
+	VULKAN_ERROR_CHECK(vkAllocateCommandBuffers(vulk->logicalDevice, &allocInfo, &commandBuffer->commandBuffer));
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------
@@ -1107,7 +1137,7 @@ void CreateVulkanCommandBuffer(SEVulkan* vulk, SEVulkanCommandPool* commandPool,
 
 void VulkanResetCommandBuffer(SEVulkanCommandBuffer* commandBuffer)
 {
-	ExitIfFailed(vkResetCommandBuffer(commandBuffer->commandBuffer, 0));
+	VULKAN_ERROR_CHECK(vkResetCommandBuffer(commandBuffer->commandBuffer, 0));
 }
 
 void VulkanBeginCommandBuffer(SEVulkan* vulk, SEVulkanCommandBuffer* commandBuffer, SEVulkanPipeline* pipeline,
@@ -1119,7 +1149,7 @@ void VulkanBeginCommandBuffer(SEVulkan* vulk, SEVulkanCommandBuffer* commandBuff
 	beginInfo.flags = 0;
 	beginInfo.pInheritanceInfo = nullptr;
 
-	ExitIfFailed(vkBeginCommandBuffer(commandBuffer->commandBuffer, &beginInfo));
+	VULKAN_ERROR_CHECK(vkBeginCommandBuffer(commandBuffer->commandBuffer, &beginInfo));
 
 	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
 
@@ -1140,11 +1170,11 @@ void VulkanBindPipeline(SEVulkanCommandBuffer* commandBuffer, SEVulkanPipeline* 
 {
 	switch (type)
 	{
-	case GRAPHICS_PIPELINE:
+	case SE_GRAPHICS_PIPELINE:
 		vkCmdBindPipeline(commandBuffer->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
 		break;
 
-	case COMPUTE_PIPELINE:
+	case SE_COMPUTE_PIPELINE:
 		vkCmdBindPipeline(commandBuffer->commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
 		break;
 	}
@@ -1187,7 +1217,7 @@ void VulkanDrawIndexed(SEVulkanCommandBuffer* commandBuffer, uint32_t indexCount
 void VulkanEndCommandBuffer(SEVulkanCommandBuffer* commandBuffer)
 {
 	vkCmdEndRenderPass(commandBuffer->commandBuffer);
-	ExitIfFailed(vkEndCommandBuffer(commandBuffer->commandBuffer));
+	VULKAN_ERROR_CHECK(vkEndCommandBuffer(commandBuffer->commandBuffer));
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1200,7 +1230,7 @@ void CreateVulkanFence(SEVulkan* vulk, SEVulkanFence* fence)
 	fenceInfo.pNext = nullptr;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 	
-	ExitIfFailed(vkCreateFence(vulk->logicalDevice, &fenceInfo, nullptr, &fence->fence));
+	VULKAN_ERROR_CHECK(vkCreateFence(vulk->logicalDevice, &fenceInfo, nullptr, &fence->fence));
 }
 
 void DestroyVulkanFence(SEVulkan* vulk, SEVulkanFence* fence)
@@ -1221,7 +1251,7 @@ void CreateVulkanSemaphore(SEVulkan* vulk, SEVulkanSemaphore* semaphore)
 	semaphoreInfo.pNext = nullptr;
 	semaphoreInfo.flags = 0;
 
-	ExitIfFailed(vkCreateSemaphore(vulk->logicalDevice, &semaphoreInfo, nullptr, &semaphore->semaphore));
+	VULKAN_ERROR_CHECK(vkCreateSemaphore(vulk->logicalDevice, &semaphoreInfo, nullptr, &semaphore->semaphore));
 }
 
 void DestroyVulkanSemaphore(SEVulkan* vulk, SEVulkanSemaphore* semaphore)
@@ -1256,7 +1286,7 @@ void VulkanQueueSubmit(SEVulkan* vulk, VulkanQueueSubmitInfo* info)
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	ExitIfFailed(vkQueueSubmit(info->queue->queue, 1, &submitInfo, info->fence->fence));
+	VULKAN_ERROR_CHECK(vkQueueSubmit(info->queue->queue, 1, &submitInfo, info->fence->fence));
 }
 
 void VulkanQueuePresent(SEVulkan* vulk, VulkanPresentInfo* info)
@@ -1323,7 +1353,7 @@ uint32_t FindMemoryType(SEVulkan* vulk, uint32_t typeFilter, VkMemoryPropertyFla
 	MessageBox(nullptr, L"Buffer does not support requested memory or the requested memory type is not supported by the GPU."
 		"Exiting Prorgam!",
 		L"Requested Memory Type Error.", MB_OK);
-	ExitProcess(2);
+	exit(2);
 }
 
 /*void VulkanAllocateMemory(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkanBuffer* buffer)
@@ -1347,7 +1377,7 @@ uint32_t FindMemoryType(SEVulkan* vulk, uint32_t typeFilter, VkMemoryPropertyFla
 	}
 	allocInfo.memoryTypeIndex = FindMemoryType(vulk, memRequirements.memoryTypeBits, memFlags);
 
-	ExitIfFailed(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &buffer->memory));
+	VULKAN_ERROR_CHECK(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &buffer->memory));
 
 }*/
 void VulkanCreateStagingBuffer(SEVulkan* vulk, void* srcData, VkDeviceSize size)
@@ -1362,7 +1392,7 @@ void VulkanCreateStagingBuffer(SEVulkan* vulk, void* srcData, VkDeviceSize size)
 	bufferCreateInfo.queueFamilyIndexCount = 3;
 	bufferCreateInfo.pQueueFamilyIndices = vulk->familyIndices;
 
-	/*ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &gVulkanCopyEngine.stagingBuffer));
+	/*VULKAN_ERROR_CHECK(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &gVulkanCopyEngine.stagingBuffer));
 
 	VkMemoryRequirements memRequirements;
 	vkGetBufferMemoryRequirements(vulk->logicalDevice, gVulkanCopyEngine.stagingBuffer, &memRequirements);
@@ -1373,9 +1403,9 @@ void VulkanCreateStagingBuffer(SEVulkan* vulk, void* srcData, VkDeviceSize size)
 	allocInfo.memoryTypeIndex = FindMemoryType(vulk, memRequirements.memoryTypeBits,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	ExitIfFailed(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &gVulkanCopyEngine.stagingBufferMemory));
+	VULKAN_ERROR_CHECK(vkAllocateMemory(vulk->logicalDevice, &allocInfo, nullptr, &gVulkanCopyEngine.stagingBufferMemory));
 
-	ExitIfFailed(vkBindBufferMemory(vulk->logicalDevice, gVulkanCopyEngine.stagingBuffer,
+	VULKAN_ERROR_CHECK(vkBindBufferMemory(vulk->logicalDevice, gVulkanCopyEngine.stagingBuffer,
 		gVulkanCopyEngine.stagingBufferMemory, 0));*/
 
 	VmaAllocationCreateInfo allocCreateInfo = {};
@@ -1452,6 +1482,10 @@ void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkan
 	case SE_INDEX_BUFFER:
 		bufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 		break;
+
+	case SE_UNIFORM_BUFFER:
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		break;
 	}
 
 	if (copyData)
@@ -1461,11 +1495,11 @@ void CreateVulkanBuffer(SEVulkan* vulk, SEVulkanBufferInfo* bufferInfo, SEVulkan
 	bufferCreateInfo.queueFamilyIndexCount = 3;
 	bufferCreateInfo.pQueueFamilyIndices = vulk->familyIndices;
 
-	/*ExitIfFailed(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &buffer->buffer));
+	/*VULKAN_ERROR_CHECK(vkCreateBuffer(vulk->logicalDevice, &bufferCreateInfo, nullptr, &buffer->buffer));
 
 	VulkanAllocateMemory(vulk, bufferInfo, buffer);
 
-	ExitIfFailed(vkBindBufferMemory(vulk->logicalDevice, buffer->buffer, buffer->memory, 0));*/
+	VULKAN_ERROR_CHECK(vkBindBufferMemory(vulk->logicalDevice, buffer->buffer, buffer->memory, 0));*/
 
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -1497,12 +1531,14 @@ void DestroyVulkanBuffer(SEVulkan* vulk, SEVulkanBuffer* buffer)
 
 void VulkanMapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer, uint32_t offset, uint32_t size, void** data)
 {
-	vkMapMemory(vulk->logicalDevice, buffer->allocation->GetMemory(), offset, size, 0, data);
+	vmaMapMemory(vulk->allocator, buffer->allocation, data);
+	//vkMapMemory(vulk->logicalDevice, buffer->allocation->GetMemory(), offset, size, 0, data);
 }
 
 void VulkanUnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer)
 {
-	vkUnmapMemory(vulk->logicalDevice, buffer->allocation->GetMemory());
+	vmaUnmapMemory(vulk->allocator, buffer->allocation);
+	//vkUnmapMemory(vulk->logicalDevice, buffer->allocation->GetMemory());
 }
 
 void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLocation,
@@ -1519,5 +1555,63 @@ void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLoca
 		vkCmdBindIndexBuffer(commandBuffer->commandBuffer, buffer->buffer, offs, VK_INDEX_TYPE_UINT32);
 		break;
 	}
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------
+
+//DESCRIPTORS
+//-------------------------------------------------------------------------------------------------------------------------------------------
+void CreateVulkanDescriptorSets(SEVulkan* vulk, SEVulkanDescriptorSetInfo* info, SEVulkanDescriptorSet* ds)
+{
+	for (uint32_t i = 0; i < info->numDescriptors; ++i)
+	{
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.pNext = nullptr;
+		allocInfo.descriptorPool = gDescriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &info->layout->descriptorSetLayout;
+
+		VULKAN_ERROR_CHECK(vkAllocateDescriptorSets(vulk->logicalDevice, &allocInfo, &ds[i].descriptorSet));
+	} 
+}
+
+void UpdateVulkanDescriptorSet(SEVulkan* vulk, SEVulkanUpdateDescriptorSetInfo* info, SEVulkanDescriptorSet* ds)
+{
+	if (info->bufferInfo.buffer)
+	{
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = info->bufferInfo.buffer->buffer;
+		bufferInfo.offset = info->bufferInfo.offset;
+		bufferInfo.range = info->bufferInfo.range;
+
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.pNext = nullptr;
+		descriptorWrite.dstSet = ds->descriptorSet;
+		descriptorWrite.dstBinding = info->binding;
+		descriptorWrite.dstArrayElement = info->firstArrayElement;
+		descriptorWrite.descriptorCount = info->numArrayElements;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(vulk->logicalDevice, 1, &descriptorWrite, 0, nullptr);
+	}
+}
+
+void VulkanBindDescriptorSet(SEVulkanCommandBuffer* commandBuffer, SEPipelineType type, SEVulkanPipeline* pipeline, SEVulkanDescriptorSet* ds)
+{
+	VkPipelineBindPoint bindPoint{};
+	switch (type)
+	{
+	case SE_GRAPHICS_PIPELINE:
+		bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		break;
+
+	case SE_COMPUTE_PIPELINE:
+		bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+		break;
+	}
+
+	vkCmdBindDescriptorSets(commandBuffer->commandBuffer, bindPoint, pipeline->pipelineLayout, 0, 1, &ds->descriptorSet, 0, nullptr);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------

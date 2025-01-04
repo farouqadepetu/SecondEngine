@@ -73,3 +73,19 @@ void CreateSEWindow(SEWndInfo* data, SEWindow* window)
 
     ShowWindow(window->wndHandle, SW_NORMAL);
 }
+
+uint32_t GetWidth(SEWindow* window)
+{
+	RECT rect{};
+	GetClientRect(window->wndHandle, &rect);
+
+	return rect.right - rect.left;
+}
+
+uint32_t GetHeight(SEWindow* window)
+{
+	RECT rect{};
+	GetClientRect(window->wndHandle, &rect);
+
+	return rect.bottom - rect.top;
+}

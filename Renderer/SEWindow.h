@@ -53,3 +53,6 @@ inline void ErrorExit(LPCTSTR lpszFunction)
 LRESULT CALLBACK SEWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 void CreateSEWindow(SEWndInfo* data, SEWindow* window);
+
+uint32_t GetWidth(SEWindow* window);
+uint32_t GetHeight(SEWindow* window);

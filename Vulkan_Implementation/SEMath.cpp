@@ -6,7 +6,7 @@
 #include "quaternion_intrinsics.cpp"
 
 #else
-#include "vectors..cpp"
+#include "vectors.cpp"
 #include "matrices.cpp"
 #include "quaternion.cpp"
 

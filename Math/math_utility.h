@@ -32,3 +32,11 @@ inline bool CompareDoubles(double a, double b, double maxRelDiff = DBL_EPSILON)
         return true;
     return false;
 }
+
+inline uint32_t SEMax(uint32_t v1, uint32_t v2)
+{
+    if (v1 >= v2)
+        return v1;
+
+    return v2;
+}

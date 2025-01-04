@@ -24,7 +24,7 @@ void ReadFile(const char* filename, char** buffer, uint32_t* fileSize, FileType 
 		strcat_s(msg, filename);
 		strcat_s(msg, ". Exiting prorgam");
 		MessageBoxA(nullptr, msg, "File open error.", MB_OK);
-		ExitProcess(3);
+		exit(3);
 	}
 
 	fseek(file, 0, SEEK_END);

@@ -133,7 +133,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Renderer\SECamera.cpp" />
     <ClCompile Include="..\Renderer\SEWindow.cpp" />
+    <ClCompile Include="SEDDSLoader.cpp" />
     <ClCompile Include="SEFileSystem.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SEMath.cpp" />
@@ -141,6 +143,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Math\math_header.h" />
+    <ClInclude Include="..\Math\math_utility.h" />
+    <ClInclude Include="SEDDSLoader.h" />
     <ClInclude Include="SEFileSystem.h" />
     <ClInclude Include="SEApp.h" />
     <ClInclude Include="SEVulkan.h" />

@@ -10,6 +10,13 @@ struct SECamera
 	vec3 up;
 
 	mat4 viewMat;
+
+	float aspectRatio;
+	float vFov;
+	float nearP;
+	float farP;
+
+	mat4 perspectiveProjMat;
 };
 
 //Defines the camera space.
@@ -17,6 +24,9 @@ void LookAt(SECamera* cam, vec3 position, vec3 target, vec3 up);
 
 //Updates the view matrix of the specified camera.
 void UpdateViewMatrix(SECamera* cam);
+
+//Updates the perspective projection matrix of the specified camera.
+void UpdatePerspectiveProjectionMatrix(SECamera* cam);
 
 //Rotates the camera using a rotation quaternion.
 //Updates the cameras axes.

@@ -30,6 +30,12 @@
     <ClCompile Include="SEMath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Renderer\SECamera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SEDDSLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SEApp.h">
@@ -42,6 +48,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Math\math_header.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SEDDSLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Math\math_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

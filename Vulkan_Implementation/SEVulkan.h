@@ -4,22 +4,15 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-#include <string>
-
 #include "SEWindow.h"
 #include "SEFileSystem.h"
 
 #include "vma/vk_mem_alloc.h"
 
-inline std::wstring AnsiToWString(const std::string& str)
-{
-	WCHAR buffer[512];
-	MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
-	return std::wstring(buffer);
-}
+#include "tinyimageformat_apis.h"
 				
-#ifndef ExitIfFailed
-#define ExitIfFailed(x)																										\
+/*#ifndef VULKAN_ERROR_CHECK
+#define VULKAN_ERROR_CHECK(x)																								\
 {																															\
 	VkResult result = (x);																									\
 	if (result != VK_SUCCESS)																								\
@@ -29,7 +22,21 @@ inline std::wstring AnsiToWString(const std::string& str)
 		std::wstring errMsg = functionName + L"\nFailed in " + AnsiToWString(__FILE__) +									\
 							  L"\nLine " + std::to_wstring(__LINE__) + L"\nError = " + resultString;						\
 		MessageBox(nullptr, errMsg.c_str(), L"Vulkan Function Failed", MB_OK);												\
-		ExitProcess(2);																										\
+		exit(2);																											\
+	}																														\
+}																																
+#endif*/
+
+#ifndef VULKAN_ERROR_CHECK
+#define VULKAN_ERROR_CHECK(x)																								\
+{																															\
+	VkResult result = (x);																									\
+	if (result != VK_SUCCESS)																								\
+	{																														\
+		char errMsg[2048]{};																								\
+		sprintf_s(errMsg, "%s\nFailed in %s\nLine %d\n Error = %s", #x, __FILE__, __LINE__, string_VkResult(result));		\
+		MessageBoxA(nullptr, errMsg, "Vulkan Function Failed", MB_OK);														\
+		exit(2);																											\
 	}																														\
 }																																
 #endif
@@ -63,8 +70,8 @@ void DestroyVulkan(SEVulkan* vulk);
 
 enum SEVulkanQueueType
 {
-	GRAPHICS_QUEUE,
-	COMPUTE_QUEUE
+	SE_GRAPHICS_QUEUE,
+	SE_COMPUTE_QUEUE
 };
 
 struct SEVulkanQueueInfo
@@ -80,20 +87,11 @@ struct SEVulkanQueue
 
 void GetQueueHandle(const SEVulkan* vulk, const SEVulkanQueueInfo* queueInfo, SEVulkanQueue* queue);
 
-enum SEFormat
-{
-	SE_FORMAT_R8G8B8A8_SRGB,
-	SE_FORMAT_R32_FLOAT,
-	SE_FORMAT_R32G32_FLOAT,
-	SE_FORMAT_R32G32B32_FLOAT,
-	SE_FORMAT_R32G32B32A32_FLOAT
-};
-
 struct SEImageViewInfo
 {
 	VkImage image;
 	VkImageViewType viewType;
-	SEFormat format;
+	TinyImageFormat format;
 	uint32_t firstMipLevel;
 	uint32_t numMipLevels;
 	uint32_t firstArrayLayer;
@@ -125,11 +123,11 @@ void DestroyVulkanSwapChain(SEVulkan* vulk, SEVulkanSwapChain* swapChain);
 void CreateVulkanFrameBuffer(SEVulkan* vulk, SEVulkanSwapChain* swapChain, VkRenderPass* renderPass);
 void DestroyVulkanFrameBuffer(SEVulkan* vulk, VkFramebuffer* frameBuffer);
 
-enum ShaderType
+enum SEShaderType
 {
-	VERTEX,
-	PIXEL,
-	COMPUTE
+	SE_VERTEX_SHADER,
+	SE_PIXEL_SHADER,
+	SE_COMPUTE_SHADER
 };
 
 struct SEVulkanShader
@@ -138,29 +136,29 @@ struct SEVulkanShader
 	VkPipelineShaderStageCreateInfo shaderCreateInfo;
 };
 
-void CreateVulkanShader(SEVulkan* vulk, const char* filename, ShaderType type, SEVulkanShader* shader);
+void CreateVulkanShader(SEVulkan* vulk, const char* filename, SEShaderType type, SEVulkanShader* shader);
 void DestroyVulkanShader(SEVulkan* vulk, SEVulkanShader* shader);
 
 enum SETopology
 {
-	POINT_LIST,
-	LINE_LIST,
-	LINE_STRIP,
-	TRIANGLE_LIST,
-	TRIANGLE_STRIP
+	SE_POINT_LIST,
+	SE_LINE_LIST,
+	SE_LINE_STRIP,
+	SE_TRIANGLE_LIST,
+	SE_TRIANGLE_STRIP
 };
 
 enum SECullMode
 {
-	NONE,
-	FRONT,
-	BACK,
+	SE_CULL_NONE,
+	SE_CULL_FRONT,
+	SE_CULL_BACK,
 };
 
 enum SEFace
 {
-	CLOCKWISE,
-	COUNTER_CLOCKWISE
+	SE_FACE_CLOCKWISE,
+	SE_FACE_COUNTER_CLOCKWISE
 };
 
 enum SEVulkanInputRate
@@ -182,9 +180,43 @@ struct SEVulkanAttributeInfo
 {
 	uint32_t binding;
 	uint32_t location;
-	SEFormat format;
+	TinyImageFormat format;
 	uint32_t offset;
 };
+
+#define MAX_NUM_DESCRIPTOR_SET_LAYOUT_BINDINGS 16
+enum SEStages
+{
+	SE_VERTEX_STAGE = 0x00000001,
+	SE_PIXEL_STAGE = 0x00000002
+};
+
+enum SEDescriptorType
+{
+	SE_DESCRITPTOR_UNIFORM_BUFFER
+};
+
+struct SEVulkanDescritporSetLayoutInfo
+{
+	struct DescritporSetLayoutBindingInfo
+	{
+		uint32_t binding;
+		SEDescriptorType type;
+		uint32_t numDescriptors;
+		SEStages stages;
+	}bindingInfo[MAX_NUM_DESCRIPTOR_SET_LAYOUT_BINDINGS];
+
+	uint32_t numBindings;
+};
+
+struct SEVulkanDescriptorSetLayout
+{
+	VkDescriptorSetLayout descriptorSetLayout;
+};
+
+void CreateVulkanDescriptorSetLayout(SEVulkan* vulk, SEVulkanDescritporSetLayoutInfo* info, SEVulkanDescriptorSetLayout* dsl);
+
+void DestroyVulkanDescriptorSetLayout(SEVulkan* vulk, SEVulkanDescriptorSetLayout* dsl);
 
 struct SEVulkanPipleineInfo
 {
@@ -204,6 +236,7 @@ struct SEVulkanPipleineInfo
 	SEVulkanVertexBindingInfo bindingInfo;
 	SEVulkanAttributeInfo attributeInfo[NUM_ATTRIBUTES];
 	uint32_t numAttributes;
+	SEVulkanDescriptorSetLayout* descriptorSetLayout;
 };
 
 struct SEVulkanPipeline
@@ -215,9 +248,8 @@ struct SEVulkanPipeline
 
 enum SEPipelineType
 {
-	GRAPHICS_PIPELINE,
-	COMPUTE_PIPELINE
-		
+	SE_GRAPHICS_PIPELINE,
+	SE_COMPUTE_PIPELINE	
 };
 
 void CreateVulkanPipeline(SEVulkan* vulk, SEVulkanPipleineInfo* info, SEVulkanPipeline* pipeline);
@@ -331,7 +363,8 @@ void VulkanOnResize(SEVulkan* vulk, SEWindow* window, SEVulkanSwapChain* swapCha
 enum SEVulkanBufferType
 {
 	SE_VERTEX_BUFFER,
-	SE_INDEX_BUFFER
+	SE_INDEX_BUFFER,
+	SE_UNIFORM_BUFFER
 };
 
 enum SEVulkanAccessFlags
@@ -366,3 +399,38 @@ void VulkanUnmapMemory(SEVulkan* vulk, SEVulkanBuffer* buffer);
 
 void VulkanBindBuffer(SEVulkanCommandBuffer* commandBuffer, uint32_t bindingLocation,
 	SEVulkanBuffer* buffer, uint32_t offset, SEVulkanBufferType bufferType);
+
+enum SEVulkanDescriptorType
+{
+	SE_DESCRIPTOR_TYPE_UNIFORM
+};
+
+struct SEVulkanDescriptorSetInfo
+{
+	SEVulkanDescriptorSetLayout* layout;
+	SEDescriptorType type;
+	uint32_t numDescriptors;
+};
+
+struct SEVulkanUpdateDescriptorSetInfo
+{
+	uint32_t binding;
+	uint32_t firstArrayElement;
+	uint32_t numArrayElements;
+
+	struct Buffer
+	{
+		SEVulkanBuffer* buffer;
+		uint32_t offset;
+		uint32_t range;
+	}bufferInfo;
+};
+
+struct SEVulkanDescriptorSet
+{
+	VkDescriptorSet descriptorSet;
+};
+
+void CreateVulkanDescriptorSets(SEVulkan* vulk, SEVulkanDescriptorSetInfo* info, SEVulkanDescriptorSet* ds);
+void UpdateVulkanDescriptorSet(SEVulkan* vulk, SEVulkanUpdateDescriptorSetInfo* info, SEVulkanDescriptorSet* ds);
+void VulkanBindDescriptorSet(SEVulkanCommandBuffer* commandBuffer, SEPipelineType type, SEVulkanPipeline* pipeline, SEVulkanDescriptorSet* ds);
