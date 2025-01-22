@@ -1,33 +1,118 @@
 #include "SEWindow.h"
 
-extern void OnResize();
+void (*gOnResize)() = nullptr;
+void (*gFuncOnKeyReleased)(int) = nullptr;
+
 extern bool gAppPaused;
 
-LRESULT CALLBACK SEWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+bool gMinimized = false;
+bool gMaximized = false;
+bool gResizing = false;
+bool gTracked = false;
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
-	case WM_SIZE:
-		if (wParam == SIZE_MINIMIZED)
+	case WM_ACTIVATE:
+		if (LOWORD(wParam) == WA_INACTIVE)
 		{
 			gAppPaused = true;
 		}
 		else
 		{
 			gAppPaused = false;
-			OnResize();
 		}
 		break;
+
+	case WM_SIZE:
+		if (wParam == SIZE_MINIMIZED)
+		{
+			gAppPaused = true;
+			gMinimized = true;
+			gMaximized = false;
+		}
+		else if(wParam == SIZE_MAXIMIZED)
+		{
+			gAppPaused = false;
+			gMaximized = true;
+			gMinimized = false;
+			if(gOnResize)
+				gOnResize();
+		}
+		else if (wParam == SIZE_RESTORED)
+		{
+			if (gMinimized)
+			{
+				gAppPaused = false;
+				gMinimized = false;
+				if (gOnResize)
+					gOnResize();
+			}
+			else if (gMaximized)
+			{
+				gAppPaused = false;
+				gMaximized = false;
+				if (gOnResize)
+					gOnResize();
+			}
+			else if (gResizing)
+			{
+				// If user is dragging the resize bars, we do not resize 
+				// the buffers here because as the user continuously 
+				// drags the resize bars, a stream of WM_SIZE messages are
+				// sent to the window, and it would be pointless (and slow)
+				// to resize for each WM_SIZE message received from dragging
+				// the resize bars.  So instead, we reset after the user is 
+				// done resizing the window and releases the resize bars, which 
+				// sends a WM_EXITSIZEMOVE message.
+			}
+			else
+			{
+				if (gOnResize)
+					gOnResize();
+			}
+		}
+		break;
+
+	case WM_ENTERSIZEMOVE:
+		gAppPaused = true;
+		gResizing = true;
+		break;
+
+	case WM_EXITSIZEMOVE:
+		gAppPaused = false;
+		gResizing = false;
+		if (gOnResize)
+			gOnResize();
+		break;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+
+	case WM_KEYUP:
+		if(gFuncOnKeyReleased != nullptr)
+			gFuncOnKeyReleased(wParam);
+		break;
+
+	case WM_LBUTTONUP:
+		if (gFuncOnKeyReleased != nullptr)
+			gFuncOnKeyReleased(VK_LBUTTON);
+		break;
+
+	case WM_RBUTTONUP:
+		if (gFuncOnKeyReleased != nullptr)
+			gFuncOnKeyReleased(VK_RBUTTON);
+		break;
 
 	default:
 		return DefWindowProc(hwnd, uMsg, wParam, lParam);
 	}
 }
 
-void CreateSEWindow(SEWndInfo* data, SEWindow* window)
+
+void CreateWindow(WndInfo* data, Window* window)
 {
     size_t numChars = strlen(data->wndName) + 1;
     wchar_t cName[255]{};
@@ -37,7 +122,7 @@ void CreateSEWindow(SEWndInfo* data, SEWindow* window)
 	WNDCLASSEXW SEWndClass{};
     SEWndClass.cbSize = sizeof(WNDCLASSEXW);
 	SEWndClass.style = 0;
-	SEWndClass.lpfnWndProc = SEWindowProc;
+	SEWndClass.lpfnWndProc = WindowProc;
 	SEWndClass.cbClsExtra = 0;
 	SEWndClass.cbWndExtra = 0;
 	SEWndClass.hInstance = GetModuleHandle(nullptr);
@@ -74,7 +159,7 @@ void CreateSEWindow(SEWndInfo* data, SEWindow* window)
     ShowWindow(window->wndHandle, SW_NORMAL);
 }
 
-uint32_t GetWidth(SEWindow* window)
+uint32_t GetWidth(Window* window)
 {
 	RECT rect{};
 	GetClientRect(window->wndHandle, &rect);
@@ -82,10 +167,15 @@ uint32_t GetWidth(SEWindow* window)
 	return rect.right - rect.left;
 }
 
-uint32_t GetHeight(SEWindow* window)
+uint32_t GetHeight(Window* window)
 {
 	RECT rect{};
 	GetClientRect(window->wndHandle, &rect);
 
 	return rect.bottom - rect.top;
+}
+
+bool CheckKeyDown(int vKey)
+{
+	return GetAsyncKeyState(vKey) & 0x8000;
 }

@@ -1,6 +1,7 @@
 #include "SECamera.h"
+#include <cmath>
 
-void LookAt(SECamera* cam, vec3 position, vec3 target, vec3 up)
+void LookAt(Camera* cam, vec3 position, vec3 target, vec3 up)
 {
 	cam->position = position;
 	cam->forward = Normalize(target - position);
@@ -8,7 +9,7 @@ void LookAt(SECamera* cam, vec3 position, vec3 target, vec3 up)
 	cam->up = CrossProduct(cam->forward, cam->right);
 }
 
-void UpdateViewMatrix(SECamera* cam)
+void UpdateViewMatrix(Camera* cam)
 {
 	cam->viewMat.SetRow(0, vec4(cam->right.GetX(), cam->up.GetX(), cam->forward.GetX(), 0.0f));
 	cam->viewMat.SetRow(1, vec4(cam->right.GetY(), cam->up.GetY(), cam->forward.GetY(), 0.0f));
@@ -19,7 +20,7 @@ void UpdateViewMatrix(SECamera* cam)
 }
 
 //FOR VULKAN, NEED TO NEGATE THE Y VALUE (1, 1) SO THE OBJECT WON'T BE RENDERERD UPSIDE DOWN.
-void UpdatePerspectiveProjectionMatrix(SECamera* cam)
+void UpdatePerspectiveProjectionMatrix(Camera* cam)
 {
 	float inverseAR = 1.0f / cam->aspectRatio;
 	float d = 1.0f / tan(cam->vFov / 2.0f);
@@ -30,44 +31,44 @@ void UpdatePerspectiveProjectionMatrix(SECamera* cam)
 	cam->perspectiveProjMat.SetRow(3, 0.0f, 0.0f, (-cam->nearP * cam->farP) / fMinusN, 0.0f);
 }
 
-void RotateCamera(SECamera* cam, quat rot)
+void RotateCamera(Camera* cam, quat rot)
 {
 	cam->right = Rotate(rot, cam->right);
 	cam->up = Rotate(rot, cam->up);
 	cam->forward = Rotate(rot, cam->forward);
 }
 
-void RotateCameraP(SECamera* cam, quat rot)
+void RotateCameraP(Camera* cam, quat rot)
 {
 	cam->position = Rotate(rot, cam->position);
 }
 
-void MoveLeft(SECamera* cam, float d)
+void MoveLeft(Camera* cam, float d)
 {
 	cam->position -= d * cam->right;
 }
 
-void MoveRight(SECamera* cam, float d)
+void MoveRight(Camera* cam, float d)
 {
 	cam->position += d * cam->right;
 }
 
-void MoveForward(SECamera* cam, float d)
+void MoveForward(Camera* cam, float d)
 {
 	cam->position += d * cam->forward;
 }
 
-void MoveBackward(SECamera* cam, float d)
+void MoveBackward(Camera* cam, float d)
 {
 	cam->position -= d * cam->forward;
 }
 
-void MoveUp(SECamera* cam, float d)
+void MoveUp(Camera* cam, float d)
 {
 	cam->position += d * cam->up;
 }
 
-void MoveDown(SECamera* cam, float d)
+void MoveDown(Camera* cam, float d)
 {
 	cam->position -= d * cam->up;
 }

@@ -4,14 +4,18 @@
 #include <strsafe.h>
 #include <cstdint>
 
-struct SEWndInfo
+#if defined(CreateWindow)
+#undef CreateWindow
+#endif
+
+struct WndInfo
 {
 	const char* wndName;
     uint32_t width;
     uint32_t height;
 };
 
-struct SEWindow
+struct Window
 {
 	WNDCLASSEXW wndClass;
 	HWND wndHandle;
@@ -50,9 +54,9 @@ inline void ErrorExit(LPCTSTR lpszFunction)
     ExitProcess(dw);
 }
 
-LRESULT CALLBACK SEWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+void CreateWindow(WndInfo* data, Window* window);
 
-void CreateSEWindow(SEWndInfo* data, SEWindow* window);
+uint32_t GetWidth(Window* window);
+uint32_t GetHeight(Window* window);
 
-uint32_t GetWidth(SEWindow* window);
-uint32_t GetHeight(SEWindow* window);
+bool CheckKeyDown(int vKey);

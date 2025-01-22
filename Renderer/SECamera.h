@@ -1,8 +1,8 @@
 #pragma once
 
-#include "math_header.h"
+#include "..\Math\SEMath_Header.h"
 
-struct SECamera
+struct Camera
 {
 	vec3 position;
 	vec3 forward;
@@ -20,36 +20,36 @@ struct SECamera
 };
 
 //Defines the camera space.
-void LookAt(SECamera* cam, vec3 position, vec3 target, vec3 up);
+void LookAt(Camera* cam, vec3 position, vec3 target, vec3 up);
 
 //Updates the view matrix of the specified camera.
-void UpdateViewMatrix(SECamera* cam);
+void UpdateViewMatrix(Camera* cam);
 
 //Updates the perspective projection matrix of the specified camera.
-void UpdatePerspectiveProjectionMatrix(SECamera* cam);
+void UpdatePerspectiveProjectionMatrix(Camera* cam);
 
 //Rotates the camera using a rotation quaternion.
 //Updates the cameras axes.
-void RotateCamera(SECamera* cam, quat rot);
+void RotateCamera(Camera* cam, quat rot);
 
 //Rotates the camera using a rotation quaternion.
 //Updates the cameras position.
-void RotateCameraP(SECamera* cam, quat rot);
+void RotateCameraP(Camera* cam, quat rot);
 
 //Moves the camera along its negative x-axis.
-void MoveLeft(SECamera* cam, float d);
+void MoveLeft(Camera* cam, float d);
 
 //Moves the camera along its positive x-axis.
-void MoveRight(SECamera* cam, float d);
+void MoveRight(Camera* cam, float d);
 
 //Moves the camera along its positive z-axis.
-void MoveForward(SECamera* cam, float d);
+void MoveForward(Camera* cam, float d);
 
 //Moves the camera along its negative z-axis.
-void MoveBackward(SECamera* cam, float d);
+void MoveBackward(Camera* cam, float d);
 
 //Moves the camera along its positive y-axis.
-void MoveUp(SECamera* cam, float d);
+void MoveUp(Camera* cam, float d);
 
 //Moves the camera along its negative y-axis.
-void MoveDown(SECamera* cam, float d);
+void MoveDown(Camera* cam, float d);

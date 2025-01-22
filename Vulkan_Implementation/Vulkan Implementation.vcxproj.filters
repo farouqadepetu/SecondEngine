@@ -18,47 +18,33 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SEVulkan.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\Renderer\SEWindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SEFileSystem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SEMath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\Renderer\SECamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SEDDSLoader.cpp">
+    <ClCompile Include="..\Renderer\Vulkan\SEVulkan.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FileSystem\SEFileSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SEApp.h">
+    <ClInclude Include="..\Renderer\SECamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SEVulkan.h">
+    <ClInclude Include="..\Math\SEMath_Header.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SEFileSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Math\math_header.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SEDDSLoader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Math\math_utility.h">
+    <ClInclude Include="SETimer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="triangle_vs.glsl" />
     <None Include="triangle_ps.glsl" />
+    <None Include="cube_cs.glsl" />
   </ItemGroup>
 </Project>
