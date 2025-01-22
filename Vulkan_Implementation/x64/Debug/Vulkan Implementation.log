@@ -1,9 +1,0 @@
-﻿  main.cpp
-C:\Users\farou\Desktop\SecondEngine\Time\SETimer.h(31,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-  (compiling source file 'main.cpp')
-  
-C:\Users\farou\Desktop\SecondEngine\Vulkan_Implementation\main.cpp(534,34): warning C4244: '=': conversion from 'uint32_t' to 'float', possible loss of data
-C:\Users\farou\Desktop\SecondEngine\Vulkan_Implementation\main.cpp(535,35): warning C4244: '=': conversion from 'uint32_t' to 'float', possible loss of data
-C:\Users\farou\Desktop\SecondEngine\Vulkan_Implementation\main.cpp(541,19): warning C4244: '=': conversion from 'float' to 'int32_t', possible loss of data
-C:\Users\farou\Desktop\SecondEngine\Vulkan_Implementation\main.cpp(542,19): warning C4244: '=': conversion from 'float' to 'int32_t', possible loss of data
-  Vulkan Implementation.vcxproj -> C:\Users\farou\Desktop\SecondEngine\Vulkan_Implementation\x64\Debug\Vulkan Implementation.exe
