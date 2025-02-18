@@ -212,15 +212,4 @@ struct MainComponent
 
 void CreateMainComponent(MainComponentInfo* pInfo, MainComponent* pMainComponent);
 void DestroyMainComponent(MainComponent* pMainComponent);
-
 void AddSubComponent(MainComponent* pMainComponent, void* pSubComponent, SubComponentType type);
-void AddSubComponentText(MainComponent* pMainComponent, SubComponentText* pScText);
-void AddSubComponentDropDown(MainComponent* pMainComponent, SubComponentDropDown* pScDropDown);
-void AddSubComponentSliderInt(MainComponent* pMainComponent, SubComponentSliderInt* pScSliderInt);
-void AddSubComponentSliderFloat(MainComponent* pMainComponent, SubComponentSliderFloat* pScSliderFloat);
-void AddSubComponentSliderFloat2(MainComponent* pMainComponent, SubComponentSliderFloat2* pScSliderFloat2);
-void AddSubComponentSliderFloat3(MainComponent* pMainComponent, SubComponentSliderFloat3* pScSliderFloat3);
-void AddSubComponentSliderFloat4(MainComponent* pMainComponent, SubComponentSliderFloat4* pScSliderFloat4);
-void AddSubComponentCheckBox(MainComponent* pMainComponent, SubComponentCheckBox* pScCheckBox);
-void AddSubComponentButton(MainComponent* pMainComponent, SubComponentButton* pScButton);
-void AddSubComponentRadioButton(MainComponent* pMainComponent, SubComponentRadioButton* pScRadioButton);

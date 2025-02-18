@@ -278,6 +278,7 @@ void CreateWindow(WndInfo* data, Window* window)
 	}
 
 	ShowWindow(window->wndHandle, SW_NORMAL);
+	UpdateWindow(window->wndHandle);
 
 	window->wndClass = SEWndClass;
 }
@@ -319,17 +320,12 @@ bool ProcessMessages()
 	return quit;
 }
 
-MainComponent gTest;
-void ButtonTest(void* data)
-{
-	OutputDebugStringA("CLICKED\n");
-}
 void CreateComponents(Window* pWindow)
 {
 	MainComponentInfo mcInfo{};
 	mcInfo.pLabel = "Frame Stats Window";
 	mcInfo.position = vec2(0.0f, 0.0f);
-	mcInfo.size = vec2(175.0f, 40.0f);
+	mcInfo.size = vec2(200.0f, 40.0f);
 	mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_DECORATION | MAIN_COMPONENT_FLAGS_NO_INPUTS | MAIN_COMPONENT_FLAGS_NO_MOVE
 		| MAIN_COMPONENT_FLAGS_NO_NAV | MAIN_COMPONENT_FLAGS_NO_BACKGROUND | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
 	CreateMainComponent(&mcInfo, &gFrameStatsWindow);
@@ -341,7 +337,7 @@ void CreateComponents(Window* pWindow)
 
 	uint32_t width = GetWidth(pWindow);
 	mcInfo.pLabel = "API";
-	mcInfo.size = vec2(125.0f, 50.0f);
+	mcInfo.size = vec2(150.0f, 60.0f);
 	mcInfo.position = vec2(width - mcInfo.size.GetX(), 0.0f);
 	mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_DECORATION | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS | MAIN_COMPONENT_FLAGS_NO_NAV |
 		MAIN_COMPONENT_FLAGS_NO_RESIZE;
@@ -353,83 +349,6 @@ void CreateComponents(Window* pWindow)
 	apiDropDown.numNames = 2;
 	apiDropDown.pNames = gApiNames;
 	AddSubComponent(&gApiWindow, &apiDropDown, SUB_COMPONENT_TYPE_DROPDOWN);
-
-	mcInfo.pLabel = "Test";
-	mcInfo.position = vec2(200.0f, 0.0f);
-	mcInfo.size = vec2(300.0f, 500.0f);
-	mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
-	CreateMainComponent(&mcInfo, &gTest);
-
-	static int intValue = 0;
-	SubComponentSliderInt sliderInt{};
-	sliderInt.pLabel = "Slider Int";
-	sliderInt.min = 0;
-	sliderInt.max = 15;
-	sliderInt.stepRate = 3;
-	sliderInt.pData = &intValue;
-	AddSubComponent(&gTest, &sliderInt, SUB_COMPONENT_TYPE_SLIDER_INT);
-
-	static float floatValue = 0;
-	SubComponentSliderFloat sliderFloat{};
-	sliderFloat.pLabel = "Slider Float";
-	sliderFloat.min = 0.0f;
-	sliderFloat.max = 5.5f;
-	sliderFloat.stepRate = 0.5f;
-	sliderFloat.pData = &floatValue;
-	AddSubComponent(&gTest, &sliderFloat, SUB_COMPONENT_TYPE_SLIDER_FLOAT);
-
-	static vec2 float2Value;
-	SubComponentSliderFloat2 sliderFloat2{};
-	sliderFloat2.pLabel = "Slider Float2";
-	sliderFloat2.min = vec2(0.0f, 1.0f);
-	sliderFloat2.max = vec2(5.5f, 20.5f);
-	sliderFloat2.stepRate = vec2(0.5f, 1.5f);
-	sliderFloat2.pData = &float2Value;
-	AddSubComponent(&gTest, &sliderFloat2, SUB_COMPONENT_TYPE_SLIDER_FLOAT2);
-
-	static vec3 float3Value;
-	SubComponentSliderFloat3 sliderFloat3{};
-	sliderFloat3.pLabel = "Slider Float3";
-	sliderFloat3.min = vec3(0.0f, 1.0f, -10.0f);
-	sliderFloat3.max = vec3(5.5f, 20.5f, 10.0f);
-	sliderFloat3.stepRate = vec3(0.5f, 1.5f, 1.0f);
-	sliderFloat3.pData = &float3Value;
-	AddSubComponent(&gTest, &sliderFloat3, SUB_COMPONENT_TYPE_SLIDER_FLOAT3);
-
-	static vec4 float4Value;
-	SubComponentSliderFloat4 sliderFloat4{};
-	sliderFloat4.pLabel = "Slider Float4";
-	sliderFloat4.min = vec4(0.0f, 1.0f, -5.0f, -20.5f);
-	sliderFloat4.max = vec4(5.5f, 20.5f, 0.0f, 0.0f);
-	sliderFloat4.stepRate = vec4(0.5f, 1.5f, 0.2f, 0.5f);
-	sliderFloat4.pData = &float4Value;
-	AddSubComponent(&gTest, &sliderFloat4, SUB_COMPONENT_TYPE_SLIDER_FLOAT4);
-
-	static bool checkBoxValue = false;
-	SubComponentCheckBox checkBox{};
-	checkBox.pLabel = "Check Box";
-	checkBox.pData = &checkBoxValue;
-	AddSubComponent(&gTest, &checkBox, SUB_COMPONENT_TYPE_CHECKBOX);
-
-	SubComponentButton button{};
-	button.pLabel = "Button";
-	button.pCallback = ButtonTest;
-	button.pUserData = nullptr;
-	AddSubComponent(&gTest, &button, SUB_COMPONENT_TYPE_BUTTON);
-
-	static int32_t radio1 = 0;
-	SubComponentRadioButton radioButton1{};
-	radioButton1.pLabel = "Radio Button 1";
-	radioButton1.pData = &radio1;
-	radioButton1.id = 1;
-	AddSubComponent(&gTest, &radioButton1, SUB_COMPONENT_TYPE_RADIO_BUTTON);
-
-	SubComponentRadioButton radioButton2{};
-	radioButton2.pLabel = "Radio Button 2";
-	radioButton2.pData = &radio1;
-	radioButton2.id = 2;
-	AddSubComponent(&gTest, &radioButton2, SUB_COMPONENT_TYPE_RADIO_BUTTON);
-
 }
 
 void OnApiSwitch(App* pApp, Window* pWindow, Timer* timer)
@@ -443,7 +362,6 @@ void OnApiSwitch(App* pApp, Window* pWindow, Timer* timer)
 	DestroyUserInterface();
 	DestroyMainComponent(&gFrameStatsWindow);
 	DestroyMainComponent(&gApiWindow);
-	DestroyMainComponent(&gTest);
 
 	WndInfo wndData{};
 	wndData.wndName = pApp->appName;
@@ -540,7 +458,6 @@ int WindowsMain(App* pApp)
 	pApp->Exit();
 	DestroyMainComponent(&gFrameStatsWindow);
 	DestroyMainComponent(&gApiWindow);
-	DestroyMainComponent(&gTest);
 	DestroyUserInterface();
 	return 0;
 }
