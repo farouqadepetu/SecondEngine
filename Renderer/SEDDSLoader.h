@@ -88,10 +88,10 @@ struct DDS_HEADER_DXT10
 
 enum TextureDimension
 {
-    SE_TEXTURE_UNKNOWN = 0,
-    SE_TEXTURE_1D = 2,
-    SE_TEXTURE_2D = 3,
-    SE_TEXTURE_3D = 4
+    TEXTURE_DIMENSION_UNKNOWN = 0,
+    TEXTURE_DIMENSION_1D = 2,
+    TEXTURE_DIMENSION_2D = 3,
+    TEXTURE_DIMENSION_3D = 4
 };
 
 struct ImageInfo
@@ -105,7 +105,7 @@ struct ImageInfo
     void* data;
 };
 
-struct TextureInfo
+struct TextureDesc
 {
     uint32_t width;
     uint32_t height;
@@ -743,7 +743,7 @@ inline void GetImageInfo(uint32_t w, uint32_t h, TinyImageFormat fmt,
 }
 
 inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEADER_DXT10* const ddsHeader10, uint8_t* bitData, const uint32_t numBytes,
-    TextureInfo* textureInfo)
+    TextureDesc* textureInfo)
 {
     textureInfo->width = ddsHeader->width;
     textureInfo->height = ddsHeader->height;
@@ -774,7 +774,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
         case DXGI_FORMAT_P010:
         case DXGI_FORMAT_P016:
         case DXGI_FORMAT_420_OPAQUE:
-            if ((ddsHeader10->resourceDimension != SE_TEXTURE_2D + 1)
+            if ((ddsHeader10->resourceDimension != TEXTURE_DIMENSION_2D + 1)
                 || (textureInfo->width % 2) != 0 || (textureInfo->height % 2) != 0)
             {
                 return SE_NOT_SUPPORTED;
@@ -805,7 +805,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
             return SE_NOT_SUPPORTED;
 
         case DXGI_FORMAT_V208:
-            if ((ddsHeader10->resourceDimension != SE_TEXTURE_2D + 1)
+            if ((ddsHeader10->resourceDimension != TEXTURE_DIMENSION_2D + 1)
                 || (textureInfo->height % 2) != 0)
             {
                 return SE_NOT_SUPPORTED;
@@ -823,7 +823,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
 
         switch (ddsHeader10->resourceDimension)
         {
-        case SE_TEXTURE_1D:
+        case TEXTURE_DIMENSION_1D:
             // D3DX writes 1D textures with a fixed Height of 1
             if ((ddsHeader->flags & DDS_HEIGHT) && textureInfo->height != 1)
             {
@@ -831,20 +831,20 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
             }
             textureInfo->height = 1;
             textureInfo->depth = 1;
-            textureInfo->resDim = SE_TEXTURE_1D;
+            textureInfo->resDim = TEXTURE_DIMENSION_1D;
             break;
 
-        case SE_TEXTURE_2D:
+        case TEXTURE_DIMENSION_2D:
             if (ddsHeader10->miscFlag & 0x4 /* RESOURCE_MISC_TEXTURECUBE */)
             {
                 textureInfo->arraySize *= 6;
                 textureInfo->isCubeMap = true;
             }
             textureInfo->depth = 1;
-            textureInfo->resDim = SE_TEXTURE_2D;
+            textureInfo->resDim = TEXTURE_DIMENSION_2D;
             break;
 
-        case SE_TEXTURE_3D:
+        case TEXTURE_DIMENSION_3D:
             if (!(ddsHeader->flags & DDS_HEADER_FLAGS_VOLUME))
             {
                 return SE_INVALID_DATA;
@@ -855,7 +855,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
                 return SE_NOT_SUPPORTED;
             }
 
-            textureInfo->resDim = SE_TEXTURE_3D;
+            textureInfo->resDim = TEXTURE_DIMENSION_3D;
             break;
 
         default:
@@ -873,7 +873,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
 
         if (ddsHeader->flags & DDS_HEADER_FLAGS_VOLUME)
         {
-            textureInfo->resDim = SE_TEXTURE_3D;
+            textureInfo->resDim = TEXTURE_DIMENSION_3D;
         }
         else
         {
@@ -890,7 +890,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
             }
 
             textureInfo->depth = 1;
-            textureInfo->resDim = SE_TEXTURE_2D;
+            textureInfo->resDim = TEXTURE_DIMENSION_2D;
 
             // Note there's no way for a legacy Direct3D 9 DDS to express a '1D' texture
         }
@@ -910,7 +910,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
 
     switch (textureInfo->resDim)
     {
-    case SE_TEXTURE_1D:
+    case TEXTURE_DIMENSION_1D:
         //D3D12_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION = 2048
         //D3D12_REQ_TEXTURE1D_U_DIMENSION = 16384
         if ((textureInfo->arraySize > 2048) ||
@@ -920,7 +920,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
         }
         break;
 
-    case SE_TEXTURE_2D:
+    case TEXTURE_DIMENSION_2D:
         if (textureInfo->isCubeMap)
         {
             // This is the right bound because we set arraySize to (NumCubes*6) above
@@ -943,7 +943,7 @@ inline int RetrieveTextureInfo(const DDS_HEADER* const ddsHeader, const DDS_HEAD
         }
         break;
 
-    case SE_TEXTURE_3D:
+    case TEXTURE_DIMENSION_3D:
         //D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION = 2048
         if ((textureInfo->arraySize > 1) ||
             (textureInfo->width > 2048) ||
