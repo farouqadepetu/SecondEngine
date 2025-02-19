@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{6a67db55-cc24-4c11-88dd-02f2a58ec9a1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -24,7 +27,27 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Shapes\SEShapes.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\shapesPS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\shapesVS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\shapesPS.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\shapesResources.h.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\shapesVS.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\shapesResources.h.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
