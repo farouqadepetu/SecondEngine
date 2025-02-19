@@ -1359,7 +1359,7 @@ void DirectXCreateBlendDesc(const PipelineInfo* const pInfo, D3D12_RENDER_TARGET
 
 void DirectXCreateRasterizerDesc(const PipelineInfo* const pInfo, D3D12_RASTERIZER_DESC* pRasterDesc)
 {
-	switch (pRasterDesc->FillMode)
+	switch (pInfo->rasInfo.fillMode)
 	{
 	case FILL_MODE_SOLID:
 		pRasterDesc->FillMode = D3D12_FILL_MODE_SOLID;
@@ -1370,7 +1370,7 @@ void DirectXCreateRasterizerDesc(const PipelineInfo* const pInfo, D3D12_RASTERIZ
 		break;
 	}
 
-	switch (pRasterDesc->CullMode)
+	switch (pInfo->rasInfo.cullMode)
 	{
 	case CULL_MODE_NONE:
 		pRasterDesc->CullMode = D3D12_CULL_MODE_NONE;
@@ -1928,7 +1928,7 @@ void DirectXCreateBuffer(const Renderer* const pRenderer, const BufferInfo* pInf
 		DirectXDescriptorHeapAllocate(pRenderer, &heapAllocateInfo, &gCbvSrvUavHeap, nullptr);
 	}
 
-	//FOR COPYING, NEED TO USE A NON-COPY QUEUE TO TRANSITION FOR RESOURCE STATE COMMON
+	//FOR COPYING, NEED TO USE A NON-COPY QUEUE TO TRANSITION FROM RESOURCE STATE COMMON
 	if (copyData)
 		DirectXCopyBuffer(pRenderer, pInfo, pBuffer, allocationSize);
 

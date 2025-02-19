@@ -256,9 +256,9 @@ void (*AcquireNextImage)(const Renderer* const pRenderer, const SwapChain* const
 
 void (*SetViewport)(const CommandBuffer* const pCommandBuffer, const ViewportInfo* const pInfo);
 void (*SetScissor)(const CommandBuffer* const pCommandBuffer, const ScissorInfo* const pInfo);
-void (*Draw)(const CommandBuffer* const pCommandBuffer, const uint32_t vertexCount,
+void (*DrawInstanced)(const CommandBuffer* const pCommandBuffer, const uint32_t vertexCount,
 	const uint32_t instanceCount, const uint32_t firstVertex, const uint32_t firstInstance);
-void (*DrawIndexed)(const CommandBuffer* const pCommandBuffer, const uint32_t indexCount,
+void (*DrawIndexedInstanced)(const CommandBuffer* const pCommandBuffer, const uint32_t indexCount,
 	const uint32_t instanceCount, const uint32_t firstIndex, const uint32_t vertexOffset, const uint32_t firstInstance);
 void (*Dispatch)(const CommandBuffer* const pCommandBuffer, const uint32_t x, const uint32_t y, const uint32_t z);
 
@@ -333,8 +333,8 @@ void InitSE()
 		AcquireNextImage = VulkanAcquireNextImage;
 		SetViewport = VulkanSetViewport;
 		SetScissor = VulkanSetScissor;
-		Draw = VulkanDraw;
-		DrawIndexed = VulkanDrawIndexed;
+		DrawInstanced = VulkanDraw;
+		DrawIndexedInstanced = VulkanDrawIndexed;
 		Dispatch = VulkanDispatch;
 
 		QueueSubmit = VulkanQueueSubmit;
@@ -406,8 +406,8 @@ void InitSE()
 		AcquireNextImage = DirectXAcquireNextImage;
 		SetViewport = DirectXSetViewport;
 		SetScissor = DirectXSetScissor;
-		Draw = DirectXDraw;
-		DrawIndexed = DirectXDrawIndexed;
+		DrawInstanced = DirectXDraw;
+		DrawIndexedInstanced = DirectXDrawIndexed;
 		Dispatch = DirectXDispatch;
 
 		QueueSubmit = DirectXQueueSubmit;
@@ -481,8 +481,8 @@ void ExitSE()
 	AcquireNextImage = nullptr;
 	SetViewport = nullptr;
 	SetScissor = nullptr;
-	Draw = nullptr;
-	DrawIndexed = nullptr;
+	DrawInstanced = nullptr;
+	DrawIndexedInstanced = nullptr;
 	Dispatch = nullptr;
 
 	QueueSubmit = nullptr;

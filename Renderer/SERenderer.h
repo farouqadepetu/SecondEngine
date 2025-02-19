@@ -849,9 +849,9 @@ extern void (*AcquireNextImage)(const Renderer* const pRenderer, const SwapChain
 
 extern void (*SetViewport)(const CommandBuffer* const pCommandBuffer, const ViewportInfo* const pInfo);
 extern void (*SetScissor)(const CommandBuffer* const pCommandBuffer, const ScissorInfo* const pInfo);
-extern void (*Draw)(const CommandBuffer* const pCommandBuffer, const uint32_t vertexCount,
+extern void (*DrawInstanced)(const CommandBuffer* const pCommandBuffer, const uint32_t vertexCount,
 	const uint32_t instanceCount, const uint32_t firstVertex, const uint32_t firstInstance);
-extern void (*DrawIndexed)(const CommandBuffer* const pCommandBuffer, const uint32_t indexCount,
+extern void (*DrawIndexedInstanced)(const CommandBuffer* const pCommandBuffer, const uint32_t indexCount,
 	const uint32_t instanceCount, const uint32_t firstIndex, const uint32_t vertexOffset, const uint32_t firstInstance);
 extern void (*Dispatch)(const CommandBuffer* const pCommandBuffer, const uint32_t x, const uint32_t y, const uint32_t z);
 

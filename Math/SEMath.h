@@ -212,7 +212,7 @@ inline float Length(const Vector2& a)
 inline Vector2 Normalize(const Vector2& a)
 {
 	float mag = 1.0f / Length(a);
-	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the quaternion is 0.");
+	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the vector is 0.");
 	return Vector2(a.x * mag, a.y * mag);
 }
 
@@ -447,7 +447,7 @@ inline float Length(const Vector3& a)
 inline Vector3 Normalize(const Vector3& a)
 {
 	float mag = 1.0f / Length(a);
-	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the quaternion is 0.");
+	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the vector is 0.");
 	return Vector3(a.x * mag, a.y * mag, a.z * mag);
 }
 
@@ -705,7 +705,7 @@ inline float Length(const Vector4& a)
 inline Vector4 Normalize(const Vector4& a)
 {
 	float mag = 1.0f / Length(a);
-	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the quaternion is 0.");
+	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the vector is 0.");
 	return Vector4(a.x * mag, a.y * mag, a.z * mag, a.w * mag);
 }
 
