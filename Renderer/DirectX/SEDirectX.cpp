@@ -2,7 +2,7 @@
 #include <comdef.h>
 
 extern "C" { __declspec(dllexport) extern const uint32_t D3D12SDKVersion = 615; }
-extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8""; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8"../"; }
 
 
 #ifndef DIRECTX_ERROR_CHECK
@@ -1138,98 +1138,99 @@ void DirectXDestroyShader(const Renderer* const pRenderer, Shader* pShader)
 void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSignatureInfo* const pInfo, RootSignature* pRootSignature)
 {
 	pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_NONE] = -1;
+	pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_DRAW] = -1;
 	pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_FRAME] = -1;
-	pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_SAMPLER] = -1;
+	pRootSignature->dx.rootParameterSamplerIndex = -1;
 
-	D3D12_DESCRIPTOR_RANGE1 perNoneRanges[MAX_NUM_ROOT_PARAMETER_INFOS]{};
-	uint32_t numPerNoneRanges = 0;
-
-	D3D12_DESCRIPTOR_RANGE1 perFrameRanges[MAX_NUM_ROOT_PARAMETER_INFOS]{};
-	uint32_t numPerFrameRanges = 0;
-
-	D3D12_DESCRIPTOR_RANGE1 dSamplerRanges[MAX_NUM_ROOT_PARAMETER_INFOS]{};
-	uint32_t numSamplerDRanges = 0;
+	D3D12_DESCRIPTOR_RANGE1* perNoneRanges = nullptr;
+	D3D12_DESCRIPTOR_RANGE1* perDrawRanges = nullptr;
+	D3D12_DESCRIPTOR_RANGE1* perFrameRanges = nullptr;
+	D3D12_DESCRIPTOR_RANGE1* samplerRanges = nullptr;
 
 	for (uint32_t i = 0; i < pInfo->numRootParameterInfos; ++i)
 	{
+		D3D12_DESCRIPTOR_RANGE_TYPE type{};
+		switch (pInfo->rootParameterInfos[i].type)
+		{
+		case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			type = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+			break;
+
+		case DESCRIPTOR_TYPE_BUFFER:
+		case DESCRIPTOR_TYPE_TEXTURE:
+			type = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			break;
+
+		case DESCRIPTOR_TYPE_RW_BUFFER:
+		case DESCRIPTOR_TYPE_RW_TEXTURE:
+			type = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+			break;
+		}
+
 		if (pInfo->rootParameterInfos[i].type != DESCRIPTOR_TYPE_SAMPLER)
 		{
-			switch (pInfo->rootParameterInfos[i].type)
-			{
-			case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-				if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
-				{
-					perNoneRanges[numPerNoneRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-				}
-				else //UPDATE_FREQ_PER_FRAME
-				{
-					perFrameRanges[numPerFrameRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-				}
-				break;
-
-			case DESCRIPTOR_TYPE_RW_BUFFER:
-			case DESCRIPTOR_TYPE_RW_TEXTURE:
-				if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
-				{
-					perNoneRanges[numPerNoneRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-				}
-				else //UPDATE_FREQ_PER_FRAME
-				{
-					perFrameRanges[numPerFrameRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-				}
-				break;
-
-			case DESCRIPTOR_TYPE_BUFFER:
-			case DESCRIPTOR_TYPE_TEXTURE:
-				if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
-				{
-					perNoneRanges[numPerNoneRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-				}
-				else //UPDATE_FREQ_PER_FRAME
-				{
-					perFrameRanges[numPerFrameRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-				}
-			}
-
 			if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
 			{
-				perNoneRanges[numPerNoneRanges].NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-				perNoneRanges[numPerNoneRanges].BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-				perNoneRanges[numPerNoneRanges].RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
-				perNoneRanges[numPerNoneRanges].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
-				perNoneRanges[numPerNoneRanges].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-				++numPerNoneRanges;
+				D3D12_DESCRIPTOR_RANGE1 perNone{};
+			
+				perNone.RangeType = type;
+				perNone.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
+				perNone.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
+				perNone.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+				perNone.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+				perNone.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+				arrpush(perNoneRanges, perNone);
 			}
-			else //UPDATE_FREQ_PER_FRAME
+			else if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_DRAW)
 			{
-				perFrameRanges[numPerFrameRanges].NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-				perFrameRanges[numPerFrameRanges].BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-				perFrameRanges[numPerFrameRanges].RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
-				perFrameRanges[numPerFrameRanges].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
-				perFrameRanges[numPerFrameRanges].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-				++numPerFrameRanges;
+				D3D12_DESCRIPTOR_RANGE1 perDraw{};
+
+				perDraw.RangeType = type;
+				perDraw.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
+				perDraw.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
+				perDraw.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+				perDraw.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+				perDraw.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+				arrpush(perDrawRanges, perDraw);
+			}
+			else// UPDATE_FREQUENCY_PER_FRAME
+			{
+				D3D12_DESCRIPTOR_RANGE1 perFrame{};
+
+				perFrame.RangeType = type;
+				perFrame.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
+				perFrame.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
+				perFrame.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+				perFrame.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+				perFrame.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+				arrpush(perFrameRanges, perFrame);
 			}
 		}
 		else //type == DESCRIPTOR_TYPE_SAMPLER
 		{
-			dSamplerRanges[numSamplerDRanges].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-			dSamplerRanges[numSamplerDRanges].NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-			dSamplerRanges[numSamplerDRanges].BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-			dSamplerRanges[numSamplerDRanges].RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
-			dSamplerRanges[numSamplerDRanges].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
-			dSamplerRanges[numSamplerDRanges].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+			D3D12_DESCRIPTOR_RANGE1 samplerRange{};
+			samplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+			samplerRange.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
+			samplerRange.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
+			samplerRange.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+			samplerRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+			samplerRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-			++numSamplerDRanges;
+			arrpush(samplerRanges, samplerRange);
 		}
 	}
 
-	D3D12_ROOT_PARAMETER1 rootParameters[3]{};
+	D3D12_ROOT_PARAMETER1 rootParameters[UPDATE_FREQUENCY_COUNT + 1]{};
 	uint32_t numRootParameters = 0;
 
-	if (numPerNoneRanges > 0)
+	D3D12_ROOT_DESCRIPTOR_TABLE1 dTable{};
+
+	if (arrlenu(perNoneRanges) > 0)
 	{
-		D3D12_ROOT_DESCRIPTOR_TABLE1 dTable{};
-		dTable.NumDescriptorRanges = numPerNoneRanges;
+		dTable.NumDescriptorRanges = arrlenu(perNoneRanges);
 		dTable.pDescriptorRanges = perNoneRanges;
 
 		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -1239,11 +1240,22 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_NONE] = numRootParameters;
 		++numRootParameters;
 	}
-
-	if (numPerFrameRanges > 0)
+	if (arrlenu(perDrawRanges) > 0)
 	{
-		D3D12_ROOT_DESCRIPTOR_TABLE1 dTable{};
-		dTable.NumDescriptorRanges = numPerFrameRanges;
+		dTable.NumDescriptorRanges = arrlenu(perDrawRanges);
+		dTable.pDescriptorRanges = perDrawRanges;
+
+		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[numRootParameters].DescriptorTable = dTable;
+		rootParameters[numRootParameters].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_DRAW] = numRootParameters;
+		++numRootParameters;
+	}
+
+	if (arrlenu(perFrameRanges) > 0)
+	{
+		dTable.NumDescriptorRanges = arrlenu(perFrameRanges);
 		dTable.pDescriptorRanges = perFrameRanges;
 
 		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -1254,17 +1266,16 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		++numRootParameters;
 	}
 
-	if (numSamplerDRanges > 0)
+	if (arrlenu(samplerRanges) > 0)
 	{
-		D3D12_ROOT_DESCRIPTOR_TABLE1 dTableSampler{};
-		dTableSampler.NumDescriptorRanges = numSamplerDRanges;
-		dTableSampler.pDescriptorRanges = dSamplerRanges;
+		dTable.NumDescriptorRanges = arrlenu(samplerRanges);
+		dTable.pDescriptorRanges = samplerRanges;
 
 		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[numRootParameters].DescriptorTable = dTableSampler;
+		rootParameters[numRootParameters].DescriptorTable = dTable;
 		rootParameters[numRootParameters].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_SAMPLER] = numRootParameters;
+		pRootSignature->dx.rootParameterSamplerIndex = numRootParameters;
 		++numRootParameters;
 	}
 
@@ -1298,6 +1309,11 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 
 	SAFE_RELEASE(serializedRootSig);
 	SAFE_RELEASE(errorBlob);
+
+	arrfree(perNoneRanges);
+	arrfree(perDrawRanges);
+	arrfree(perFrameRanges);
+	arrfree(samplerRanges);
 }
 
 void DirectXDestroyRootSignature(const Renderer* const pRenderer, RootSignature* pRootSignature)
@@ -1981,29 +1997,6 @@ void DirectXCopyTexture(const Renderer* const pRenderer, const TextureDesc* cons
 	void* data = nullptr;
 	DirectXMapMemory(pRenderer, &gDirectXCopyEngine.stagingBuffer, &data);
 
-	uint32_t numImages = texDesc->arraySize * texDesc->mipCount;
-	uint32_t offset = 0;
-	uint8_t* srcData = (uint8_t*)data;
-	for (uint32_t i = 0; i < numImages; ++i)
-	{
-		memcpy(srcData + offset, texDesc->images[i].data, texDesc->images[i].numBytes);
-		offset += texDesc->images[i].numBytes;
-	}
-
-	DirectXUnmapMemory(pRenderer, &gDirectXCopyEngine.stagingBuffer);
-
-	D3D12_RESOURCE_DESC resourceDesc = pDstTexture->dx.resource->GetDesc();
-
-	D3D12_TEXTURE_COPY_LOCATION src{};
-	src.pResource = gDirectXCopyEngine.stagingBuffer.dx.resource;
-	src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	pRenderer->dx.device->GetCopyableFootprints(&resourceDesc, 0, 1, 0, &src.PlacedFootprint, nullptr, nullptr, nullptr);
-
-	D3D12_TEXTURE_COPY_LOCATION dst{};
-	dst.pResource = pDstTexture->dx.resource;
-	dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	dst.SubresourceIndex = 0;
-
 	DirectXBeginCopyEngineCommandList(pRenderer);
 
 	BarrierInfo barrierInfo{};
@@ -2019,7 +2012,31 @@ void DirectXCopyTexture(const Renderer* const pRenderer, const TextureDesc* cons
 	barrierInfo.newState = RESOURCE_STATE_COPY_DEST;
 	DirectXResourceBarrier(&gDirectXCopyEngine.copyCommandBuffer, 1, &barrierInfo);
 
-	gDirectXCopyEngine.copyCommandBuffer.dx.commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+	uint32_t numImages = texDesc->arraySize * texDesc->mipCount;
+	uint32_t offset = 0;
+	for (uint32_t i = 0; i < numImages; ++i)
+	{
+		memcpy((uint8_t*)data + offset, texDesc->images[i].data, texDesc->images[i].numBytes);
+		offset += texDesc->images[i].numBytes;
+	}
+
+	D3D12_RESOURCE_DESC resourceDesc = pDstTexture->dx.resource->GetDesc();
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT* footprints = (D3D12_PLACED_SUBRESOURCE_FOOTPRINT*)calloc(numImages, sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT));
+	pRenderer->dx.device->GetCopyableFootprints(&resourceDesc, 0, numImages, 0, footprints, nullptr, nullptr, nullptr);
+	for (uint32_t i = 0; i < numImages; ++i)
+	{
+		D3D12_TEXTURE_COPY_LOCATION src{};
+		src.pResource = gDirectXCopyEngine.stagingBuffer.dx.resource;
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = footprints[i];
+
+		D3D12_TEXTURE_COPY_LOCATION dst{};
+		dst.pResource = pDstTexture->dx.resource;
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = i;
+		
+		gDirectXCopyEngine.copyCommandBuffer.dx.commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+	}
 
 	DirectXEndCopyEngineCommandList();
 
@@ -2032,7 +2049,10 @@ void DirectXCopyTexture(const Renderer* const pRenderer, const TextureDesc* cons
 	barrier.newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
 	DirectXInitialTransition(pRenderer, &barrier);
 
+	DirectXUnmapMemory(pRenderer, &gDirectXCopyEngine.stagingBuffer);
 	DirectXDestroyStagingBuffer(pRenderer);
+
+	free(footprints);
 }
 
 void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* const pInfo, Texture* pTexture)
@@ -2051,7 +2071,7 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		int result = RetrieveTextureInfo(&ddsHeader, &ddsHeader10, bitData, numBytes, &texDesc);
 		if (result != SE_SUCCESS)
 		{
-			MessageBox(nullptr, L"Error with function RetrieveTextureInfo in function VulkanCreateTexture. Exiting Program.",
+			MessageBox(nullptr, L"Error with function RetrieveTextureInfo in function DirectXCreateTexture. Exiting Program.",
 				L"RetrieveTextureInfo Error", MB_OK);
 			SAFE_FREE(bitData);
 			exit(5);
@@ -2093,6 +2113,7 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		DIRECTX_ERROR_CHECK(pRenderer->dx.allocator->CreateResource(&allocationDesc, &resourceDesc,
 			initialState, nullptr, &pTexture->dx.allocation, IID_PPV_ARGS(&pTexture->dx.resource)));
 
+		numBytes = pTexture->dx.allocation->GetSize();
 		DirectXCopyTexture(pRenderer, &texDesc, pTexture, numBytes);
 
 		SAFE_FREE(bitData);
@@ -2373,15 +2394,18 @@ void DirectXCreateDescriptorSet(const Renderer* const pRenderer, const Descripto
 	pDescriptorSet->pRootSignature = pInfo->pRootSignature;
 
 	pDescriptorSet->dx.heapIndices = (int32_t*)calloc(pInfo->numSets, sizeof(int32_t));
+	pDescriptorSet->dx.samplerHeapIndices = (int32_t*)calloc(pInfo->numSets, sizeof(int32_t));
 
 	for (uint32_t i = 0; i < pInfo->numSets; ++i)
 	{
 		pDescriptorSet->dx.heapIndices[i] = -1;
+		pDescriptorSet->dx.samplerHeapIndices[i] = -1;
 	}
 }
 
 void DirectXDestroyDescriptorSet(DescriptorSet* pDescriptorSet)
 {
+	SAFE_FREE(pDescriptorSet->dx.samplerHeapIndices);
 	SAFE_FREE(pDescriptorSet->dx.heapIndices);
 }
 
@@ -2437,7 +2461,7 @@ void DirectXUpdateDescriptorSet(const Renderer* const pRenderer, const Descripto
 
 			DirectXDescriptorHeapAllocate(pRenderer, &heapAllocateInfo, &gCbvSrvUavHeap, &firstIndex);
 
-			if (i == 0)
+			if (pDescriptorSet->dx.heapIndices[index] < 0)
 				pDescriptorSet->dx.heapIndices[index] = firstIndex;
 		}
 		else //UPDATE_TYPE_SAMPLER
@@ -2448,8 +2472,8 @@ void DirectXUpdateDescriptorSet(const Renderer* const pRenderer, const Descripto
 			heapAllocateInfo.allocateOnGpuHeap = true;
 			DirectXDescriptorHeapAllocate(pRenderer, &heapAllocateInfo, &gSamplerHeap, &firstIndex);
 
-			if (i == 0)
-				pDescriptorSet->dx.heapIndices[index] = firstIndex;
+			if (pDescriptorSet->dx.samplerHeapIndices[index] < 0)
+				pDescriptorSet->dx.samplerHeapIndices[index] = firstIndex;
 		}
 	}
 }
@@ -2459,7 +2483,7 @@ void DirectXBindDescriptorSet(const CommandBuffer* const pCommandBuffer, const u
 {
 	if (pDescriptorSet->pRootSignature->pipelineType == PIPELINE_TYPE_GRAPHICS)
 	{
-		if (pDescriptorSet->updateFrequency != UPDATE_FREQUENCY_PER_SAMPLER && pDescriptorSet->dx.heapIndices[index] >= 0)
+		if (pDescriptorSet->dx.heapIndices[index] >= 0)
 		{
 			D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvUavHandle = gCbvSrvUavHeap.gpuHeap->GetGPUDescriptorHandleForHeapStart();
 			cbvSrvUavHandle.ptr += (pDescriptorSet->dx.heapIndices[index] * gCbvSrvUavHeap.descriptorSize);
@@ -2467,14 +2491,14 @@ void DirectXBindDescriptorSet(const CommandBuffer* const pCommandBuffer, const u
 				pDescriptorSet->pRootSignature->dx.rootParamterIndices[pDescriptorSet->updateFrequency],
 				cbvSrvUavHandle);
 		}
-		else if (pDescriptorSet->updateFrequency == UPDATE_FREQUENCY_PER_SAMPLER && pDescriptorSet->dx.heapIndices[index] >= 0)
+
+		if (pDescriptorSet->dx.samplerHeapIndices[index] >= 0)
 		{
 			D3D12_GPU_DESCRIPTOR_HANDLE samplerHandle = gSamplerHeap.gpuHeap->GetGPUDescriptorHandleForHeapStart();
-			samplerHandle.ptr += (pDescriptorSet->dx.heapIndices[index] * gSamplerHeap.descriptorSize);
+			samplerHandle.ptr += (pDescriptorSet->dx.samplerHeapIndices[index] * gSamplerHeap.descriptorSize);
 
 			pCommandBuffer->dx.commandList->SetGraphicsRootDescriptorTable(
-				pDescriptorSet->pRootSignature->dx.rootParamterIndices[pDescriptorSet->updateFrequency],
-				samplerHandle);
+				pDescriptorSet->pRootSignature->dx.rootParameterSamplerIndex, samplerHandle);
 		}
 	}
 	else // PIPELINE_TYPE_COMPUTE

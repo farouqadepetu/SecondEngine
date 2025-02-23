@@ -78,7 +78,7 @@ void InitUserInterface(Window* pWindow)
 	SetFluentUITheme();
 
 	ImGuiIO& io = ImGui::GetIO();
-	gCousineRegularFont = io.Fonts->AddFontFromFileTTF("../../ThirdParty/imgui/Cousine-Regular.ttf", 15.0f);
+	//gCousineRegularFont = io.Fonts->AddFontFromFileTTF("../../ThirdParty/imgui/Cousine-Regular.ttf", 15.0f);
 }
 
 void DestroyUserInterface()

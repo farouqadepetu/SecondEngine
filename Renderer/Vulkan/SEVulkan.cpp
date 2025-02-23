@@ -1306,7 +1306,7 @@ void VulkanDestroyCopyEngine(const Renderer* const pRenderer)
 	VulkanDestroyCommandBuffer(pRenderer, &gVulkanCopyEngine.commandBuffer);
 }
 
-#define MAX_NUM_DESCRIPTORS 16
+#define MAX_NUM_DESCRIPTORS 1000
 VkDescriptorPool gDescriptorPool;
 void VulkanCreateDescriptorPool(const Renderer* const pRenderer)
 {
@@ -1460,132 +1460,93 @@ void VulkanDestroyShader(const Renderer* const pRenderer, Shader* shader)
 //-------------------------------------------------------------------------------------------------------------------------------------------
 void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignatureInfo* const pInfo, RootSignature* pRootSignature)
 {
-	uint32_t numPerNoneBindings = 0;
-	VkDescriptorSetLayoutBinding layoutBindingPerNone[MAX_NUM_ROOT_PARAMETER_INFOS]{};
 
-	uint32_t numPerFrameBindings = 0;
-	VkDescriptorSetLayoutBinding layoutBindingPerFrame[MAX_NUM_ROOT_PARAMETER_INFOS]{};
-
-	uint32_t numPerSamplerBindings = 0;
-	VkDescriptorSetLayoutBinding layoutBindingPerSampler[MAX_NUM_ROOT_PARAMETER_INFOS]{};
+	VkDescriptorSetLayoutBinding* perNoneBindings = nullptr;
+	VkDescriptorSetLayoutBinding* perDrawBindings = nullptr;
+	VkDescriptorSetLayoutBinding* perFrameBindings = nullptr;
 
 	for (uint32_t i = 0; i < pInfo->numRootParameterInfos; ++i)
 	{
+		VkDescriptorType type{};
+
+		switch (pInfo->rootParameterInfos[i].type)
+		{
+		case DESCRIPTOR_TYPE_TEXTURE:
+			type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			break;
+
+		case DESCRIPTOR_TYPE_RW_TEXTURE:
+			type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			break;
+
+		case DESCRIPTOR_TYPE_BUFFER:
+			type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+			break;
+
+		case DESCRIPTOR_TYPE_RW_BUFFER:
+			type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			break;
+
+		case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			break;
+
+		case DESCRIPTOR_TYPE_SAMPLER:
+			type = VK_DESCRIPTOR_TYPE_SAMPLER;
+			break;
+		}
+
+		uint32_t stage{};
+		if (pInfo->rootParameterInfos[i].stages & STAGE_VERTEX)
+		{
+			stage |= VK_SHADER_STAGE_VERTEX_BIT;
+		}
+
+		if (pInfo->rootParameterInfos[i].stages & STAGE_PIXEL)
+		{
+			stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+		}
+
+		if (pInfo->rootParameterInfos[i].stages & STAGE_COMPUTE)
+		{
+			stage |= VK_SHADER_STAGE_COMPUTE_BIT;
+		}
+
 		if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
 		{
-			layoutBindingPerNone[numPerNoneBindings].binding = pInfo->rootParameterInfos[i].binding;
+			VkDescriptorSetLayoutBinding perNone{};
 
-			switch (pInfo->rootParameterInfos[i].type)
-			{
-			case DESCRIPTOR_TYPE_TEXTURE:
-				layoutBindingPerNone[numPerNoneBindings].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-				break;
+			perNone.descriptorType = type;
+			perNone.stageFlags = stage;
+			perNone.descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
+			perNone.binding = pInfo->rootParameterInfos[i].binding;
+			perNone.pImmutableSamplers = nullptr;
 
-			case DESCRIPTOR_TYPE_RW_TEXTURE:
-				layoutBindingPerNone[numPerNoneBindings].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-				break;
-
-			case DESCRIPTOR_TYPE_BUFFER:
-				layoutBindingPerNone[numPerNoneBindings].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-				break;
-
-			case DESCRIPTOR_TYPE_RW_BUFFER:
-				layoutBindingPerNone[numPerNoneBindings].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-				break;
-
-			case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-				layoutBindingPerNone[numPerNoneBindings].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				break;
-			}
-
-			layoutBindingPerNone[numPerNoneBindings].descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
-
-			if (pInfo->rootParameterInfos[i].stages & STAGE_VERTEX)
-			{
-				layoutBindingPerNone[numPerNoneBindings].stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			}
-
-			if (pInfo->rootParameterInfos[i].stages & STAGE_PIXEL)
-			{
-				layoutBindingPerNone[numPerNoneBindings].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			}
-
-			if (pInfo->rootParameterInfos[i].stages & STAGE_COMPUTE)
-			{
-				layoutBindingPerNone[numPerNoneBindings].stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
-			}
-			layoutBindingPerNone[numPerNoneBindings].pImmutableSamplers = nullptr;
-			++numPerNoneBindings;
+			arrpush(perNoneBindings, perNone);
 		}
 		else if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_FRAME)
 		{
-			layoutBindingPerFrame[numPerFrameBindings].binding = pInfo->rootParameterInfos[i].binding;
+			VkDescriptorSetLayoutBinding perFrame{};
 
-			switch (pInfo->rootParameterInfos[i].type)
-			{
-			case DESCRIPTOR_TYPE_TEXTURE:
-				layoutBindingPerFrame[numPerFrameBindings].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-				break;
+			perFrame.descriptorType = type;
+			perFrame.stageFlags = stage;
+			perFrame.descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
+			perFrame.binding = pInfo->rootParameterInfos[i].binding;
+			perFrame.pImmutableSamplers = nullptr;
 
-			case DESCRIPTOR_TYPE_RW_TEXTURE:
-				layoutBindingPerFrame[numPerFrameBindings].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-				break;
-
-			case DESCRIPTOR_TYPE_BUFFER:
-				layoutBindingPerFrame[numPerFrameBindings].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-				break;
-
-			case DESCRIPTOR_TYPE_RW_BUFFER:
-				layoutBindingPerFrame[numPerFrameBindings].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-				break;
-
-			case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-				layoutBindingPerFrame[numPerFrameBindings].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				break;
-			}
-
-			layoutBindingPerFrame[numPerFrameBindings].descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
-
-			if (pInfo->rootParameterInfos[i].stages & STAGE_VERTEX)
-			{
-				layoutBindingPerFrame[numPerFrameBindings].stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			}
-
-			if (pInfo->rootParameterInfos[i].stages & STAGE_PIXEL)
-			{
-				layoutBindingPerFrame[numPerFrameBindings].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			}
-
-			if (pInfo->rootParameterInfos[i].stages & STAGE_COMPUTE)
-			{
-				layoutBindingPerFrame[numPerFrameBindings].stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
-			}
-
-			layoutBindingPerFrame[numPerFrameBindings].pImmutableSamplers = nullptr;
-			++numPerFrameBindings;
+			arrpush(perFrameBindings, perFrame);
 		}
-		else //UPDATE_FREQUENCY_PER_SAMPLER
+		else //UPDATE_FREQUENCY_PER_NONE
 		{
-			layoutBindingPerSampler[numPerSamplerBindings].binding = pInfo->rootParameterInfos[i].binding;
-			layoutBindingPerSampler[numPerSamplerBindings].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-			layoutBindingPerSampler[numPerSamplerBindings].descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
-			if (pInfo->rootParameterInfos[i].stages & STAGE_VERTEX)
-			{
-				layoutBindingPerSampler[numPerSamplerBindings].stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			}
+			VkDescriptorSetLayoutBinding perDraw{};
 
-			if (pInfo->rootParameterInfos[i].stages & STAGE_PIXEL)
-			{
-				layoutBindingPerSampler[numPerSamplerBindings].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			}
+			perDraw.descriptorType = type;
+			perDraw.stageFlags = stage;
+			perDraw.descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
+			perDraw.binding = pInfo->rootParameterInfos[i].binding;
+			perDraw.pImmutableSamplers = nullptr;
 
-			if (pInfo->rootParameterInfos[i].stages & STAGE_COMPUTE)
-			{
-				layoutBindingPerSampler[numPerSamplerBindings].stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
-			}
-
-			layoutBindingPerSampler[numPerSamplerBindings].pImmutableSamplers = nullptr;
-			++numPerSamplerBindings;
+			arrpush(perDrawBindings, perDraw);
 		}
 	}
 
@@ -1593,8 +1554,8 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	layoutInfoPerNone.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfoPerNone.pNext = nullptr;
 	layoutInfoPerNone.flags = 0;
-	layoutInfoPerNone.bindingCount = numPerNoneBindings;
-	layoutInfoPerNone.pBindings = layoutBindingPerNone;
+	layoutInfoPerNone.bindingCount = arrlenu(perNoneBindings);
+	layoutInfoPerNone.pBindings = perNoneBindings;
 
 	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerNone, 
 		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_NONE]))
@@ -1603,21 +1564,22 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	layoutInfoPerFrame.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfoPerFrame.pNext = nullptr;
 	layoutInfoPerFrame.flags = 0;
-	layoutInfoPerFrame.bindingCount = numPerFrameBindings;
-	layoutInfoPerFrame.pBindings = layoutBindingPerFrame;
+	layoutInfoPerFrame.bindingCount = arrlenu(perFrameBindings);
+	layoutInfoPerFrame.pBindings = perFrameBindings;
 
 	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerFrame,
 		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_FRAME]))
 
-	VkDescriptorSetLayoutCreateInfo layoutInfoPerSampler{};
-	layoutInfoPerSampler.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfoPerSampler.pNext = nullptr;
-	layoutInfoPerSampler.flags = 0;
-	layoutInfoPerSampler.bindingCount = numPerSamplerBindings;
-	layoutInfoPerSampler.pBindings = layoutBindingPerSampler;
 
-	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerSampler,
-		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_SAMPLER]))
+	VkDescriptorSetLayoutCreateInfo layoutInfoPerDraw{};
+	layoutInfoPerDraw.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfoPerDraw.pNext = nullptr;
+	layoutInfoPerDraw.flags = 0;
+	layoutInfoPerDraw.bindingCount = arrlenu(perDrawBindings);
+	layoutInfoPerDraw.pBindings = perDrawBindings;
+
+	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerDraw,
+		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_DRAW]))
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1631,12 +1593,16 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	VULKAN_ERROR_CHECK(vkCreatePipelineLayout(pRenderer->vk.logicalDevice, &pipelineLayoutInfo, nullptr, &pRootSignature->vk.pipelineLayout));
 
 	pRootSignature->useInputLayout = pInfo->useInputLayout;
+
+	arrfree(perNoneBindings);
+	arrfree(perFrameBindings);
+	arrfree(perDrawBindings);
 }
 
 void VulkanDestroyRootSignature(const Renderer* const pRenderer, RootSignature* pRootSignature)
 {
 	vkDestroyPipelineLayout(pRenderer->vk.logicalDevice, pRootSignature->vk.pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(pRenderer->vk.logicalDevice, pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_SAMPLER], nullptr);
+	vkDestroyDescriptorSetLayout(pRenderer->vk.logicalDevice, pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_DRAW], nullptr);
 	vkDestroyDescriptorSetLayout(pRenderer->vk.logicalDevice, pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_FRAME], nullptr);
 	vkDestroyDescriptorSetLayout(pRenderer->vk.logicalDevice, pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_NONE], nullptr);
 }
@@ -2455,7 +2421,7 @@ void VulkanCreateTexture(const Renderer* const pRenderer, const TextureInfo* pIn
 
 		createImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		createImageInfo.pNext = nullptr;
-		createImageInfo.flags = 0;
+		createImageInfo.flags = (texInfo.isCubeMap) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
 		switch (texInfo.resDim)
 		{
@@ -2586,9 +2552,9 @@ void VulkanCreateTexture(const Renderer* const pRenderer, const TextureInfo* pIn
 	createImageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 	createImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	createImageViewInfo.subresourceRange.baseMipLevel = 0;
-	createImageViewInfo.subresourceRange.levelCount = 1;
+	createImageViewInfo.subresourceRange.levelCount = createImageInfo.mipLevels;
 	createImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	createImageViewInfo.subresourceRange.layerCount = 1;
+	createImageViewInfo.subresourceRange.layerCount = createImageInfo.arrayLayers;
 
 	VULKAN_ERROR_CHECK(vkCreateImageView(pRenderer->vk.logicalDevice, &createImageViewInfo, nullptr, &pTexture->vk.imageView));
 }

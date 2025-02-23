@@ -23,7 +23,6 @@ extern void DirectXDestroyRenderTarget(const Renderer* const pRenderer, RenderTa
 
 extern void DirectXCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain);
 extern void DirectXDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapChain);
-extern void DirectXOnResize(const Renderer* const pRenderer, Queue* pQueue, SwapChain* pSwapChain, RenderTarget* pDepthBuffer);
 
 extern void DirectXCreateShader(const Renderer* const pRenderer, const ShaderInfo* const pInfo, Shader* pShader);
 extern void DirectXDestroyShader(const Renderer* const pRenderer, Shader* pShader);
@@ -153,8 +152,6 @@ extern void VulkanAcquireNextImage(const Renderer* const pRenderer, const SwapCh
 extern void VulkanQueueSubmit(const QueueSubmitInfo* const pInfo);
 
 extern void VulkanQueuePresent(const PresentInfo* const pInfo);
-
-extern void VulkanOnResize(const Renderer* const pRenderer, Queue* pQueue, SwapChain* pSwapChain, RenderTarget* pDepthBuffer);
 
 extern void VulkanCreateBuffer(const Renderer* const pRenderer, const BufferInfo* const pBufferInfo, Buffer* pBuffer);
 

@@ -5,49 +5,53 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{6a67db55-cc24-4c11-88dd-02f2a58ec9a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\HLSL">
+      <UniqueIdentifier>{527acada-b615-42f2-bafe-10463e8953a3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\GLSL">
+      <UniqueIdentifier>{cb172030-5567-4e71-acf2-dc7698cf55f7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shapes\SEShapes.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Shapes\SEShapes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <None Include="Shaders\GLSL\resources.h.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shapesPS.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shapesVS.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\skyboxPS.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\skyboxVS.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\shapesPS.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\shapesVS.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\shapesPS.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\shapesResources.h.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\shapesVS.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\shapesResources.h.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
+    <FxCompile Include="Shaders\HLSL\resources.h.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shapesPS.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shapesVS.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\skyboxPS.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\skyboxVS.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

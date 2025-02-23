@@ -13,10 +13,13 @@ SwapChain gSwapChain;
 
 RenderTarget gDepthBuffer;
 
-Shader gVertexShader;
-Shader gPixelShader;
+Shader gShapesVertexShader;
+Shader gShapesPixelShader;
 RootSignature gGraphicsRootSignature;
-Pipeline gGraphicsPipeline;
+Pipeline gShapesPipeline;
+Shader gSkyboxVertexShader;
+Shader gSkyboxPixelShader;
+Pipeline gSkyboxPipeline;
 
 const uint32_t gNumFrames = 2;
 Semaphore gImageAvailableSemaphores[gNumFrames];
@@ -25,21 +28,15 @@ CommandBuffer gGraphicsCommandBuffers[gNumFrames];
 Buffer gVertexBuffer;
 Buffer gIndexBuffer;
 
-Buffer gPerFrameBuffer[gNumFrames];
-
-Buffer gEqTriangleUniformBuffer[gNumFrames];
-Buffer gRightTriangleUniformBuffer[gNumFrames];
-Buffer gQuadUniformBuffer[gNumFrames];
-Buffer gCircleUniformBuffer[gNumFrames];
-
 Texture gStatueTexture;
-Sampler gStatueSampler;
+Texture gYokohamaTexture;
+Texture gSkyboxTexture;
+Sampler gSampler;
 
 uint32_t gCurrentFrame = 0;
 
-DescriptorSet gDescriptorSetUniforms;
-DescriptorSet gDescriptorSetTextures;
-DescriptorSet gDescriptorSetSamplers;
+DescriptorSet gDescriptorSetPerFrame;
+DescriptorSet gDescriptorSetPerNone;
 
 Camera gCamera;
 
@@ -49,6 +46,7 @@ uint32_t* gIndices = nullptr;
 struct PerObjectUniformData
 {
 	mat4 model;
+	bool isShape2D;
 };
 
 struct PerFrameUniformData
@@ -58,6 +56,7 @@ struct PerFrameUniformData
 };
 
 PerFrameUniformData gPerFrameUniformData;
+Buffer gPerFrameBuffer[gNumFrames];
 
 enum
 {
@@ -65,10 +64,30 @@ enum
 	RIGHT_TRIANGLE,
 	QUAD,
 	CIRCLE,
+	BOX,
+	SQUARE_PYRAMID,
+	TRIANGULAR_PYRAMID,
+	SPHERE,
+	HEMI_SPHERE,
+	HEMI_SPHERE_BASE,
+	CYLINDER,
+	CYLINDER_TOP_BASE,
+	CYLINDER_BOTTOM_BASE,
+	CYLINDER_BASE,
+	CONE,
+	CONE_BASE,
+	TORUS,
 	MAX_SHAPES
 };
 
 PerObjectUniformData gShapesUniformData[MAX_SHAPES];
+Buffer gShapesUniformBuffers[MAX_SHAPES * gNumFrames];
+
+PerObjectUniformData gSkyBoxUniformData;
+Buffer gSkyboxUniformBuffer[gNumFrames];
+
+PerFrameUniformData gSkyboxPerFrameUniformData;
+Buffer gSkyboxPerFrameBuffer[gNumFrames];
 
 uint32_t gVertexOffsets[MAX_SHAPES];
 uint32_t gIndexOffsets[MAX_SHAPES];
@@ -77,14 +96,14 @@ uint32_t gIndexCounts[MAX_SHAPES];
 mat4 gCubeRotation;
 float gAngle = 0.0f;
 
-class Test : public App
+class Shapes : public App
 {
 public:
 	void Init() override
 	{
 		InitSE();
 
-		InitRenderer(&gRenderer, "Test");
+		InitRenderer(&gRenderer, "Shapes");
 
 		CreateQueue(&gRenderer, QUEUE_TYPE_GRAPHICS, &gGraphicsQueue);
 
@@ -110,16 +129,26 @@ public:
 		CreateRenderTarget(&gRenderer, &dbInfo, &gDepthBuffer);
 
 		ShaderInfo vertexShaderInfo{};
-		vertexShaderInfo.glslFilename = "CompiledShaders/shapesVS.spv";
-		vertexShaderInfo.hlslFilename = "CompiledShaders/shapesVS.cso";
+		vertexShaderInfo.glslFilename = "CompiledShaders/GLSL/shapesVS.spv";
+		vertexShaderInfo.hlslFilename = "CompiledShaders/HLSL/shapesVS.cso";
 		vertexShaderInfo.type = SHADER_TYPE_VERTEX;
-		CreateShader(&gRenderer, &vertexShaderInfo, &gVertexShader);
+		CreateShader(&gRenderer, &vertexShaderInfo, &gShapesVertexShader);
 
 		ShaderInfo pixelShaderInfo{};
-		pixelShaderInfo.glslFilename = "CompiledShaders/shapesPS.spv";
-		pixelShaderInfo.hlslFilename = "CompiledShaders/shapesPS.cso";
+		pixelShaderInfo.glslFilename = "CompiledShaders/GLSL/shapesPS.spv";
+		pixelShaderInfo.hlslFilename = "CompiledShaders/HLSL/shapesPS.cso";
 		pixelShaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &pixelShaderInfo, &gPixelShader);
+		CreateShader(&gRenderer, &pixelShaderInfo, &gShapesPixelShader);
+
+		vertexShaderInfo.glslFilename = "CompiledShaders/GLSL/skyboxVS.spv";
+		vertexShaderInfo.hlslFilename = "CompiledShaders/HLSL/skyboxVS.cso";
+		vertexShaderInfo.type = SHADER_TYPE_VERTEX;
+		CreateShader(&gRenderer, &vertexShaderInfo, &gSkyboxVertexShader);
+
+		pixelShaderInfo.glslFilename = "CompiledShaders/GLSL/skyboxPS.spv";
+		pixelShaderInfo.hlslFilename = "CompiledShaders/HLSL/skyboxPS.cso";
+		pixelShaderInfo.type = SHADER_TYPE_PIXEL;
+		CreateShader(&gRenderer, &pixelShaderInfo, &gSkyboxPixelShader);
 
 		VertexInputInfo vertexInputInfo{};
 		vertexInputInfo.vertexBinding.binding = 0;
@@ -162,7 +191,7 @@ public:
 		graphicsRootSignatureInfo.rootParameterInfos[1].baseRegister = 1;
 		graphicsRootSignatureInfo.rootParameterInfos[1].registerSpace = 0;
 		graphicsRootSignatureInfo.rootParameterInfos[1].numDescriptors = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[1].stages = STAGE_VERTEX;
+		graphicsRootSignatureInfo.rootParameterInfos[1].stages = STAGE_VERTEX | STAGE_PIXEL;
 		graphicsRootSignatureInfo.rootParameterInfos[1].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		graphicsRootSignatureInfo.rootParameterInfos[1].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 
@@ -174,15 +203,23 @@ public:
 		graphicsRootSignatureInfo.rootParameterInfos[2].type = DESCRIPTOR_TYPE_TEXTURE;
 		graphicsRootSignatureInfo.rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		graphicsRootSignatureInfo.rootParameterInfos[3].binding = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[3].baseRegister = 0;
+		graphicsRootSignatureInfo.rootParameterInfos[3].binding = 1;
+		graphicsRootSignatureInfo.rootParameterInfos[3].baseRegister = 1;
 		graphicsRootSignatureInfo.rootParameterInfos[3].registerSpace = 0;
 		graphicsRootSignatureInfo.rootParameterInfos[3].numDescriptors = 1;
 		graphicsRootSignatureInfo.rootParameterInfos[3].stages = STAGE_PIXEL;
-		graphicsRootSignatureInfo.rootParameterInfos[3].type = DESCRIPTOR_TYPE_SAMPLER;
-		graphicsRootSignatureInfo.rootParameterInfos[3].updateFrequency = UPDATE_FREQUENCY_PER_SAMPLER;
+		graphicsRootSignatureInfo.rootParameterInfos[3].type = DESCRIPTOR_TYPE_TEXTURE;
+		graphicsRootSignatureInfo.rootParameterInfos[3].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		graphicsRootSignatureInfo.numRootParameterInfos = 4;
+		graphicsRootSignatureInfo.rootParameterInfos[4].binding = 2;
+		graphicsRootSignatureInfo.rootParameterInfos[4].baseRegister = 0;
+		graphicsRootSignatureInfo.rootParameterInfos[4].registerSpace = 0;
+		graphicsRootSignatureInfo.rootParameterInfos[4].numDescriptors = 1;
+		graphicsRootSignatureInfo.rootParameterInfos[4].stages = STAGE_PIXEL;
+		graphicsRootSignatureInfo.rootParameterInfos[4].type = DESCRIPTOR_TYPE_SAMPLER;
+		graphicsRootSignatureInfo.rootParameterInfos[4].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
+
+		graphicsRootSignatureInfo.numRootParameterInfos = 5;
 		graphicsRootSignatureInfo.useInputLayout = true;
 		CreateRootSignature(&gRenderer, &graphicsRootSignatureInfo, &gGraphicsRootSignature);
 
@@ -194,8 +231,8 @@ public:
 		graphicsPipelineInfo.rasInfo.fillMode = FILL_MODE_SOLID;
 		graphicsPipelineInfo.rasInfo.lineWidth = 1.0f;
 		graphicsPipelineInfo.blendInfo.enableBlend = false;
-		graphicsPipelineInfo.pVertexShader = &gVertexShader;
-		graphicsPipelineInfo.pPixelShader = &gPixelShader;
+		graphicsPipelineInfo.pVertexShader = &gShapesVertexShader;
+		graphicsPipelineInfo.pPixelShader = &gShapesPixelShader;
 		graphicsPipelineInfo.renderTargetFormat = gSwapChain.pRenderTargets[0].info.format;
 		graphicsPipelineInfo.depthInfo.depthTestEnable = true;
 		graphicsPipelineInfo.depthInfo.depthWriteEnable = true;
@@ -203,7 +240,13 @@ public:
 		graphicsPipelineInfo.depthFormat = gDepthBuffer.info.format;
 		graphicsPipelineInfo.pVertexInputInfo = &vertexInputInfo;
 		graphicsPipelineInfo.pRootSignature = &gGraphicsRootSignature;
-		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gGraphicsPipeline);
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapesPipeline);
+
+		graphicsPipelineInfo.rasInfo.cullMode = CULL_MODE_NONE;
+		graphicsPipelineInfo.pVertexShader = &gSkyboxVertexShader;
+		graphicsPipelineInfo.pPixelShader = &gSkyboxPixelShader;
+		graphicsPipelineInfo.depthInfo.depthFunction = DEPTH_FUNCTION_LESS_OR_EQUAL;
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gSkyboxPipeline);
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
@@ -225,6 +268,58 @@ public:
 		gIndexOffsets[CIRCLE] = arrlenu(gIndices);
 		CreateCircle(&gVertices, &gIndices, &gIndexCounts[CIRCLE]);
 
+		gVertexOffsets[BOX] = arrlenu(gVertices);
+		gIndexOffsets[BOX] = arrlenu(gIndices);
+		CreateBox(&gVertices, &gIndices, &gIndexCounts[BOX]);
+
+		gVertexOffsets[SQUARE_PYRAMID] = arrlenu(gVertices);
+		gIndexOffsets[SQUARE_PYRAMID] = arrlenu(gIndices);
+		CreateSquarePyramid(&gVertices, &gIndices, &gIndexCounts[SQUARE_PYRAMID]);
+
+		gVertexOffsets[TRIANGULAR_PYRAMID] = arrlenu(gVertices);
+		gIndexOffsets[TRIANGULAR_PYRAMID] = arrlenu(gIndices);
+		CreateTriangularPyramid(&gVertices, &gIndices, &gIndexCounts[TRIANGULAR_PYRAMID]);
+
+		gVertexOffsets[SPHERE] = arrlenu(gVertices);
+		gIndexOffsets[SPHERE] = arrlenu(gIndices);
+		CreateSphere(&gVertices, &gIndices, &gIndexCounts[SPHERE]);
+
+		gVertexOffsets[HEMI_SPHERE] = arrlenu(gVertices);
+		gIndexOffsets[HEMI_SPHERE] = arrlenu(gIndices);
+		CreateHemiSphere(&gVertices, &gIndices, &gIndexCounts[HEMI_SPHERE], false);
+
+		gVertexOffsets[HEMI_SPHERE_BASE] = arrlenu(gVertices);
+		gIndexOffsets[HEMI_SPHERE_BASE] = arrlenu(gIndices);
+		CreateHemiSphere(&gVertices, &gIndices, &gIndexCounts[HEMI_SPHERE_BASE], true);
+
+		gVertexOffsets[CYLINDER] = arrlenu(gVertices);
+		gIndexOffsets[CYLINDER] = arrlenu(gIndices);
+		CreateCylinder(&gVertices, &gIndices, &gIndexCounts[CYLINDER], false, false);
+
+		gVertexOffsets[CYLINDER_TOP_BASE] = arrlenu(gVertices);
+		gIndexOffsets[CYLINDER_TOP_BASE] = arrlenu(gIndices);
+		CreateCylinder(&gVertices, &gIndices, &gIndexCounts[CYLINDER_TOP_BASE], true, false);
+
+		gVertexOffsets[CYLINDER_BOTTOM_BASE] = arrlenu(gVertices);
+		gIndexOffsets[CYLINDER_BOTTOM_BASE] = arrlenu(gIndices);
+		CreateCylinder(&gVertices, &gIndices, &gIndexCounts[CYLINDER_BOTTOM_BASE], false, true);
+
+		gVertexOffsets[CYLINDER_BASE] = arrlenu(gVertices);
+		gIndexOffsets[CYLINDER_BASE] = arrlenu(gIndices);
+		CreateCylinder(&gVertices, &gIndices, &gIndexCounts[CYLINDER_BASE], true, true);
+
+		gVertexOffsets[CONE] = arrlenu(gVertices);
+		gIndexOffsets[CONE] = arrlenu(gIndices);
+		CreateCone(&gVertices, &gIndices, &gIndexCounts[CONE], false);
+
+		gVertexOffsets[CONE_BASE] = arrlenu(gVertices);
+		gIndexOffsets[CONE_BASE] = arrlenu(gIndices);
+		CreateCone(&gVertices, &gIndices, &gIndexCounts[CONE_BASE], true);
+
+		gVertexOffsets[TORUS] = arrlenu(gVertices);
+		gIndexOffsets[TORUS] = arrlenu(gIndices);
+		CreateTorus(&gVertices, &gIndices, &gIndexCounts[TORUS], 2.0f, 1.0f);
+
 		BufferInfo vbInfo{};
 		vbInfo.size = arrlen(gVertices) * sizeof(Vertex);
 		vbInfo.type = BUFFER_TYPE_VERTEX;
@@ -244,23 +339,38 @@ public:
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
 			BufferInfo ubInfo{};
+			ubInfo.size = sizeof(PerFrameUniformData);
+			ubInfo.type = BUFFER_TYPE_UNIFORM;
+			ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
+			ubInfo.data = nullptr;
+
+			CreateBuffer(&gRenderer, &ubInfo, &gPerFrameBuffer[i]);
+			CreateBuffer(&gRenderer, &ubInfo, &gSkyboxPerFrameBuffer[i]);
+
+			ubInfo.size = sizeof(PerObjectUniformData);
+			CreateBuffer(&gRenderer, &ubInfo, &gSkyboxUniformBuffer[i]);
+		}
+
+		for (uint32_t i = 0; i < MAX_SHAPES * gNumFrames; ++i)
+		{
+			BufferInfo ubInfo{};
 			ubInfo.size = sizeof(PerObjectUniformData);
 			ubInfo.type = BUFFER_TYPE_UNIFORM;
 			ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
 			ubInfo.data = nullptr;
 
-			CreateBuffer(&gRenderer, &ubInfo, &gEqTriangleUniformBuffer[i]);
-			CreateBuffer(&gRenderer, &ubInfo, &gRightTriangleUniformBuffer[i]);
-			CreateBuffer(&gRenderer, &ubInfo, &gQuadUniformBuffer[i]);
-			CreateBuffer(&gRenderer, &ubInfo, &gCircleUniformBuffer[i]);
-
-			ubInfo.size = sizeof(PerFrameUniformData);
-			CreateBuffer(&gRenderer, &ubInfo, &gPerFrameBuffer[i]);
+			CreateBuffer(&gRenderer, &ubInfo, &gShapesUniformBuffers[i]);
 		}
 
 		TextureInfo texInfo{};
-		texInfo.filename = "statue.dds";
+		texInfo.filename = "Textures/statue.dds";
 		CreateTexture(&gRenderer, &texInfo, &gStatueTexture);
+
+		texInfo.filename = "Textures/yokohama.dds";
+		CreateTexture(&gRenderer, &texInfo, &gYokohamaTexture);
+
+		texInfo.filename = "Textures/skybox.dds";
+		CreateTexture(&gRenderer, &texInfo, &gSkyboxTexture);
 
 		SamplerInfo samplerInfo{};
 		samplerInfo.magFilter = FILTER_LINEAR;
@@ -273,60 +383,64 @@ public:
 		samplerInfo.mipLoadBias = 0.0f;
 		samplerInfo.minLod = 0.0f;
 		samplerInfo.maxLod = 0.0f;
-		CreateSampler(&gRenderer, &samplerInfo, &gStatueSampler);
+		CreateSampler(&gRenderer, &samplerInfo, &gSampler);
 
 		DescriptorSetInfo uniformSetInfo{};
 		uniformSetInfo.pRootSignature = &gGraphicsRootSignature;
-		uniformSetInfo.numSets = MAX_SHAPES * gNumFrames;
+		uniformSetInfo.numSets = MAX_SHAPES * gNumFrames + 2;
 		uniformSetInfo.updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
-		CreateDescriptorSet(&gRenderer, &uniformSetInfo, &gDescriptorSetUniforms);
+		CreateDescriptorSet(&gRenderer, &uniformSetInfo, &gDescriptorSetPerFrame);
 
 		DescriptorSetInfo texturesSetInfo{};
 		texturesSetInfo.pRootSignature = &gGraphicsRootSignature;
-		texturesSetInfo.numSets = 1;
+		texturesSetInfo.numSets = 2;
 		texturesSetInfo.updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-		CreateDescriptorSet(&gRenderer, &texturesSetInfo, &gDescriptorSetTextures);
+		CreateDescriptorSet(&gRenderer, &texturesSetInfo, &gDescriptorSetPerNone);
 
-		DescriptorSetInfo samplersSetInfo{};
-		samplersSetInfo.pRootSignature = &gGraphicsRootSignature;
-		samplersSetInfo.numSets = 1;
-		samplersSetInfo.updateFrequency = UPDATE_FREQUENCY_PER_SAMPLER;
-		CreateDescriptorSet(&gRenderer, &samplersSetInfo, &gDescriptorSetSamplers);
+		for (uint32_t i = 0; i < MAX_SHAPES * gNumFrames; ++i)
+		{
+			UpdateDescriptorSetInfo updatePerFrame[2]{};
+			updatePerFrame[0].binding = 0;
+			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[0].pBuffer = &gPerFrameBuffer[i / MAX_SHAPES];
+
+			updatePerFrame[1].binding = 1;
+			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[1].pBuffer = &gShapesUniformBuffers[i];
+
+			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 2, updatePerFrame);
+		}
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
-			UpdateDescriptorSetInfo updateUniformSetInfo[2]{};
-			updateUniformSetInfo[0].binding = 0;
-			updateUniformSetInfo[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updateUniformSetInfo[0].pBuffer = &gPerFrameBuffer[i];
-			updateUniformSetInfo[1].binding = 1;
-			updateUniformSetInfo[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updateUniformSetInfo[1].pBuffer = &gEqTriangleUniformBuffer[i];
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetUniforms, i + EQUILATERAL_TRIANGLE * 2, 2, updateUniformSetInfo);
+			UpdateDescriptorSetInfo updatePerFrame[2]{};
+			updatePerFrame[0].binding = 0;
+			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[0].pBuffer = &gPerFrameBuffer[i];
 
-			updateUniformSetInfo[1].pBuffer = &gRightTriangleUniformBuffer[i];
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetUniforms, i + RIGHT_TRIANGLE * 2, 2, updateUniformSetInfo);
+			updatePerFrame[1].binding = 1;
+			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[1].pBuffer = &gSkyboxUniformBuffer[i];
 
-			updateUniformSetInfo[1].pBuffer = &gQuadUniformBuffer[i];
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetUniforms, i + QUAD * 2, 2, updateUniformSetInfo);
-
-			updateUniformSetInfo[1].pBuffer = &gCircleUniformBuffer[i];
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetUniforms, i + CIRCLE * 2, 2, updateUniformSetInfo);
+			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + MAX_SHAPES * gNumFrames, 2, updatePerFrame);
 		}
 
-		UpdateDescriptorSetInfo updateImageSetInfo[1]{};
+		UpdateDescriptorSetInfo updateImageSetInfo[3]{};
 		updateImageSetInfo[0].binding = 0;
 		updateImageSetInfo[0].type = UPDATE_TYPE_TEXTURE;
 		updateImageSetInfo[0].pTexture = &gStatueTexture;
-		UpdateDescriptorSet(&gRenderer, &gDescriptorSetTextures, 0, 1, updateImageSetInfo);
+		updateImageSetInfo[1].binding = 1;
+		updateImageSetInfo[1].type = UPDATE_TYPE_TEXTURE;
+		updateImageSetInfo[1].pTexture = &gYokohamaTexture;
+		updateImageSetInfo[2].binding = 2;
+		updateImageSetInfo[2].type = UPDATE_TYPE_SAMPLER;
+		updateImageSetInfo[2].pSampler = &gSampler;
+		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 3, updateImageSetInfo);
 
-		UpdateDescriptorSetInfo updateSamplerSetInfo[1];
-		updateSamplerSetInfo[0].binding = 0;
-		updateSamplerSetInfo[0].type = UPDATE_TYPE_SAMPLER;
-		updateSamplerSetInfo[0].pSampler = &gStatueSampler;
-		UpdateDescriptorSet(&gRenderer, &gDescriptorSetSamplers, 0, 1, updateSamplerSetInfo);
+		updateImageSetInfo[1].pTexture = &gSkyboxTexture;
+		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 1, 3, updateImageSetInfo);
 
-		LookAt(&gCamera, vec3(1.0f, 0.0f, -7.5f), vec3(1.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+		LookAt(&gCamera, vec3(4.0f, 0.0f, -12.5f), vec3(4.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 
 		gCamera.vFov = 45.0f;
 		gCamera.nearP = 1.0f;
@@ -351,33 +465,40 @@ public:
 		DestroyShape(&gVertices, &gIndices);
 		
 		DestroyUI(&gRenderer);
-		DestroyDescriptorSet(&gDescriptorSetSamplers);
-		DestroyDescriptorSet(&gDescriptorSetTextures);
-		DestroyDescriptorSet(&gDescriptorSetUniforms);
+		DestroyDescriptorSet(&gDescriptorSetPerNone);
+		DestroyDescriptorSet(&gDescriptorSetPerFrame);
 
-		DestroySampler(&gRenderer, &gStatueSampler);
+		DestroySampler(&gRenderer, &gSampler);
 		DestroyTexture(&gRenderer, &gStatueTexture);
+		DestroyTexture(&gRenderer, &gYokohamaTexture);
+		DestroyTexture(&gRenderer, &gSkyboxTexture);
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
 			DestroyBuffer(&gRenderer, &gPerFrameBuffer[i]);
-			DestroyBuffer(&gRenderer, &gCircleUniformBuffer[i]);
-			DestroyBuffer(&gRenderer, &gQuadUniformBuffer[i]);
-			DestroyBuffer(&gRenderer, &gRightTriangleUniformBuffer[i]);
-			DestroyBuffer(&gRenderer, &gEqTriangleUniformBuffer[i]);
+			DestroyBuffer(&gRenderer, &gSkyboxPerFrameBuffer[i]);
+			DestroyBuffer(&gRenderer, &gSkyboxUniformBuffer[i]);
 			DestroySemaphore(&gRenderer, &gImageAvailableSemaphores[i]);
 			DestroyCommandBuffer(&gRenderer, &gGraphicsCommandBuffers[i]);
 		}
 
-		DestroyPipeline(&gRenderer, &gGraphicsPipeline);
+		for (uint32_t i = 0; i < MAX_SHAPES * gNumFrames; ++i)
+		{
+			DestroyBuffer(&gRenderer, &gShapesUniformBuffers[i]);
+		}
+
+		DestroyPipeline(&gRenderer, &gSkyboxPipeline);
+		DestroyPipeline(&gRenderer, &gShapesPipeline);
 
 		DestroyRootSignature(&gRenderer, &gGraphicsRootSignature);
 
 		DestroyBuffer(&gRenderer, &gIndexBuffer);
 		DestroyBuffer(&gRenderer, &gVertexBuffer);
 
-		DestroyShader(&gRenderer, &gPixelShader);
-		DestroyShader(&gRenderer, &gVertexShader);
+		DestroyShader(&gRenderer, &gSkyboxVertexShader);
+		DestroyShader(&gRenderer, &gSkyboxPixelShader);
+		DestroyShader(&gRenderer, &gShapesPixelShader);
+		DestroyShader(&gRenderer, &gShapesVertexShader);
 
 		DestroyRenderTarget(&gRenderer, &gDepthBuffer);
 
@@ -392,11 +513,10 @@ public:
 
 	void UserInput(float deltaTime) override
 	{
-		static float moveSpeed = 5.0f;
+		static float moveSpeed = 10.0f;
 		static float turnSpeed = 0.25f;
 		static float turnSpeed2 = 25.0f;
 		static vec2 lastMousePosition;
-
 
 		if (CheckKeyDown('W'))
 			MoveForward(&gCamera, moveSpeed * deltaTime);
@@ -411,7 +531,7 @@ public:
 		if (CheckKeyDown('E'))
 			MoveDown(&gCamera, moveSpeed * deltaTime);
 		if (CheckKeyDown(VK_SPACE))
-			LookAt(&gCamera, vec3(1.0f, 0.0f, -7.5f), vec3(1.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+			LookAt(&gCamera, vec3(4.0f, 0.0f, -12.5f), vec3(4.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 		if (CheckKeyDown('L'))
 			RotateCamera(&gCamera, quat::MakeRotation(turnSpeed2 * deltaTime, vec3(0.0f, 1.0f, 0.0f)));
 		if (CheckKeyDown('J'))
@@ -462,20 +582,85 @@ public:
 		UpdateViewMatrix(&gCamera);
 		UpdatePerspectiveProjectionMatrix(&gCamera);
 
-		mat4 model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
+		mat4 model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 6.0f, 0.0f);
 		gShapesUniformData[EQUILATERAL_TRIANGLE].model = Transpose(model);
+		gShapesUniformData[EQUILATERAL_TRIANGLE].isShape2D = true;
 
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 0.0f, 0.0f);
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 6.0f, 0.0f);
 		gShapesUniformData[RIGHT_TRIANGLE].model = Transpose(model);
+		gShapesUniformData[RIGHT_TRIANGLE].isShape2D = true;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(4.0f, 6.0f, 0.0f);
+		gShapesUniformData[QUAD].model = Transpose(model);
+		gShapesUniformData[QUAD].isShape2D = true;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 6.0f, 0.0f);
+		gShapesUniformData[CIRCLE].model = Transpose(model);
+		gShapesUniformData[CIRCLE].isShape2D = true;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 4.0f, 0.0f);
+		gShapesUniformData[BOX].model = Transpose(model);
+		gShapesUniformData[BOX].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 4.0f, 0.0f);
+		gShapesUniformData[SQUARE_PYRAMID].model = Transpose(model);
+		gShapesUniformData[SQUARE_PYRAMID].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(4.0f, 4.0f, 0.0f);
+		gShapesUniformData[TRIANGULAR_PYRAMID].model = Transpose(model);
+		gShapesUniformData[TRIANGULAR_PYRAMID].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 2.0f, 0.0f);
-		gShapesUniformData[QUAD].model = Transpose(model);
+		gShapesUniformData[SPHERE].model = Transpose(model);
+		gShapesUniformData[SPHERE].isShape2D = false;
 
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 2.0f, 0.0f);
-		gShapesUniformData[CIRCLE].model = Transpose(model);
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, 2.0f, 0.0f);
+		gShapesUniformData[HEMI_SPHERE].model = Transpose(model);
+		gShapesUniformData[HEMI_SPHERE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 2.0f, 0.0f);
+		gShapesUniformData[HEMI_SPHERE_BASE].model = Transpose(model);
+		gShapesUniformData[HEMI_SPHERE_BASE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
+		gShapesUniformData[CYLINDER].model = Transpose(model);
+		gShapesUniformData[CYLINDER].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, 0.0f, 0.0f);
+		gShapesUniformData[CYLINDER_TOP_BASE].model = Transpose(model);
+		gShapesUniformData[CYLINDER_TOP_BASE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 0.0f, 0.0f);
+		gShapesUniformData[CYLINDER_BOTTOM_BASE].model = Transpose(model);
+		gShapesUniformData[CYLINDER_BOTTOM_BASE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(9.0f, 0.0f, 0.0f);
+		gShapesUniformData[CYLINDER_BASE].model = Transpose(model);
+		gShapesUniformData[CYLINDER_BASE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, -2.0f, 0.0f);
+		gShapesUniformData[CONE].model = Transpose(model);
+		gShapesUniformData[CONE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, -2.0f, 0.0f);
+		gShapesUniformData[CONE_BASE].model = Transpose(model);
+		gShapesUniformData[CONE_BASE].isShape2D = false;
+
+		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(5.0f, -4.0f, 0.0f);
+		gShapesUniformData[TORUS].model = Transpose(model);
+		gShapesUniformData[TORUS].isShape2D = false;
 
 		gPerFrameUniformData.view = Transpose(gCamera.viewMat);
 		gPerFrameUniformData.projection = Transpose(gCamera.perspectiveProjMat);
+
+		model = mat4::Scale(1000.0f, 1000.0f, 1000.0f);
+		gSkyBoxUniformData.model = Transpose(model);
+		gSkyBoxUniformData.isShape2D = true;
+
+		mat4 viewMat = gCamera.viewMat;
+		viewMat.SetRow(3, 0.0f, 0.0f, 0.0f, 1.0f);
+		gSkyboxPerFrameUniformData.view = Transpose(viewMat);
+		gSkyboxPerFrameUniformData.projection = Transpose(gCamera.perspectiveProjMat);
 	}
 
 	void Draw() override
@@ -484,25 +669,25 @@ public:
 		WaitForFence(&gRenderer, &pCommandBuffer->fence);
 
 		void* data = nullptr;
-		MapMemory(&gRenderer, &gEqTriangleUniformBuffer[gCurrentFrame], &data);
-		memcpy(data, &gShapesUniformData[EQUILATERAL_TRIANGLE], sizeof(PerObjectUniformData));
-		UnmapMemory(&gRenderer, &gEqTriangleUniformBuffer[gCurrentFrame]);
-
-		MapMemory(&gRenderer, &gRightTriangleUniformBuffer[gCurrentFrame], &data);
-		memcpy(data, &gShapesUniformData[RIGHT_TRIANGLE], sizeof(PerObjectUniformData));
-		UnmapMemory(&gRenderer, &gRightTriangleUniformBuffer[gCurrentFrame]);
-
-		MapMemory(&gRenderer, &gQuadUniformBuffer[gCurrentFrame], &data);
-		memcpy(data, &gShapesUniformData[QUAD], sizeof(PerObjectUniformData));
-		UnmapMemory(&gRenderer, &gQuadUniformBuffer[gCurrentFrame]);
-
-		MapMemory(&gRenderer, &gCircleUniformBuffer[gCurrentFrame], &data);
-		memcpy(data, &gShapesUniformData[CIRCLE], sizeof(PerObjectUniformData));
-		UnmapMemory(&gRenderer, &gCircleUniformBuffer[gCurrentFrame]);
 
 		MapMemory(&gRenderer, &gPerFrameBuffer[gCurrentFrame], &data);
 		memcpy(data, &gPerFrameUniformData, sizeof(PerFrameUniformData));
 		UnmapMemory(&gRenderer, &gPerFrameBuffer[gCurrentFrame]);
+
+		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
+		{
+			MapMemory(&gRenderer, &gShapesUniformBuffers[gCurrentFrame * MAX_SHAPES + i], &data);
+			memcpy(data, &gShapesUniformData[i], sizeof(PerObjectUniformData));
+			UnmapMemory(&gRenderer, &gShapesUniformBuffers[gCurrentFrame * MAX_SHAPES + i]);
+		}
+
+		MapMemory(&gRenderer, &gSkyboxUniformBuffer[gCurrentFrame], &data);
+		memcpy(data, &gSkyBoxUniformData, sizeof(PerObjectUniformData));
+		UnmapMemory(&gRenderer, &gSkyboxUniformBuffer[gCurrentFrame]);
+
+		MapMemory(&gRenderer, &gSkyboxPerFrameBuffer[gCurrentFrame], &data);
+		memcpy(data, &gSkyboxPerFrameUniformData, sizeof(PerFrameUniformData));
+		UnmapMemory(&gRenderer, &gSkyboxPerFrameBuffer[gCurrentFrame]);
 
 		uint32_t imageIndex = 0;
 		AcquireNextImage(&gRenderer, &gSwapChain, &gImageAvailableSemaphores[gCurrentFrame], &imageIndex);
@@ -545,26 +730,31 @@ public:
 		scissorInfo.height = pRenderTarget->info.height;
 		SetScissor(pCommandBuffer, &scissorInfo);
 
-
-		BindPipeline(pCommandBuffer, &gGraphicsPipeline);
-
 		BindVertexBuffer(pCommandBuffer, sizeof(Vertex), 0, 0, &gVertexBuffer);
+		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
-		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetTextures);
-		BindDescriptorSet(pCommandBuffer, 0, 2, &gDescriptorSetSamplers);
+		//Draw Shapes
+		BindPipeline(pCommandBuffer, &gShapesPipeline);
+		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
 
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame + EQUILATERAL_TRIANGLE * gNumFrames, 1, &gDescriptorSetUniforms);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + EQUILATERAL_TRIANGLE, 1, &gDescriptorSetPerFrame);
 		DrawInstanced(pCommandBuffer, 3, 1, gVertexOffsets[EQUILATERAL_TRIANGLE], 0);
 
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame + RIGHT_TRIANGLE * gNumFrames, 1, &gDescriptorSetUniforms);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + RIGHT_TRIANGLE, 1, &gDescriptorSetPerFrame);
 		DrawInstanced(pCommandBuffer, 3, 1, gVertexOffsets[RIGHT_TRIANGLE], 0);
 
-		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame + QUAD * gNumFrames, 1, &gDescriptorSetUniforms);
-		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[QUAD], 1, gIndexOffsets[QUAD], gVertexOffsets[QUAD], 0);
+		for (uint32_t i = 3; i < MAX_SHAPES; ++i)
+		{
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
+			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+		}
 
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame + CIRCLE * gNumFrames, 1, &gDescriptorSetUniforms);
-		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CIRCLE], 1, gIndexOffsets[CIRCLE], gVertexOffsets[CIRCLE], 0);
+		//Draw Skybox
+		BindPipeline(pCommandBuffer, &gSkyboxPipeline);
+		BindDescriptorSet(pCommandBuffer, 1, 0, &gDescriptorSetPerNone);
+		BindDescriptorSet(pCommandBuffer, MAX_SHAPES * gNumFrames + gCurrentFrame, 1, &gDescriptorSetPerFrame);
+		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1,
+			gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
 
 		RenderUI(pCommandBuffer);
 
@@ -608,7 +798,7 @@ public:
 
 int main()
 {
-	Test test;
-	test.appName = "Test";
-	return WindowsMain(&test);
+	Shapes shapes;
+	shapes.appName = "Shapes";
+	return WindowsMain(&shapes);
 };

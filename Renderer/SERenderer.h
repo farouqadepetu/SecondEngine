@@ -281,7 +281,7 @@ enum UpdateFrequency
 {
 	UPDATE_FREQUENCY_PER_NONE,
 	UPDATE_FREQUENCY_PER_FRAME,
-	UPDATE_FREQUENCY_PER_SAMPLER,
+	UPDATE_FREQUENCY_PER_DRAW,
 	UPDATE_FREQUENCY_COUNT
 };
 
@@ -321,6 +321,7 @@ struct RootSignature
 	{
 		ID3D12RootSignature* rootSignature;
 		int32_t rootParamterIndices[UPDATE_FREQUENCY_COUNT];
+		int32_t rootParameterSamplerIndex;
 	}dx;
 
 	PipelineType pipelineType;
@@ -664,6 +665,7 @@ struct DescriptorSet
 	struct
 	{
 		int32_t* heapIndices;
+		int32_t* samplerHeapIndices;
 	}dx;
 
 	UpdateFrequency updateFrequency;

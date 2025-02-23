@@ -81,6 +81,7 @@
     <ClCompile Include="..\..\..\Renderer\SERenderer.cpp" />
     <ClCompile Include="..\..\..\Renderer\SEWindow.cpp" />
     <ClCompile Include="..\..\..\Renderer\Vulkan\SEVulkan.cpp" />
+    <ClCompile Include="..\..\..\Shapes\SEShapes.cpp" />
     <ClCompile Include="..\..\..\ThirdParty\imgui\imgui.cpp" />
     <ClCompile Include="..\..\..\ThirdParty\imgui\imgui_demo.cpp" />
     <ClCompile Include="..\..\..\ThirdParty\imgui\imgui_draw.cpp" />
@@ -103,6 +104,7 @@
     <ClInclude Include="..\..\..\Renderer\SEDDSLoader.h" />
     <ClInclude Include="..\..\..\Renderer\SERenderer.h" />
     <ClInclude Include="..\..\..\Renderer\SEWindow.h" />
+    <ClInclude Include="..\..\..\Shapes\SEShapes.h" />
     <ClInclude Include="..\..\..\ThirdParty\imgui\imconfig.h" />
     <ClInclude Include="..\..\..\ThirdParty\imgui\imgui.h" />
     <ClInclude Include="..\..\..\ThirdParty\imgui\imgui_impl_dx12.h" />

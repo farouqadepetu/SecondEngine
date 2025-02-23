@@ -627,7 +627,9 @@ inline void GetImageInfo(uint32_t w, uint32_t h, TinyImageFormat fmt,
     bool planar = false;
     uint32_t bpe = 0;
 
-    switch (fmt)
+    DXGI_FORMAT format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(fmt);
+
+    switch (format)
     {
     case DXGI_FORMAT_BC1_TYPELESS:
     case DXGI_FORMAT_BC1_UNORM:

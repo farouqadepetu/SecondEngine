@@ -34,6 +34,9 @@
     <Filter Include="ThirdParty\TinyImage">
       <UniqueIdentifier>{d2f562bd-28ae-48a2-99fe-3b2cc6f3a7b8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shapes">
+      <UniqueIdentifier>{1ccbb0f9-1e58-448a-814b-98b85ac5fc61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Renderer\DirectX\SEDirectX.cpp">
@@ -83,6 +86,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\FileSystem\SEFileSystem.cpp">
       <Filter>FileSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Shapes\SEShapes.cpp">
+      <Filter>Shapes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -163,6 +169,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\FileSystem\SEFileSystem.h">
       <Filter>FileSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Shapes\SEShapes.h">
+      <Filter>Shapes</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
