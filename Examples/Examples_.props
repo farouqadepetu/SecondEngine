@@ -17,7 +17,7 @@
       <AdditionalIncludeDirectories>..\..\..\SecondEngine\Renderer\Vulkan\VulkanSDK\Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Windows (/SUBSYSTEM:WINDOWS)</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>..\$(Platform)\$(Configuration)\SecondEngine.lib</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
@@ -31,7 +31,7 @@
       <AdditionalIncludeDirectories>..\..\..\SecondEngine\Renderer\Vulkan\VulkanSDK\Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Windows (/SUBSYSTEM:WINDOWS)</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>..\$(Platform)\$(Configuration)\SecondEngine.lib</AdditionalDependencies>

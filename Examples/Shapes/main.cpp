@@ -743,7 +743,7 @@ public:
 		BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + RIGHT_TRIANGLE, 1, &gDescriptorSetPerFrame);
 		DrawInstanced(pCommandBuffer, 3, 1, gVertexOffsets[RIGHT_TRIANGLE], 0);
 
-		for (uint32_t i = 3; i < MAX_SHAPES; ++i)
+		for (uint32_t i = 2; i < MAX_SHAPES; ++i)
 		{
 			BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
