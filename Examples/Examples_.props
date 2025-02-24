@@ -4,7 +4,7 @@
   <ItemDefinitionGroup Condition="'$(ConfigurationType)' == 'Application'">
 	<PostBuildEvent>
 	  <Command>
-		xcopy "$(SolutionDir)..\Renderer\DirectX\AgilitySDK\bin\x64\*.dll" "$(SolutionDir)$(Platform)\$(Configuration)" /s /y /d
+		xcopy "$(SolutionDir)..\Renderer\DirectX\AgilitySDK\bin\x64\*.dll" "$(SolutionDir)$(ProjectName)\$(Platform)\$(Configuration)" /s /y /d
 	  </Command>
 	</PostBuildEvent>
   </ItemDefinitionGroup>

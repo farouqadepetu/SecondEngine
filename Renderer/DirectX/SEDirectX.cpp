@@ -2,7 +2,7 @@
 #include <comdef.h>
 
 extern "C" { __declspec(dllexport) extern const uint32_t D3D12SDKVersion = 615; }
-extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8"../"; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8""; }
 
 
 #ifndef DIRECTX_ERROR_CHECK
