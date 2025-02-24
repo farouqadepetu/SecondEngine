@@ -255,10 +255,12 @@ public:
 		}
 
 		gVertexOffsets[EQUILATERAL_TRIANGLE] = arrlenu(gVertices);
-		CreateEquilateralTriangle(&gVertices);
+		gIndexOffsets[EQUILATERAL_TRIANGLE] = arrlenu(gIndices);
+		CreateEquilateralTriangle(&gVertices, &gIndices, &gIndexCounts[EQUILATERAL_TRIANGLE]);
 
 		gVertexOffsets[RIGHT_TRIANGLE] = arrlenu(gVertices);
-		CreateRightTriangle(&gVertices);
+		gIndexOffsets[RIGHT_TRIANGLE] = arrlenu(gIndices);
+		CreateRightTriangle(&gVertices, &gIndices, &gIndexCounts[RIGHT_TRIANGLE]);
 
 		gVertexOffsets[QUAD] = arrlenu(gVertices);
 		gIndexOffsets[QUAD] = arrlenu(gIndices);
@@ -416,7 +418,7 @@ public:
 			UpdateDescriptorSetInfo updatePerFrame[2]{};
 			updatePerFrame[0].binding = 0;
 			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gPerFrameBuffer[i];
+			updatePerFrame[0].pBuffer = &gSkyboxPerFrameBuffer[i];
 
 			updatePerFrame[1].binding = 1;
 			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
@@ -737,13 +739,7 @@ public:
 		BindPipeline(pCommandBuffer, &gShapesPipeline);
 		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
 
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + EQUILATERAL_TRIANGLE, 1, &gDescriptorSetPerFrame);
-		DrawInstanced(pCommandBuffer, 3, 1, gVertexOffsets[EQUILATERAL_TRIANGLE], 0);
-
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + RIGHT_TRIANGLE, 1, &gDescriptorSetPerFrame);
-		DrawInstanced(pCommandBuffer, 3, 1, gVertexOffsets[RIGHT_TRIANGLE], 0);
-
-		for (uint32_t i = 2; i < MAX_SHAPES; ++i)
+		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
 		{
 			BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
@@ -753,8 +749,7 @@ public:
 		BindPipeline(pCommandBuffer, &gSkyboxPipeline);
 		BindDescriptorSet(pCommandBuffer, 1, 0, &gDescriptorSetPerNone);
 		BindDescriptorSet(pCommandBuffer, MAX_SHAPES * gNumFrames + gCurrentFrame, 1, &gDescriptorSetPerFrame);
-		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1,
-			gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
+		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1, gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
 
 		RenderUI(pCommandBuffer);
 

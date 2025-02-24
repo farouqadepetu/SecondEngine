@@ -34,7 +34,7 @@ vec4 ComputeNormal(const Triangle* const triangle)
 	return vec4(result.GetX(), result.GetY(), result.GetZ(), 0.0f);
 }
 
-void CreateEquilateralTriangle(Vertex** vertices)
+void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
 
@@ -56,10 +56,22 @@ void CreateEquilateralTriangle(Vertex** vertices)
 	arrpush(*vertices, triangleVertices[0]);
 	arrpush(*vertices, triangleVertices[1]);
 	arrpush(*vertices, triangleVertices[2]);
+
+	if (indices != nullptr)
+	{
+		arrpush(*indices, 0);
+		arrpush(*indices, 1);
+		arrpush(*indices, 2);
+
+		if (outIndexCount != nullptr)
+		{
+			*outIndexCount = 3;
+		}
+	}
 }
 
 
-void CreateRightTriangle(Vertex** vertices)
+void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
 
@@ -81,6 +93,18 @@ void CreateRightTriangle(Vertex** vertices)
 	arrpush(*vertices, triangleVertices[0]);
 	arrpush(*vertices, triangleVertices[1]);
 	arrpush(*vertices, triangleVertices[2]);
+
+	if (indices != nullptr)
+	{
+		arrpush(*indices, 0);
+		arrpush(*indices, 1);
+		arrpush(*indices, 2);
+
+		if (outIndexCount != nullptr)
+		{
+			*outIndexCount = 3;
+		}
+	}
 }
 
 void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)

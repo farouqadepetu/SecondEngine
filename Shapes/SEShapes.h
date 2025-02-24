@@ -13,12 +13,12 @@ struct Vertex
 //Creates the vertices for an unit equilateral triangle centered around the origin.
 //Unit meaning base = 1 and height = 1.
 //Stores the vertices in a stb_ds array.
-void CreateEquilateralTriangle(Vertex** vertices);
+void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount);
 
 //Creates the vertices for an unit right triangle centered around the origin.
 //Unit meaning base = 1 and height = 1.
 //Stores the vertices in a stb_ds array.
-void CreateRightTriangle(Vertex** vertices);
+void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount);
 
 //Creates the vertices and indices for an unit quad centered around the origin.
 //Unit meaning width = 1 and height = 1.
