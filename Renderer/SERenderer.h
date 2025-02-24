@@ -81,185 +81,6 @@ struct Queue
 	}dx;
 };
 
-struct CommandBuffer
-{
-	struct
-	{
-		VkCommandPool commandPool;
-		VkCommandBuffer commandBuffer;
-	}vk;
-
-	struct
-	{
-		ID3D12CommandAllocator* commandAllocator;
-		ID3D12GraphicsCommandList* commandList;
-
-	}dx;
-
-	Fence fence;
-	Semaphore semaphore;
-
-	QueueType type;
-	bool isRendering;
-};
-
-struct Renderer
-{
-	struct
-	{
-		VkInstance instance;
-		VkPhysicalDevice physicalDevice;
-		uint32_t familyIndices[3];
-		VkDevice logicalDevice;
-		VmaAllocator allocator;
-#ifdef _DEBUG
-		const bool enableValidationLayers = true;
-#else
-		const bool enableValidationLayers = false;
-#endif
-		VkDebugUtilsMessengerEXT debugMessenger;
-	}vk;
-
-	struct
-	{
-		IDXGIFactory7* factory;
-		IDXGIAdapter4* adapter;
-		D3D_FEATURE_LEVEL featureLevel;
-		ID3D12Device* device;
-		D3D12MA::Allocator* allocator;
-#if defined(_DEBUG)
-		ID3D12Debug4* debug;
-		ID3D12InfoQueue* infoQueue;
-#endif
-	}dx;
-
-	//Used for transitioning resources to their initial state
-	Queue queue;
-	CommandBuffer commandBuffer;
-};
-
-union ClearValue
-{
-	struct
-	{
-		float r;
-		float g;
-		float b;
-		float a;
-	};
-	struct
-	{
-		float depth;
-		uint32_t stencil;
-	};
-};
-
-enum ResourceState
-{
-	RESOURCE_STATE_UNDEFINED = 0,
-	RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER = 0x1,
-	RESOURCE_STATE_INDEX_BUFFER = 0x2,
-	RESOURCE_STATE_RENDER_TARGET = 0x4,
-	RESOURCE_STATE_UNORDERED_ACCESS = 0x8,
-	RESOURCE_STATE_DEPTH_WRITE = 0x10,
-	RESOURCE_STATE_DEPTH_READ = 0x20,
-	RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE = 0x40,
-	RESOURCE_STATE_PIXEL_SHADER_RESOURCE = 0x80,
-	RESOURCE_STATE_ALL_SHADER_RESOURCE = (0x40 | 0x80),
-	RESOURCE_STATE_STREAM_OUT = 0x100,
-	RESOURCE_STATE_INDIRECT_ARGUMENT = 0x200,
-	RESOURCE_STATE_COPY_DEST = 0x400,
-	RESOURCE_STATE_COPY_SOURCE = 0x800,
-	RESOURCE_STATE_GENERIC_READ = (((((0x1 | 0x2) | 0x40) | 0x80) | 0x200) | 0x800),
-	RESOURCE_STATE_PRESENT = 0x1000,
-	RESOURCE_STATE_COMMON = 0x2000
-};
-
-struct RenderTargetInfo
-{
-	uint32_t width;
-	uint32_t height;
-	TinyImageFormat format;
-	ClearValue clearValue;
-	ResourceState initialState;
-};
-
-struct RenderTarget
-{
-	struct
-	{
-		VkImage image;
-		VkImageView imageView;
-		VmaAllocation allocation;
-	}vk;
-
-	struct
-	{
-		ID3D12Resource* resource;
-		D3D12MA::Allocation* allocation;
-		uint32_t descriptorId;
-	}dx;
-
-	RenderTargetInfo info;
-};
-
-struct SwapChainInfo
-{
-	Window* window;
-	Queue* queue;
-	uint32_t width;
-	uint32_t height;
-	TinyImageFormat format;
-	ClearValue clearValue;
-};
-
-struct SwapChain
-{
-	struct
-	{
-		VkSurfaceKHR surface;
-		VkSwapchainKHR swapChain;
-	}vk;
-
-	struct
-	{
-		IDXGISwapChain3* swapChain;
-		uint32_t flags;
-	}dx;
-
-	uint32_t numRenderTargets;
-	RenderTarget* pRenderTargets;
-	SwapChainInfo info;
-};
-
-enum ShaderType
-{
-	SHADER_TYPE_VERTEX,
-	SHADER_TYPE_PIXEL,
-	SHADER_TYPE_COMPUTE
-};
-
-struct ShaderInfo
-{
-	const char* glslFilename;
-	const char* hlslFilename;
-	ShaderType type;
-};
-
-struct Shader
-{
-	struct
-	{
-		VkShaderModule shaderModule;
-		VkPipelineShaderStageCreateInfo shaderCreateInfo;
-	}vk;
-
-	struct
-	{
-		D3D12_SHADER_BYTECODE shader;
-	}dx;
-};
-
 enum DescriptorType
 {
 	DESCRIPTOR_TYPE_SAMPLER,
@@ -291,21 +112,34 @@ enum PipelineType
 	PIPELINE_TYPE_COMPUTE
 };
 
-#define MAX_NUM_ROOT_PARAMETER_INFOS 8
+struct RootParameterInfo
+{
+	DescriptorType type;
+	UpdateFrequency updateFrequency;
+	uint32_t binding;
+	uint32_t baseRegister;
+	uint32_t registerSpace;
+	uint32_t numDescriptors;
+	uint32_t stages;
+};
+
+struct RootConstantsInfo
+{
+	uint32_t baseRegister;
+	uint32_t registerSpace;
+	uint32_t numValues;
+	uint32_t stride;
+	uint32_t stages;
+};
+
 struct RootSignatureInfo
 {
+	RootParameterInfo* pRootParameterInfos;
 	uint32_t numRootParameterInfos;
-	struct RootParameterInfo
-	{
-		DescriptorType type;
-		UpdateFrequency updateFrequency;
-		uint32_t binding;
-		uint32_t baseRegister;
-		uint32_t registerSpace;
-		uint32_t numDescriptors;
-		uint32_t stages;
-	}rootParameterInfos[MAX_NUM_ROOT_PARAMETER_INFOS];
 
+	RootConstantsInfo rootConstantsInfo;
+
+	bool useRootConstants;
 	bool useInputLayout;
 };
 
@@ -315,6 +149,7 @@ struct RootSignature
 	{
 		VkPipelineLayout pipelineLayout;
 		VkDescriptorSetLayout descriptorSetLayouts[UPDATE_FREQUENCY_COUNT];
+		uint32_t rootConstantStages;
 	}vk;
 
 	struct
@@ -322,10 +157,39 @@ struct RootSignature
 		ID3D12RootSignature* rootSignature;
 		int32_t rootParamterIndices[UPDATE_FREQUENCY_COUNT];
 		int32_t rootParameterSamplerIndex;
+		int32_t rootConstantsIndex;
 	}dx;
 
 	PipelineType pipelineType;
 	bool useInputLayout;
+};
+
+enum ShaderType
+{
+	SHADER_TYPE_VERTEX,
+	SHADER_TYPE_PIXEL,
+	SHADER_TYPE_COMPUTE
+};
+
+struct ShaderInfo
+{
+	const char* glslFilename;
+	const char* hlslFilename;
+	ShaderType type;
+};
+
+struct Shader
+{
+	struct
+	{
+		VkShaderModule shaderModule;
+		VkPipelineShaderStageCreateInfo shaderCreateInfo;
+	}vk;
+
+	struct
+	{
+		D3D12_SHADER_BYTECODE shader;
+	}dx;
 };
 
 enum UpdateType
@@ -506,6 +370,158 @@ struct Pipeline
 	PipelineType type;
 	Topology topology;
 	RootSignature* pRootSignature;
+};
+
+struct CommandBuffer
+{
+	struct
+	{
+		VkCommandPool commandPool;
+		VkCommandBuffer commandBuffer;
+	}vk;
+
+	struct
+	{
+		ID3D12CommandAllocator* commandAllocator;
+		ID3D12GraphicsCommandList* commandList;
+
+	}dx;
+
+	Fence fence;
+	Semaphore semaphore;
+
+	QueueType type;
+	bool isRendering;
+	const Pipeline* pCurrentPipeline;
+};
+
+struct Renderer
+{
+	struct
+	{
+		VkInstance instance;
+		VkPhysicalDevice physicalDevice;
+		uint32_t familyIndices[3];
+		VkDevice logicalDevice;
+		VmaAllocator allocator;
+#ifdef _DEBUG
+		const bool enableValidationLayers = true;
+#else
+		const bool enableValidationLayers = false;
+#endif
+		VkDebugUtilsMessengerEXT debugMessenger;
+	}vk;
+
+	struct
+	{
+		IDXGIFactory7* factory;
+		IDXGIAdapter4* adapter;
+		D3D_FEATURE_LEVEL featureLevel;
+		ID3D12Device* device;
+		D3D12MA::Allocator* allocator;
+#if defined(_DEBUG)
+		ID3D12Debug4* debug;
+		ID3D12InfoQueue* infoQueue;
+#endif
+	}dx;
+
+	//Used for transitioning resources to their initial state
+	Queue queue;
+	CommandBuffer commandBuffer;
+};
+
+union ClearValue
+{
+	struct
+	{
+		float r;
+		float g;
+		float b;
+		float a;
+	};
+	struct
+	{
+		float depth;
+		uint32_t stencil;
+	};
+};
+
+enum ResourceState
+{
+	RESOURCE_STATE_UNDEFINED = 0,
+	RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER = 0x1,
+	RESOURCE_STATE_INDEX_BUFFER = 0x2,
+	RESOURCE_STATE_RENDER_TARGET = 0x4,
+	RESOURCE_STATE_UNORDERED_ACCESS = 0x8,
+	RESOURCE_STATE_DEPTH_WRITE = 0x10,
+	RESOURCE_STATE_DEPTH_READ = 0x20,
+	RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE = 0x40,
+	RESOURCE_STATE_PIXEL_SHADER_RESOURCE = 0x80,
+	RESOURCE_STATE_ALL_SHADER_RESOURCE = (0x40 | 0x80),
+	RESOURCE_STATE_STREAM_OUT = 0x100,
+	RESOURCE_STATE_INDIRECT_ARGUMENT = 0x200,
+	RESOURCE_STATE_COPY_DEST = 0x400,
+	RESOURCE_STATE_COPY_SOURCE = 0x800,
+	RESOURCE_STATE_GENERIC_READ = (((((0x1 | 0x2) | 0x40) | 0x80) | 0x200) | 0x800),
+	RESOURCE_STATE_PRESENT = 0x1000,
+	RESOURCE_STATE_COMMON = 0x2000
+};
+
+struct RenderTargetInfo
+{
+	uint32_t width;
+	uint32_t height;
+	TinyImageFormat format;
+	ClearValue clearValue;
+	ResourceState initialState;
+};
+
+struct RenderTarget
+{
+	struct
+	{
+		VkImage image;
+		VkImageView imageView;
+		VmaAllocation allocation;
+	}vk;
+
+	struct
+	{
+		ID3D12Resource* resource;
+		D3D12MA::Allocation* allocation;
+		uint32_t descriptorId;
+	}dx;
+
+	RenderTargetInfo info;
+};
+
+struct SwapChainInfo
+{
+	Window* window;
+	Queue* queue;
+	uint32_t width;
+	uint32_t height;
+	TinyImageFormat format;
+	ClearValue clearValue;
+};
+
+struct SwapChain
+{
+	struct
+	{
+		VkSurfaceKHR surface;
+		VkSwapchainKHR swapChain;
+	}vk;
+
+	struct
+	{
+		IDXGISwapChain3* swapChain;
+		uint32_t flags;
+	}dx;
+
+	uint32_t numRenderTargets;
+	RenderTarget* pRenderTargets;
+	SwapChainInfo info;
 };
 
 enum IndexType
@@ -813,7 +829,7 @@ extern void (*DestroyRootSignature)(const Renderer* const pRenderer, RootSignatu
 
 extern void (*CreatePipeline)(const Renderer* const pRenderer, const PipelineInfo* const pInfo, Pipeline* pPipeline);
 extern void (*DestroyPipeline)(const Renderer* const pRenderer, Pipeline* pPipeline);
-extern void (*BindPipeline)(const CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline);
+extern void (*BindPipeline)(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline);
 
 extern void (*CreateSemaphore)(const Renderer* const pRenderer, Semaphore* semaphore);
 extern void (*DestroySemaphore)(const Renderer* const pRenderer, Semaphore* semaphore);
@@ -845,6 +861,8 @@ extern void (*UpdateDescriptorSet)(const Renderer* const pRenderer, const Descri
 	const uint32_t index, const uint32_t numInfos, const UpdateDescriptorSetInfo* const pInfos);
 extern void (*BindDescriptorSet)(const CommandBuffer* const pCommandBuffer, const uint32_t index,
 	const uint32_t firstSet, const DescriptorSet* const pDescriptorSet);
+
+extern void (*BindRootConstants)(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset);
 
 extern void (*AcquireNextImage)(const Renderer* const pRenderer, const SwapChain* const pSwapChain,
 	const Semaphore* const pSemaphore, uint32_t* pImageIndex);

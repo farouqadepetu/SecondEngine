@@ -47,7 +47,7 @@ extern void DirectXBindRenderTarget(CommandBuffer* pCommandBuffer, const BindRen
 extern void DirectXSetViewport(const CommandBuffer* const pCommandBuffer, const ViewportInfo* const viewportInfo);
 extern void DirectXSetScissor(const CommandBuffer* const pCommandBuffer, const ScissorInfo* const scissorInfo);
 
-extern void DirectXBindPipeline(const CommandBuffer* const pCommandBuffer, const Pipeline* const pPipeline);
+extern void DirectXBindPipeline(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline);
 
 extern void DirectXDraw(const CommandBuffer* const pCommandBuffer, const uint32_t vertexCount,
 	const uint32_t instanceCount, const uint32_t firstVertex, const uint32_t firstInstance);
@@ -86,6 +86,8 @@ extern void DirectXUpdateDescriptorSet(const Renderer* const pRenderer, const De
 
 extern void DirectXBindDescriptorSet(const CommandBuffer* const pCommandBuffer, const uint32_t index, const uint32_t firstSet,
 	const DescriptorSet* const pDescriptorSet);
+
+extern void DirectXBindRootConstants(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset);
 
 extern void DirectXResourceBarrier(const CommandBuffer* const pCommandBuffer, const uint32_t numBarrierInfos, const BarrierInfo* const pBarrierInfos);
 
@@ -126,7 +128,7 @@ extern void VulkanEndCommandBuffer(const CommandBuffer* const pCommandBuffer);
 
 extern void VulkanBindRenderTarget(CommandBuffer* pCommandBuffer, const BindRenderTargetInfo* const pInfo);
 
-extern void VulkanBindPipeline(const CommandBuffer* const pCommandBuffer, const Pipeline* const pPipeline);
+extern void VulkanBindPipeline(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline);
 
 extern void VulkanSetViewport(const CommandBuffer* const pCommandBuffer, const ViewportInfo* const pInfo);
 extern void VulkanSetScissor(const CommandBuffer* const pCommandBuffer, const ScissorInfo* const pInfo);
@@ -183,6 +185,8 @@ extern void VulkanUpdateDescriptorSet(const Renderer* const pRenderer, const Des
 extern void VulkanBindDescriptorSet(const CommandBuffer* const pCommandBuffer, const uint32_t index,
 	const uint32_t firstSet, const DescriptorSet* const pDescriptorSet);
 
+extern void VulkanBindRootConstants(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset);
+
 extern void VulkanInitUI(const Renderer* const pRenderer, const UiInfo* const pInfo);
 extern void VulkanDestroyUI(const Renderer* const pRenderer);
 extern void VulkanRenderUI(const CommandBuffer* const pCommandBuffer);
@@ -214,7 +218,7 @@ void (*DestroyRootSignature)(const Renderer* const pRenderer, RootSignature* pRo
 
 void (*CreatePipeline)(const Renderer* const pRenderer, const PipelineInfo* const pInfo, Pipeline* pPipeline);
 void (*DestroyPipeline)(const Renderer* const pRenderer, Pipeline* pPipeline);
-void (*BindPipeline)(const CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline);
+void (*BindPipeline)(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline);
 
 void (*CreateSemaphore)(const Renderer* const pRenderer, Semaphore* pSemaphore);
 void (*DestroySemaphore)(const Renderer* const pRenderer, Semaphore* pSemaphore);
@@ -247,6 +251,8 @@ void (*UpdateDescriptorSet)(const Renderer* const pRenderer, const DescriptorSet
 
 void (*BindDescriptorSet)(const CommandBuffer* const pCommandBuffer, const uint32_t index,
 	const uint32_t firstSet, const DescriptorSet* const pDescriptorSet);
+
+void (*BindRootConstants)(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset);
 
 void (*AcquireNextImage)(const Renderer* const pRenderer, const SwapChain* const pSwapChain,
 	const Semaphore* const pSemaphore, uint32_t* pImageIndex);
@@ -326,6 +332,7 @@ void InitSE()
 		DestroyDescriptorSet = VulkanDestroyDescriptorSet;
 		UpdateDescriptorSet = VulkanUpdateDescriptorSet;
 		BindDescriptorSet = VulkanBindDescriptorSet;
+		BindRootConstants = VulkanBindRootConstants;
 
 		AcquireNextImage = VulkanAcquireNextImage;
 		SetViewport = VulkanSetViewport;
@@ -399,6 +406,8 @@ void InitSE()
 		DestroyDescriptorSet = DirectXDestroyDescriptorSet;
 		UpdateDescriptorSet = DirectXUpdateDescriptorSet;
 		BindDescriptorSet = DirectXBindDescriptorSet;
+
+		BindRootConstants = DirectXBindRootConstants;
 
 		AcquireNextImage = DirectXAcquireNextImage;
 		SetViewport = DirectXSetViewport;
@@ -474,6 +483,7 @@ void ExitSE()
 	DestroyDescriptorSet = nullptr;
 	UpdateDescriptorSet = nullptr;
 	BindDescriptorSet = nullptr;
+	BindRootConstants = nullptr;
 
 	AcquireNextImage = nullptr;
 	SetViewport = nullptr;

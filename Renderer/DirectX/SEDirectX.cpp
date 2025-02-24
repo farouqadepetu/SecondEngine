@@ -1141,6 +1141,7 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 	pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_DRAW] = -1;
 	pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_FRAME] = -1;
 	pRootSignature->dx.rootParameterSamplerIndex = -1;
+	pRootSignature->dx.rootConstantsIndex = -1;
 
 	D3D12_DESCRIPTOR_RANGE1* perNoneRanges = nullptr;
 	D3D12_DESCRIPTOR_RANGE1* perDrawRanges = nullptr;
@@ -1150,7 +1151,7 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 	for (uint32_t i = 0; i < pInfo->numRootParameterInfos; ++i)
 	{
 		D3D12_DESCRIPTOR_RANGE_TYPE type{};
-		switch (pInfo->rootParameterInfos[i].type)
+		switch (pInfo->pRootParameterInfos[i].type)
 		{
 		case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			type = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
@@ -1167,29 +1168,29 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 			break;
 		}
 
-		if (pInfo->rootParameterInfos[i].type != DESCRIPTOR_TYPE_SAMPLER)
+		if (pInfo->pRootParameterInfos[i].type != DESCRIPTOR_TYPE_SAMPLER)
 		{
-			if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
+			if (pInfo->pRootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
 			{
 				D3D12_DESCRIPTOR_RANGE1 perNone{};
 			
 				perNone.RangeType = type;
-				perNone.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-				perNone.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-				perNone.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+				perNone.NumDescriptors = pInfo->pRootParameterInfos[i].numDescriptors;
+				perNone.BaseShaderRegister = pInfo->pRootParameterInfos[i].baseRegister;
+				perNone.RegisterSpace = pInfo->pRootParameterInfos[i].registerSpace;
 				perNone.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 				perNone.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 				arrpush(perNoneRanges, perNone);
 			}
-			else if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_DRAW)
+			else if (pInfo->pRootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_DRAW)
 			{
 				D3D12_DESCRIPTOR_RANGE1 perDraw{};
 
 				perDraw.RangeType = type;
-				perDraw.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-				perDraw.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-				perDraw.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+				perDraw.NumDescriptors = pInfo->pRootParameterInfos[i].numDescriptors;
+				perDraw.BaseShaderRegister = pInfo->pRootParameterInfos[i].baseRegister;
+				perDraw.RegisterSpace = pInfo->pRootParameterInfos[i].registerSpace;
 				perDraw.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 				perDraw.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -1200,9 +1201,9 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 				D3D12_DESCRIPTOR_RANGE1 perFrame{};
 
 				perFrame.RangeType = type;
-				perFrame.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-				perFrame.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-				perFrame.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+				perFrame.NumDescriptors = pInfo->pRootParameterInfos[i].numDescriptors;
+				perFrame.BaseShaderRegister = pInfo->pRootParameterInfos[i].baseRegister;
+				perFrame.RegisterSpace = pInfo->pRootParameterInfos[i].registerSpace;
 				perFrame.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 				perFrame.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -1213,9 +1214,9 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		{
 			D3D12_DESCRIPTOR_RANGE1 samplerRange{};
 			samplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-			samplerRange.NumDescriptors = pInfo->rootParameterInfos[i].numDescriptors;
-			samplerRange.BaseShaderRegister = pInfo->rootParameterInfos[i].baseRegister;
-			samplerRange.RegisterSpace = pInfo->rootParameterInfos[i].registerSpace;
+			samplerRange.NumDescriptors = pInfo->pRootParameterInfos[i].numDescriptors;
+			samplerRange.BaseShaderRegister = pInfo->pRootParameterInfos[i].baseRegister;
+			samplerRange.RegisterSpace = pInfo->pRootParameterInfos[i].registerSpace;
 			samplerRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 			samplerRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -1223,8 +1224,8 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		}
 	}
 
-	D3D12_ROOT_PARAMETER1 rootParameters[UPDATE_FREQUENCY_COUNT + 1]{};
-	uint32_t numRootParameters = 0;
+	D3D12_ROOT_PARAMETER1* rootParameters = nullptr;
+	D3D12_ROOT_PARAMETER1 rootParameter{};
 
 	D3D12_ROOT_DESCRIPTOR_TABLE1 dTable{};
 
@@ -1233,24 +1234,24 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		dTable.NumDescriptorRanges = arrlenu(perNoneRanges);
 		dTable.pDescriptorRanges = perNoneRanges;
 
-		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[numRootParameters].DescriptorTable = dTable;
-		rootParameters[numRootParameters].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameter.DescriptorTable = dTable;
+		rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_NONE] = numRootParameters;
-		++numRootParameters;
+		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_NONE] = arrlenu(rootParameters);
+		arrpush(rootParameters, rootParameter);
 	}
 	if (arrlenu(perDrawRanges) > 0)
 	{
 		dTable.NumDescriptorRanges = arrlenu(perDrawRanges);
 		dTable.pDescriptorRanges = perDrawRanges;
 
-		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[numRootParameters].DescriptorTable = dTable;
-		rootParameters[numRootParameters].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameter.DescriptorTable = dTable;
+		rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_DRAW] = numRootParameters;
-		++numRootParameters;
+		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_DRAW] = arrlenu(rootParameters);
+		arrpush(rootParameters, rootParameter);
 	}
 
 	if (arrlenu(perFrameRanges) > 0)
@@ -1258,12 +1259,12 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		dTable.NumDescriptorRanges = arrlenu(perFrameRanges);
 		dTable.pDescriptorRanges = perFrameRanges;
 
-		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[numRootParameters].DescriptorTable = dTable;
-		rootParameters[numRootParameters].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameter.DescriptorTable = dTable;
+		rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_FRAME] = numRootParameters;
-		++numRootParameters;
+		pRootSignature->dx.rootParamterIndices[UPDATE_FREQUENCY_PER_FRAME] = arrlenu(rootParameters);
+		arrpush(rootParameters, rootParameter);
 	}
 
 	if (arrlenu(samplerRanges) > 0)
@@ -1271,16 +1272,31 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 		dTable.NumDescriptorRanges = arrlenu(samplerRanges);
 		dTable.pDescriptorRanges = samplerRanges;
 
-		rootParameters[numRootParameters].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[numRootParameters].DescriptorTable = dTable;
-		rootParameters[numRootParameters].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameter.DescriptorTable = dTable;
+		rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		pRootSignature->dx.rootParameterSamplerIndex = numRootParameters;
-		++numRootParameters;
+		pRootSignature->dx.rootParameterSamplerIndex = arrlenu(rootParameters);
+		arrpush(rootParameters, rootParameter);
+	}
+
+	if (pInfo->useRootConstants)
+	{
+		D3D12_ROOT_CONSTANTS constants{};
+		constants.Num32BitValues = pInfo->rootConstantsInfo.numValues;
+		constants.RegisterSpace = pInfo->rootConstantsInfo.registerSpace;
+		constants.ShaderRegister = pInfo->rootConstantsInfo.baseRegister;
+
+		rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		rootParameter.Constants = constants;
+		rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		pRootSignature->dx.rootConstantsIndex = arrlenu(rootParameters);
+		arrpush(rootParameters, rootParameter);
 	}
 
 	D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
-	rootSigDesc.NumParameters = numRootParameters;
+	rootSigDesc.NumParameters = arrlenu(rootParameters);
 	rootSigDesc.pParameters = rootParameters;
 	rootSigDesc.NumStaticSamplers = 0;
 	rootSigDesc.pStaticSamplers = nullptr;
@@ -1309,7 +1325,8 @@ void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSigna
 
 	SAFE_RELEASE(serializedRootSig);
 	SAFE_RELEASE(errorBlob);
-
+	
+	arrfree(rootParameters);
 	arrfree(perNoneRanges);
 	arrfree(perDrawRanges);
 	arrfree(perFrameRanges);
@@ -1691,7 +1708,7 @@ D3D12_PRIMITIVE_TOPOLOGY TranslateTopologyToD3D12Topology(const Topology topolog
 	return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
 }
 
-void DirectXBindPipeline(const CommandBuffer* const pCommandBuffer, const Pipeline* const pPipeline)
+void DirectXBindPipeline(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline)
 {
 	if (pPipeline->type == PIPELINE_TYPE_GRAPHICS)
 	{
@@ -1705,6 +1722,8 @@ void DirectXBindPipeline(const CommandBuffer* const pCommandBuffer, const Pipeli
 		pCommandBuffer->dx.commandList->SetComputeRootSignature(pPipeline->pRootSignature->dx.rootSignature);
 		pCommandBuffer->dx.commandList->SetPipelineState(pPipeline->dx.pipeline);
 	}
+
+	pCommandBuffer->pCurrentPipeline = pPipeline;
 }
 
 void DirectXDraw(const CommandBuffer* const pCommandBuffer, const uint32_t vertexCount,
@@ -2508,5 +2527,19 @@ void DirectXBindDescriptorSet(const CommandBuffer* const pCommandBuffer, const u
 		pCommandBuffer->dx.commandList->SetComputeRootDescriptorTable(
 			pDescriptorSet->pRootSignature->dx.rootParamterIndices[pDescriptorSet->updateFrequency],
 			cbvSrvUavHandle);
+	}
+}
+
+void DirectXBindRootConstants(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset)
+{
+	if (pCommandBuffer->pCurrentPipeline->type == PIPELINE_TYPE_GRAPHICS)
+	{
+		pCommandBuffer->dx.commandList->SetGraphicsRoot32BitConstants(pCommandBuffer->pCurrentPipeline->pRootSignature->dx.rootConstantsIndex,
+			numValues, pData, offset);
+	}
+	else //PIPELINE_TYPE_COMPUTE
+	{
+		pCommandBuffer->dx.commandList->SetComputeRoot32BitConstants(pCommandBuffer->pCurrentPipeline->pRootSignature->dx.rootConstantsIndex,
+			numValues, pData, offset);
 	}
 }

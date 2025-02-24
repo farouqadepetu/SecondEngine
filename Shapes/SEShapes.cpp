@@ -70,7 +70,6 @@ void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* 
 	}
 }
 
-
 void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
@@ -306,14 +305,14 @@ void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	CreateTriangle(&triangle, vertexList, 3, 5, 6);
 	arrpush(triangles, triangle);
 
-	for (uint32_t i = 0; i < 12; ++i)
+	uint32_t numTriangles = arrlenu(triangles);
+	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
 		//Compute the normals
-		Triangle triangle = triangles[i];
-		vec4 normal = ComputeNormal(&triangle);
-		uint32_t i0 = triangle.i0;
-		uint32_t i1 = triangle.i1;
-		uint32_t i2 = triangle.i2;
+		vec4 normal = ComputeNormal(&triangles[i]);
+		uint32_t i0 = triangles[i].i0;
+		uint32_t i1 = triangles[i].i1;
+		uint32_t i2 = triangles[i].i2;
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
@@ -390,14 +389,14 @@ void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 	CreateTriangle(&triangle, vertexList, 0, 4, 3);
 	arrpush(triangles, triangle);
 
-	for (uint32_t i = 0; i < 6; ++i)
+	uint32_t numTriangles = arrlenu(triangles);
+	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
 		//Compute the normals
-		Triangle triangle = triangles[i];
-		vec4 normal = ComputeNormal(&triangle);
-		uint32_t i0 = triangle.i0;
-		uint32_t i1 = triangle.i1;
-		uint32_t i2 = triangle.i2;
+		vec4 normal = ComputeNormal(&triangles[i]);
+		uint32_t i0 = triangles[i].i0;
+		uint32_t i1 = triangles[i].i1;
+		uint32_t i2 = triangles[i].i2;
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
@@ -464,14 +463,14 @@ void CreateTriangularPyramid(Vertex** vertices, uint32_t** indices, uint32_t* ou
 	CreateTriangle(&triangle, vertexList, 1, 3, 0);
 	arrpush(triangles, triangle);
 
-	for (uint32_t i = 0; i < 4; ++i)
+	uint32_t numTriangles = arrlenu(triangles);
+	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
 		//Compute the normals
-		Triangle triangle = triangles[i];
-		vec4 normal = ComputeNormal(&triangle);
-		uint32_t i0 = triangle.i0;
-		uint32_t i1 = triangle.i1;
-		uint32_t i2 = triangle.i2;
+		vec4 normal = ComputeNormal(&triangles[i]);
+		uint32_t i0 = triangles[i].i0;
+		uint32_t i1 = triangles[i].i1;
+		uint32_t i2 = triangles[i].i2;
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
@@ -738,7 +737,7 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
-	float thetaStepRate = 15.0f; //degrees
+	float thetaStepRate = 4.0f; //degrees
 	float h = 1.0f;
 
 	uint32_t numCircles = 4;

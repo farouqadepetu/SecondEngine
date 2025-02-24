@@ -1464,12 +1464,13 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	VkDescriptorSetLayoutBinding* perNoneBindings = nullptr;
 	VkDescriptorSetLayoutBinding* perDrawBindings = nullptr;
 	VkDescriptorSetLayoutBinding* perFrameBindings = nullptr;
+	uint32_t stage{};
 
 	for (uint32_t i = 0; i < pInfo->numRootParameterInfos; ++i)
 	{
 		VkDescriptorType type{};
 
-		switch (pInfo->rootParameterInfos[i].type)
+		switch (pInfo->pRootParameterInfos[i].type)
 		{
 		case DESCRIPTOR_TYPE_TEXTURE:
 			type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
@@ -1496,42 +1497,41 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 			break;
 		}
 
-		uint32_t stage{};
-		if (pInfo->rootParameterInfos[i].stages & STAGE_VERTEX)
+		if (pInfo->pRootParameterInfos[i].stages & STAGE_VERTEX)
 		{
 			stage |= VK_SHADER_STAGE_VERTEX_BIT;
 		}
 
-		if (pInfo->rootParameterInfos[i].stages & STAGE_PIXEL)
+		if (pInfo->pRootParameterInfos[i].stages & STAGE_PIXEL)
 		{
 			stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
 		}
 
-		if (pInfo->rootParameterInfos[i].stages & STAGE_COMPUTE)
+		if (pInfo->pRootParameterInfos[i].stages & STAGE_COMPUTE)
 		{
 			stage |= VK_SHADER_STAGE_COMPUTE_BIT;
 		}
 
-		if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
+		if (pInfo->pRootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_NONE)
 		{
 			VkDescriptorSetLayoutBinding perNone{};
 
 			perNone.descriptorType = type;
 			perNone.stageFlags = stage;
-			perNone.descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
-			perNone.binding = pInfo->rootParameterInfos[i].binding;
+			perNone.descriptorCount = pInfo->pRootParameterInfos[i].numDescriptors;
+			perNone.binding = pInfo->pRootParameterInfos[i].binding;
 			perNone.pImmutableSamplers = nullptr;
 
 			arrpush(perNoneBindings, perNone);
 		}
-		else if (pInfo->rootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_FRAME)
+		else if (pInfo->pRootParameterInfos[i].updateFrequency == UPDATE_FREQUENCY_PER_FRAME)
 		{
 			VkDescriptorSetLayoutBinding perFrame{};
 
 			perFrame.descriptorType = type;
 			perFrame.stageFlags = stage;
-			perFrame.descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
-			perFrame.binding = pInfo->rootParameterInfos[i].binding;
+			perFrame.descriptorCount = pInfo->pRootParameterInfos[i].numDescriptors;
+			perFrame.binding = pInfo->pRootParameterInfos[i].binding;
 			perFrame.pImmutableSamplers = nullptr;
 
 			arrpush(perFrameBindings, perFrame);
@@ -1542,8 +1542,8 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 
 			perDraw.descriptorType = type;
 			perDraw.stageFlags = stage;
-			perDraw.descriptorCount = pInfo->rootParameterInfos[i].numDescriptors;
-			perDraw.binding = pInfo->rootParameterInfos[i].binding;
+			perDraw.descriptorCount = pInfo->pRootParameterInfos[i].numDescriptors;
+			perDraw.binding = pInfo->pRootParameterInfos[i].binding;
 			perDraw.pImmutableSamplers = nullptr;
 
 			arrpush(perDrawBindings, perDraw);
@@ -1581,14 +1581,35 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerDraw,
 		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_DRAW]))
 
+	VkPushConstantRange pushConstant{};
+	pushConstant.offset = 0;
+	pushConstant.size = pInfo->rootConstantsInfo.numValues * pInfo->rootConstantsInfo.stride;
+
+	if (pInfo->rootConstantsInfo.stages & STAGE_VERTEX)
+	{
+		stage |= VK_SHADER_STAGE_VERTEX_BIT;
+	}
+
+	if (pInfo->rootConstantsInfo.stages & STAGE_PIXEL)
+	{
+		stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+	}
+
+	if (pInfo->rootConstantsInfo.stages & STAGE_COMPUTE)
+	{
+		stage |= VK_SHADER_STAGE_COMPUTE_BIT;
+	}
+	pushConstant.stageFlags = stage;
+	pRootSignature->vk.rootConstantStages = stage;
+
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.pNext = nullptr;
 	pipelineLayoutInfo.flags = 0;
 	pipelineLayoutInfo.setLayoutCount = UPDATE_FREQUENCY_COUNT;
 	pipelineLayoutInfo.pSetLayouts = pRootSignature->vk.descriptorSetLayouts;
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
-	pipelineLayoutInfo.pPushConstantRanges = nullptr;
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
 
 	VULKAN_ERROR_CHECK(vkCreatePipelineLayout(pRenderer->vk.logicalDevice, &pipelineLayoutInfo, nullptr, &pRootSignature->vk.pipelineLayout));
 
@@ -1943,7 +1964,7 @@ void VulkanBindRenderTarget(CommandBuffer* pCommandBuffer, const BindRenderTarge
 	pCommandBuffer->isRendering = true;
 }
 
-void VulkanBindPipeline(const CommandBuffer* const pCommandBuffer, const Pipeline* const pPipeline)
+void VulkanBindPipeline(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline)
 {
 	switch (pPipeline->type)
 	{
@@ -1955,6 +1976,8 @@ void VulkanBindPipeline(const CommandBuffer* const pCommandBuffer, const Pipelin
 		vkCmdBindPipeline(pCommandBuffer->vk.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pPipeline->vk.pipeline);
 		break;
 	}
+
+	pCommandBuffer->pCurrentPipeline = pPipeline;
 }
 
 void VulkanSetViewport(const CommandBuffer* const pCommandBuffer, const ViewportInfo* const pInfo)
@@ -2333,6 +2356,12 @@ void VulkanBindDescriptorSet(const CommandBuffer* const pCommandBuffer,
 
 	vkCmdBindDescriptorSets(pCommandBuffer->vk.commandBuffer, bindPoint, pDescriptorSet->pRootSignature->vk.pipelineLayout,
 		firstSet, 1, &pDescriptorSet->vk.pDescriptorSets[index], 0, nullptr);
+}
+
+void VulkanBindRootConstants(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset)
+{
+	vkCmdPushConstants(pCommandBuffer->vk.commandBuffer, pCommandBuffer->pCurrentPipeline->pRootSignature->vk.pipelineLayout,
+		pCommandBuffer->pCurrentPipeline->pRootSignature->vk.rootConstantStages, offset, numValues * stride, pData);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -178,48 +178,51 @@ public:
 
 		vertexInputInfo.numVertexAttributes = 3;
 
+		RootParameterInfo rootParameterInfos[5]{};
+		rootParameterInfos[0].binding = 0;
+		rootParameterInfos[0].baseRegister = 0;
+		rootParameterInfos[0].registerSpace = 0;
+		rootParameterInfos[0].numDescriptors = 1;
+		rootParameterInfos[0].stages = STAGE_VERTEX;
+		rootParameterInfos[0].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		rootParameterInfos[0].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
+
+		rootParameterInfos[1].binding = 1;
+		rootParameterInfos[1].baseRegister = 1;
+		rootParameterInfos[1].registerSpace = 0;
+		rootParameterInfos[1].numDescriptors = 1;
+		rootParameterInfos[1].stages = STAGE_VERTEX | STAGE_PIXEL;
+		rootParameterInfos[1].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		rootParameterInfos[1].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
+
+		rootParameterInfos[2].binding = 0;
+		rootParameterInfos[2].baseRegister = 0;
+		rootParameterInfos[2].registerSpace = 0;
+		rootParameterInfos[2].numDescriptors = 1;
+		rootParameterInfos[2].stages = STAGE_PIXEL;
+		rootParameterInfos[2].type = DESCRIPTOR_TYPE_TEXTURE;
+		rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
+
+		rootParameterInfos[3].binding = 1;
+		rootParameterInfos[3].baseRegister = 1;
+		rootParameterInfos[3].registerSpace = 0;
+		rootParameterInfos[3].numDescriptors = 1;
+		rootParameterInfos[3].stages = STAGE_PIXEL;
+		rootParameterInfos[3].type = DESCRIPTOR_TYPE_TEXTURE;
+		rootParameterInfos[3].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
+
+		rootParameterInfos[4].binding = 2;
+		rootParameterInfos[4].baseRegister = 0;
+		rootParameterInfos[4].registerSpace = 0;
+		rootParameterInfos[4].numDescriptors = 1;
+		rootParameterInfos[4].stages = STAGE_PIXEL;
+		rootParameterInfos[4].type = DESCRIPTOR_TYPE_SAMPLER;
+		rootParameterInfos[4].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
+
 		RootSignatureInfo graphicsRootSignatureInfo{};
-		graphicsRootSignatureInfo.rootParameterInfos[0].binding = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[0].baseRegister = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[0].registerSpace = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[0].numDescriptors = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[0].stages = STAGE_VERTEX;
-		graphicsRootSignatureInfo.rootParameterInfos[0].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		graphicsRootSignatureInfo.rootParameterInfos[0].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
-
-		graphicsRootSignatureInfo.rootParameterInfos[1].binding = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[1].baseRegister = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[1].registerSpace = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[1].numDescriptors = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[1].stages = STAGE_VERTEX | STAGE_PIXEL;
-		graphicsRootSignatureInfo.rootParameterInfos[1].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		graphicsRootSignatureInfo.rootParameterInfos[1].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
-
-		graphicsRootSignatureInfo.rootParameterInfos[2].binding = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[2].baseRegister = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[2].registerSpace = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[2].numDescriptors = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[2].stages = STAGE_PIXEL;
-		graphicsRootSignatureInfo.rootParameterInfos[2].type = DESCRIPTOR_TYPE_TEXTURE;
-		graphicsRootSignatureInfo.rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
-		graphicsRootSignatureInfo.rootParameterInfos[3].binding = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[3].baseRegister = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[3].registerSpace = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[3].numDescriptors = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[3].stages = STAGE_PIXEL;
-		graphicsRootSignatureInfo.rootParameterInfos[3].type = DESCRIPTOR_TYPE_TEXTURE;
-		graphicsRootSignatureInfo.rootParameterInfos[3].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
-		graphicsRootSignatureInfo.rootParameterInfos[4].binding = 2;
-		graphicsRootSignatureInfo.rootParameterInfos[4].baseRegister = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[4].registerSpace = 0;
-		graphicsRootSignatureInfo.rootParameterInfos[4].numDescriptors = 1;
-		graphicsRootSignatureInfo.rootParameterInfos[4].stages = STAGE_PIXEL;
-		graphicsRootSignatureInfo.rootParameterInfos[4].type = DESCRIPTOR_TYPE_SAMPLER;
-		graphicsRootSignatureInfo.rootParameterInfos[4].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
+		graphicsRootSignatureInfo.pRootParameterInfos = rootParameterInfos;
 		graphicsRootSignatureInfo.numRootParameterInfos = 5;
+		graphicsRootSignatureInfo.useRootConstants = false;
 		graphicsRootSignatureInfo.useInputLayout = true;
 		CreateRootSignature(&gRenderer, &graphicsRootSignatureInfo, &gGraphicsRootSignature);
 
