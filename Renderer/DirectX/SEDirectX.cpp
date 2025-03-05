@@ -205,8 +205,8 @@ void DirectXFindAdapter(Renderer* pRenderer)
 		SAFE_RELEASE(adapter);
 	}
 
-	MessageBox(nullptr, L"Couldn't find a GPU a supported feature level. Exiting program.", L"FindAdapter error.", MB_OK);
-	exit(2);
+	MessageBox(nullptr, L"Couldn't find a GPU with a supported feature level. Exiting program.", L"FindAdapter error.", MB_OK);
+	exit(-1);
 }
 
 #if defined(_DEBUG)
@@ -531,7 +531,7 @@ void DirectXDestroyDescriptorHeaps()
 	DirectXDestroyDescriptorHeap(&gSamplerHeap);
 }
 
-void DirectXInitUI(const Renderer* const pRenderer, const UiInfo* const pInfo)
+void DirectXInitUI(const Renderer* const pRenderer, const UIDesc* const pInfo)
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = gCbvSrvUavHeap.gpuHeap->GetCPUDescriptorHandleForHeapStart();
 	cpuHandle.ptr += (gCbvSrvUavHeap.numGpuDescriptors * gCbvSrvUavHeap.descriptorSize);
@@ -1122,9 +1122,17 @@ void DirectXDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapCh
 
 void DirectXCreateShader(const Renderer* const pRenderer, const ShaderInfo* const pInfo, Shader* pShader)
 {
+	char currentDirectory[MAX_FILE_PATH]{};
+	GetCurrentPath(currentDirectory);
+
+	char inputFileWithPath[MAX_FILE_PATH]{};
+	strcat_s(inputFileWithPath, currentDirectory);
+	strcat_s(inputFileWithPath, "CompiledShaders\\HLSL\\");
+	strcat_s(inputFileWithPath, pInfo->filename);
+
 	char* buffer = nullptr;
 	uint32_t fileSize = 0;
-	ReadFile(pInfo->hlslFilename, &buffer, &fileSize, BINARY);
+	ReadFile(inputFileWithPath, &buffer, &fileSize, BINARY);
 
 	pShader->dx.shader.pShaderBytecode = buffer;
 	pShader->dx.shader.BytecodeLength = fileSize;
@@ -1132,7 +1140,7 @@ void DirectXCreateShader(const Renderer* const pRenderer, const ShaderInfo* cons
 
 void DirectXDestroyShader(const Renderer* const pRenderer, Shader* pShader)
 {
-	FreeFileBuffer((char*)pShader->dx.shader.pShaderBytecode);
+	SAFE_FREE(pShader->dx.shader.pShaderBytecode);
 }
 
 void DirectXCreateRootSignature(const Renderer* const pRenderer, const RootSignatureInfo* const pInfo, RootSignature* pRootSignature)
@@ -1526,6 +1534,41 @@ void DirectXCreateInputLayoutDesc(const PipelineInfo* const pInfo,
 	pLayoutDesc->NumElements = pInfo->pVertexInputInfo->numVertexAttributes;
 }
 
+D3D12_PRIMITIVE_TOPOLOGY TranslateTopologyToD3D12Topology(Topology topology)
+{
+	switch (topology)
+	{
+	case TOPOLOGY_POINT_LIST:
+		return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+
+	case TOPOLOGY_LINE_LIST:
+		return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+
+	case TOPOLOGY_TRIANGLE_LIST:
+		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	}
+
+	return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+}
+
+D3D12_PRIMITIVE_TOPOLOGY_TYPE TranslateTopologyToD3D12PrimitiveTopology(Topology topology)
+{
+	switch (topology)
+	{
+	case TOPOLOGY_POINT_LIST:
+		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+
+	case TOPOLOGY_LINE_LIST:
+		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+
+	case TOPOLOGY_TRIANGLE_LIST:
+		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	}
+
+	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+}
+
+
 void DirectXCreateGraphicsPipleine(const Renderer* const pRenderer, const PipelineInfo* const pInfo, Pipeline* pPipeline)
 {
 	D3D12_RENDER_TARGET_BLEND_DESC blendDesc{};
@@ -1542,10 +1585,15 @@ void DirectXCreateGraphicsPipleine(const Renderer* const pRenderer, const Pipeli
 	DirectXCreateInputLayoutDesc(pInfo, elementDescs, &layoutDesc);
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
+	ZeroMemory(&desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	desc.pRootSignature = pInfo->pRootSignature->dx.rootSignature;
 	desc.VS = pInfo->pVertexShader->dx.shader;
 	desc.PS = pInfo->pPixelShader->dx.shader;
-	desc.StreamOutput = {};
+	desc.StreamOutput.pSODeclaration = nullptr;
+	desc.StreamOutput.pBufferStrides = nullptr;
+	desc.StreamOutput.NumEntries = 0;
+	desc.StreamOutput.NumStrides = 0;
+	desc.StreamOutput.RasterizedStream = 0;
 	desc.BlendState.AlphaToCoverageEnable = false;
 	desc.BlendState.IndependentBlendEnable = false;
 	desc.BlendState.RenderTarget[0] = blendDesc;
@@ -1553,15 +1601,16 @@ void DirectXCreateGraphicsPipleine(const Renderer* const pRenderer, const Pipeli
 	desc.RasterizerState = rasterDesc;
 	desc.DepthStencilState = dsDesc;
 	desc.InputLayout = layoutDesc;
-	desc.IBStripCutValue = {};
-	desc.PrimitiveTopologyType = (D3D12_PRIMITIVE_TOPOLOGY_TYPE)(pInfo->topology + 1);
+	desc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+	desc.PrimitiveTopologyType = TranslateTopologyToD3D12PrimitiveTopology(pInfo->topology);
 	desc.NumRenderTargets = 1;
 	desc.RTVFormats[0] = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->renderTargetFormat);
 	desc.DSVFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->depthFormat);
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.NodeMask = 0;
-	desc.CachedPSO = {};
+	desc.CachedPSO.pCachedBlob = nullptr;
+	desc.CachedPSO.CachedBlobSizeInBytes = 0;
 	desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
 	DIRECTX_ERROR_CHECK(pRenderer->dx.device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pPipeline->dx.pipeline)));
@@ -1689,23 +1738,6 @@ void DirectXSetScissor(const CommandBuffer* const pCommandBuffer, const ScissorI
 	rect.top = scissorInfo->y;
 	rect.bottom = scissorInfo->height;
 	pCommandBuffer->dx.commandList->RSSetScissorRects(1, &rect);
-}
-
-D3D12_PRIMITIVE_TOPOLOGY TranslateTopologyToD3D12Topology(const Topology topology)
-{
-	switch (topology)
-	{
-	case TOPOLOGY_POINT_LIST:
-		return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-
-	case TOPOLOGY_LINE_LIST:
-		return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-
-	case TOPOLOGY_TRIANGLE_LIST:
-		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	}
-
-	return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
 }
 
 void DirectXBindPipeline(CommandBuffer* pCommandBuffer, const Pipeline* const pPipeline)

@@ -505,7 +505,7 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 	Vertex vertex;
 
 	float thetaStepRate = 10.0f; //degrees
-	float phiStepRate = 9.0f; //degrees
+	float phiStepRate = 10.0f; //degrees
 
 	uint32_t numCircles = (180.0f / phiStepRate);
 	uint32_t numVerticesPerCircle = (360.0f / thetaStepRate) + 1;
@@ -618,8 +618,8 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 	float thetaStepRate = 10.0f; //degrees
 	float phiStepRate = 9.0f; //degrees
 
-	uint32_t numCircles = (90.0f / phiStepRate);
-	uint32_t numVerticesPerCircle = (360.0f / thetaStepRate) + 1;
+	uint32_t numCircles = (90 / phiStepRate);
+	uint32_t numVerticesPerCircle = (360 / thetaStepRate) + 1;
 
 	float u = 0.0f;
 	float v = 0.0f;
@@ -737,7 +737,7 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
-	float thetaStepRate = 4.0f; //degrees
+	float thetaStepRate = 16.0f; //degrees
 	float h = 1.0f;
 
 	uint32_t numCircles = 4;

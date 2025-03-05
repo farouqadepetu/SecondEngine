@@ -17,7 +17,6 @@
 #include <dxgidebug.h>
 #include "DirectX/DMA/D3D12MemAlloc.h"
 #include "../ThirdParty/imgui/imgui_impl_dx12.h"
-
 #pragma comment(lib, "dxguid")
 
 //SE
@@ -161,7 +160,6 @@ struct RootSignature
 	}dx;
 
 	PipelineType pipelineType;
-	bool useInputLayout;
 };
 
 enum ShaderType
@@ -173,8 +171,7 @@ enum ShaderType
 
 struct ShaderInfo
 {
-	const char* glslFilename;
-	const char* hlslFilename;
+	const char* filename;
 	ShaderType type;
 };
 
@@ -229,7 +226,6 @@ struct VertexAttributes
 struct VertexInputInfo
 {
 	VertexBinding vertexBinding;
-
 	uint32_t numVertexAttributes;
 	VertexAttributes vertexAttributes[MAX_NUM_VERTEX_ATTRIBUTES];
 };
@@ -792,7 +788,7 @@ enum RendererAPI
 	VULKAN
 };
 
-struct UiInfo
+struct UIDesc
 {
 	Window* pWindow;
 	Queue* pQueue;
@@ -881,12 +877,11 @@ extern void (*QueuePresent)(const PresentInfo* const pInfo);
 extern void (*ResourceBarrier)(const CommandBuffer* const pCommandBuffer, 
 	const uint32_t numBarrierInfos, const BarrierInfo* const pBarrierInfos);
 
-extern void (*InitUI)(const Renderer* const pRenderer, const UiInfo* const pInfo);
+extern void (*InitUI)(const Renderer* const pRenderer, const UIDesc* const pInfo);
 extern void (*DestroyUI)(const Renderer* const pRenderer);
 extern void (*RenderUI)(const CommandBuffer* const pCommandBuffer);
 
 void InitSE();
 void ExitSE();
 void OnRendererApiSwitch();
-const char* GetRendererApi();
 void NewFrameApi();

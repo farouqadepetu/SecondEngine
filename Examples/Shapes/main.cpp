@@ -4,6 +4,7 @@
 #include "../../../SecondEngine/Renderer/SECamera.h"
 #include "../../../SecondEngine/Time/SETimer.h"
 #include "../../../SecondEngine/Shapes/SEShapes.h"
+#include "../../../SecondEngine/UI/SEUI.h"
 
 Renderer gRenderer;
 
@@ -13,10 +14,15 @@ SwapChain gSwapChain;
 
 RenderTarget gDepthBuffer;
 
+RootSignature gGraphicsRootSignature;
+
 Shader gShapesVertexShader;
 Shader gShapesPixelShader;
-RootSignature gGraphicsRootSignature;
 Pipeline gShapesPipeline;
+
+Shader gShapesWirePixelShader;
+Pipeline gShapesWirePipeline;
+
 Shader gSkyboxVertexShader;
 Shader gSkyboxPixelShader;
 Pipeline gSkyboxPipeline;
@@ -96,6 +102,9 @@ uint32_t gIndexCounts[MAX_SHAPES];
 mat4 gCubeRotation;
 float gAngle = 0.0f;
 
+MainComponent gGuiWindow;
+int32_t gFillMode;
+
 class Shapes : public App
 {
 public:
@@ -128,27 +137,27 @@ public:
 		dbInfo.initialState = RESOURCE_STATE_DEPTH_WRITE;
 		CreateRenderTarget(&gRenderer, &dbInfo, &gDepthBuffer);
 
-		ShaderInfo vertexShaderInfo{};
-		vertexShaderInfo.glslFilename = "CompiledShaders/GLSL/shapesVS.spv";
-		vertexShaderInfo.hlslFilename = "CompiledShaders/HLSL/shapesVS.cso";
-		vertexShaderInfo.type = SHADER_TYPE_VERTEX;
-		CreateShader(&gRenderer, &vertexShaderInfo, &gShapesVertexShader);
+		ShaderInfo shaderInfo{};
 
-		ShaderInfo pixelShaderInfo{};
-		pixelShaderInfo.glslFilename = "CompiledShaders/GLSL/shapesPS.spv";
-		pixelShaderInfo.hlslFilename = "CompiledShaders/HLSL/shapesPS.cso";
-		pixelShaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &pixelShaderInfo, &gShapesPixelShader);
+		shaderInfo.filename = "shapes.vert";
+		shaderInfo.type = SHADER_TYPE_VERTEX;
+		CreateShader(&gRenderer, &shaderInfo, &gShapesVertexShader);
 
-		vertexShaderInfo.glslFilename = "CompiledShaders/GLSL/skyboxVS.spv";
-		vertexShaderInfo.hlslFilename = "CompiledShaders/HLSL/skyboxVS.cso";
-		vertexShaderInfo.type = SHADER_TYPE_VERTEX;
-		CreateShader(&gRenderer, &vertexShaderInfo, &gSkyboxVertexShader);
+		shaderInfo.filename = "shapes.frag";
+		shaderInfo.type = SHADER_TYPE_PIXEL;
+		CreateShader(&gRenderer, &shaderInfo, &gShapesPixelShader);
 
-		pixelShaderInfo.glslFilename = "CompiledShaders/GLSL/skyboxPS.spv";
-		pixelShaderInfo.hlslFilename = "CompiledShaders/HLSL/skyboxPS.cso";
-		pixelShaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &pixelShaderInfo, &gSkyboxPixelShader);
+		shaderInfo.filename = "shapes_wire.frag";
+		shaderInfo.type = SHADER_TYPE_PIXEL;
+		CreateShader(&gRenderer, &shaderInfo, &gShapesWirePixelShader);
+
+		shaderInfo.filename = "skybox.vert";
+		shaderInfo.type = SHADER_TYPE_VERTEX;
+		CreateShader(&gRenderer, &shaderInfo, &gSkyboxVertexShader);
+
+		shaderInfo.filename = "skybox.frag";
+		shaderInfo.type = SHADER_TYPE_PIXEL;
+		CreateShader(&gRenderer, &shaderInfo, &gSkyboxPixelShader);
 
 		VertexInputInfo vertexInputInfo{};
 		vertexInputInfo.vertexBinding.binding = 0;
@@ -245,6 +254,11 @@ public:
 		graphicsPipelineInfo.pRootSignature = &gGraphicsRootSignature;
 		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapesPipeline);
 
+		graphicsPipelineInfo.rasInfo.fillMode = FILL_MODE_WIREFRAME;
+		graphicsPipelineInfo.pPixelShader = &gShapesWirePixelShader;
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapesWirePipeline);
+
+		graphicsPipelineInfo.rasInfo.fillMode = FILL_MODE_SOLID;
 		graphicsPipelineInfo.rasInfo.cullMode = CULL_MODE_NONE;
 		graphicsPipelineInfo.pVertexShader = &gSkyboxVertexShader;
 		graphicsPipelineInfo.pPixelShader = &gSkyboxPixelShader;
@@ -453,20 +467,40 @@ public:
 
 		gCubeRotation = mat4::MakeIdentity();
 
-		UiInfo uiInfo{};
-		uiInfo.pWindow = pWindow;
-		uiInfo.pQueue = &gGraphicsQueue;
-		uiInfo.numFrames = gNumFrames;
-		uiInfo.renderTargetFormat = gSwapChain.info.format;
-		uiInfo.depthFormat = gDepthBuffer.info.format;
-		uiInfo.numImages = gSwapChain.numRenderTargets;
-		InitUI(&gRenderer, &uiInfo);
+		UIDesc uiDesc{};
+		uiDesc.pWindow = pWindow;
+		uiDesc.pQueue = &gGraphicsQueue;
+		uiDesc.numFrames = gNumFrames;
+		uiDesc.renderTargetFormat = gSwapChain.info.format;
+		uiDesc.depthFormat = gDepthBuffer.info.format;
+		uiDesc.numImages = gSwapChain.numRenderTargets;
+		InitUI(&gRenderer, &uiDesc);
+
+		MainComponentInfo mcInfo;
+		mcInfo.pLabel = "##";
+		mcInfo.position = vec2(GetWidth(pWindow) - 125.0f, 100.0f);
+		mcInfo.size = vec2(125.0f, 90.0f);
+		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
+		CreateMainComponent(&mcInfo, &gGuiWindow);
+
+		SubComponentRadioButton radio{};
+		radio.pLabel = "SOLID";
+		radio.id = 0;
+		radio.pData = &gFillMode;
+		AddSubComponent(&gGuiWindow, &radio, SUB_COMPONENT_TYPE_RADIO_BUTTON);
+
+		radio.pLabel = "WIREFRAME";
+		radio.id = 1;
+		radio.pData = &gFillMode;
+		AddSubComponent(&gGuiWindow, &radio, SUB_COMPONENT_TYPE_RADIO_BUTTON);
+
 	}
 
 	void Exit() override
 	{
 		WaitQueueIdle(&gRenderer, &gGraphicsQueue);
 
+		DestroyMainComponent(&gGuiWindow);
 		DestroyShape(&gVertices, &gIndices);
 		
 		DestroyUI(&gRenderer);
@@ -493,6 +527,7 @@ public:
 		}
 
 		DestroyPipeline(&gRenderer, &gSkyboxPipeline);
+		DestroyPipeline(&gRenderer, &gShapesWirePipeline);
 		DestroyPipeline(&gRenderer, &gShapesPipeline);
 
 		DestroyRootSignature(&gRenderer, &gGraphicsRootSignature);
@@ -502,6 +537,7 @@ public:
 
 		DestroyShader(&gRenderer, &gSkyboxVertexShader);
 		DestroyShader(&gRenderer, &gSkyboxPixelShader);
+		DestroyShader(&gRenderer, &gShapesWirePixelShader);
 		DestroyShader(&gRenderer, &gShapesPixelShader);
 		DestroyShader(&gRenderer, &gShapesVertexShader);
 
@@ -739,7 +775,11 @@ public:
 		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
 		//Draw Shapes
-		BindPipeline(pCommandBuffer, &gShapesPipeline);
+		if(gFillMode == FILL_MODE_SOLID)
+			BindPipeline(pCommandBuffer, &gShapesPipeline);
+		else //gFillMode == FILL_MODE_WIREFRAME
+			BindPipeline(pCommandBuffer, &gShapesWirePipeline);
+
 		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
 
 		for (uint32_t i = 0; i < MAX_SHAPES; ++i)

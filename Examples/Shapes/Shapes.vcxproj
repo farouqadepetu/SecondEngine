@@ -89,33 +89,38 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\GLSL\resources.h.glsl" />
-    <None Include="Shaders\GLSL\shapesPS.glsl" />
-    <None Include="Shaders\GLSL\shapesVS.glsl" />
-    <None Include="Shaders\GLSL\skyboxPS.glsl" />
-    <None Include="Shaders\GLSL\skyboxVS.glsl" />
-  </ItemGroup>
-  <ItemGroup>
     <FxCompile Include="Shaders\HLSL\resources.h.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapesPS.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes.frag.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapesVS.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes.vert.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\skyboxPS.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes_wire.frag.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\skybox.frag.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\skyboxVS.hlsl">
+    <FxCompile Include="Shaders\HLSL\skybox.vert.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\GLSL\resources.h.glsl" />
+    <None Include="Shaders\GLSL\shapes.frag.glsl" />
+    <None Include="Shaders\GLSL\shapes.vert.glsl" />
+    <None Include="Shaders\GLSL\shapes_wire.frag.glsl" />
+    <None Include="Shaders\GLSL\skybox.frag.glsl" />
+    <None Include="Shaders\GLSL\skybox.vert.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

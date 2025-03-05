@@ -912,7 +912,7 @@ void VulkanDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapCha
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------
 
-void VulkanInitUI(const Renderer* const pRenderer, const UiInfo* const pInfo)
+void VulkanInitUI(const Renderer* const pRenderer, const UIDesc* const pInfo)
 {
 	ImGui_ImplVulkan_InitInfo initInfo{};
 	initInfo.Instance = pRenderer->vk.instance;
@@ -1403,11 +1403,20 @@ void VulkanDestroyRenderer(Renderer* pRenderer)
 
 //SHADERS
 //-------------------------------------------------------------------------------------------------------------------------------------------
-void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const info, Shader* shader)
+void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const pInfo, Shader* pShader)
 {
+	char currentDirectory[MAX_FILE_PATH]{};
+	GetCurrentPath(currentDirectory);
+
+	char inputFileWithPath[MAX_FILE_PATH]{};
+	strcat_s(inputFileWithPath, currentDirectory);
+	strcat_s(inputFileWithPath, "CompiledShaders\\GLSL\\");
+	strcat_s(inputFileWithPath, pInfo->filename);
+
 	char* buffer = nullptr;
 	uint32_t fileSize = 0;
-	ReadFile(info->glslFilename, &buffer, &fileSize, BINARY);
+	ReadFile(inputFileWithPath, &buffer, &fileSize, BINARY);
+
 	uint32_t num = 3;
 	uint32_t newSize = (fileSize + num) & ~num; //make filesize the nearest number divisible by 4
 	char* code = (char*)calloc(newSize, sizeof(char));
@@ -1420,13 +1429,13 @@ void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const
 	createInfo.codeSize = newSize;
 	createInfo.pCode = (uint32_t*)code;
 
-	VULKAN_ERROR_CHECK(vkCreateShaderModule(pRenderer->vk.logicalDevice, &createInfo, nullptr, &shader->vk.shaderModule));
+	VULKAN_ERROR_CHECK(vkCreateShaderModule(pRenderer->vk.logicalDevice, &createInfo, nullptr, &pShader->vk.shaderModule));
 
 	VkPipelineShaderStageCreateInfo stageCreateInfo{};
 	stageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stageCreateInfo.pNext = nullptr;
 	stageCreateInfo.flags = 0;
-	switch (info->type)
+	switch (pInfo->type)
 	{
 	case SHADER_TYPE_VERTEX:
 		stageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -1440,19 +1449,19 @@ void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const
 		stageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 		break;
 	}
-	stageCreateInfo.module = shader->vk.shaderModule;
+	stageCreateInfo.module = pShader->vk.shaderModule;
 	stageCreateInfo.pName = "main";
 	stageCreateInfo.pSpecializationInfo = nullptr;
 
-	shader->vk.shaderCreateInfo = stageCreateInfo;
+	pShader->vk.shaderCreateInfo = stageCreateInfo;
 
-	FreeFileBuffer(buffer);
+	free(buffer);
 	free(code);
 }
 
-void VulkanDestroyShader(const Renderer* const pRenderer, Shader* shader)
+void VulkanDestroyShader(const Renderer* const pRenderer, Shader* pShader)
 {
-	vkDestroyShaderModule(pRenderer->vk.logicalDevice, shader->vk.shaderModule, nullptr);
+	vkDestroyShaderModule(pRenderer->vk.logicalDevice, pShader->vk.shaderModule, nullptr);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1581,26 +1590,7 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerDraw,
 		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_DRAW]))
 
-	VkPushConstantRange pushConstant{};
-	pushConstant.offset = 0;
-	pushConstant.size = pInfo->rootConstantsInfo.numValues * pInfo->rootConstantsInfo.stride;
-
-	if (pInfo->rootConstantsInfo.stages & STAGE_VERTEX)
-	{
-		stage |= VK_SHADER_STAGE_VERTEX_BIT;
-	}
-
-	if (pInfo->rootConstantsInfo.stages & STAGE_PIXEL)
-	{
-		stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
-	}
-
-	if (pInfo->rootConstantsInfo.stages & STAGE_COMPUTE)
-	{
-		stage |= VK_SHADER_STAGE_COMPUTE_BIT;
-	}
-	pushConstant.stageFlags = stage;
-	pRootSignature->vk.rootConstantStages = stage;
+	
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1608,12 +1598,37 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	pipelineLayoutInfo.flags = 0;
 	pipelineLayoutInfo.setLayoutCount = UPDATE_FREQUENCY_COUNT;
 	pipelineLayoutInfo.pSetLayouts = pRootSignature->vk.descriptorSetLayouts;
-	pipelineLayoutInfo.pushConstantRangeCount = 1;
-	pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
+	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+	if (pInfo->useRootConstants == true)
+	{
+		VkPushConstantRange pushConstant{};
+		pushConstant.offset = 0;
+		pushConstant.size = pInfo->rootConstantsInfo.numValues * pInfo->rootConstantsInfo.stride;
+
+		if (pInfo->rootConstantsInfo.stages & STAGE_VERTEX)
+		{
+			stage |= VK_SHADER_STAGE_VERTEX_BIT;
+		}
+
+		if (pInfo->rootConstantsInfo.stages & STAGE_PIXEL)
+		{
+			stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+		}
+
+		if (pInfo->rootConstantsInfo.stages & STAGE_COMPUTE)
+		{
+			stage |= VK_SHADER_STAGE_COMPUTE_BIT;
+		}
+		pushConstant.stageFlags = stage;
+		pRootSignature->vk.rootConstantStages = stage;
+
+		pipelineLayoutInfo.pushConstantRangeCount = 1;
+		pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
+	}
 
 	VULKAN_ERROR_CHECK(vkCreatePipelineLayout(pRenderer->vk.logicalDevice, &pipelineLayoutInfo, nullptr, &pRootSignature->vk.pipelineLayout));
-
-	pRootSignature->useInputLayout = pInfo->useInputLayout;
 
 	arrfree(perNoneBindings);
 	arrfree(perFrameBindings);
@@ -1891,6 +1906,8 @@ void VulkanCreatePipeline(const Renderer* const pRenderer, const PipelineInfo* c
 	{
 		VulkanCreateComputePipeline(pRenderer, pInfo, pPipeline);
 	}
+
+	pPipeline->pRootSignature = pInfo->pRootSignature;
 	pPipeline->type = pInfo->type;
 	pInfo->pRootSignature->pipelineType = pInfo->type;
 }

@@ -21,37 +21,43 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\GLSL\resources.h.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\shapesPS.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\shapesVS.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\skyboxPS.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\skyboxVS.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <FxCompile Include="Shaders\HLSL\resources.h.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapesPS.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapesVS.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes.vert.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\skyboxPS.hlsl">
+    <FxCompile Include="Shaders\HLSL\skybox.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\skyboxVS.hlsl">
+    <FxCompile Include="Shaders\HLSL\skybox.vert.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shapes_wire.frag.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\GLSL\resources.h.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shapes.frag.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shapes.vert.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shapes_wire.frag.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\skybox.frag.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\skybox.vert.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
   </ItemGroup>
 </Project>

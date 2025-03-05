@@ -64,7 +64,7 @@ extern void DirectXQueuePresent(const PresentInfo* const pInfo);
 extern void DirectXCreateBuffer(const Renderer* const pRenderer, const BufferInfo* pInfo, Buffer* pBuffer);
 extern void DirectXDestroyBuffer(const Renderer* const pRenderer, Buffer* pBuffer);
 
-extern void DirectXMapMemory(const Renderer* const pRenderer, const Buffer* const pBuffer, extern void** ppData);
+extern void DirectXMapMemory(const Renderer* const pRenderer, const Buffer* const pBuffer, void** ppData);
 extern void DirectXUnmapMemory(const Renderer* const pRenderer, const Buffer* const pBuffer);
 
 extern void DirectXBindVertexBuffer(const CommandBuffer* const pCommandBuffer, const uint32_t stride, const uint32_t bindingLocation,
@@ -91,7 +91,7 @@ extern void DirectXBindRootConstants(const CommandBuffer* const pCommandBuffer, 
 
 extern void DirectXResourceBarrier(const CommandBuffer* const pCommandBuffer, const uint32_t numBarrierInfos, const BarrierInfo* const pBarrierInfos);
 
-extern void DirectXInitUI(const Renderer* const pRenderer, const UiInfo* const pInfo);
+extern void DirectXInitUI(const Renderer* const pRenderer, const UIDesc* const pInfo);
 extern void DirectXDestroyUI(const Renderer* const pRenderer);
 extern void DirectXRenderUI(const CommandBuffer* const pCommandBuffer);
 
@@ -111,8 +111,8 @@ extern void VulkanDestroyRenderTarget(const Renderer* const pRenderer, RenderTar
 extern void VulkanCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain);
 extern void VulkanDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapChain);
 
-extern void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const info, Shader* shader);
-extern void VulkanDestroyShader(const Renderer* const pRenderer, Shader* shader);
+extern void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const pInfo, Shader* pShader);
+extern void VulkanDestroyShader(const Renderer* const pRenderer, Shader* pShader);
 
 extern void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignatureInfo* const pInfo, RootSignature* pRootSignature);
 extern void VulkanDestroyRootSignature(const Renderer* const pRenderer, RootSignature* pRootSignature);
@@ -159,7 +159,7 @@ extern void VulkanCreateBuffer(const Renderer* const pRenderer, const BufferInfo
 
 extern void VulkanDestroyBuffer(const Renderer* const pRenderer, Buffer* pBuffer);
 
-extern void VulkanMapMemory(const Renderer* const pRenderer, const Buffer* const buffer, extern void** ppData);
+extern void VulkanMapMemory(const Renderer* const pRenderer, const Buffer* const buffer, void** ppData);
 
 extern void VulkanUnmapMemory(const Renderer* const pRenderer, const Buffer* const pBuffer);
 
@@ -187,7 +187,7 @@ extern void VulkanBindDescriptorSet(const CommandBuffer* const pCommandBuffer, c
 
 extern void VulkanBindRootConstants(const CommandBuffer* const pCommandBuffer, uint32_t numValues, uint32_t stride, const void* pData, uint32_t offset);
 
-extern void VulkanInitUI(const Renderer* const pRenderer, const UiInfo* const pInfo);
+extern void VulkanInitUI(const Renderer* const pRenderer, const UIDesc* const pInfo);
 extern void VulkanDestroyUI(const Renderer* const pRenderer);
 extern void VulkanRenderUI(const CommandBuffer* const pCommandBuffer);
 
@@ -270,7 +270,7 @@ void (*QueuePresent)(const PresentInfo* const pInfo);
 
 void (*ResourceBarrier)(const CommandBuffer* const pCommandBuffer, const uint32_t numBarrierInfos, const BarrierInfo* const pBarrierInfos);
 
-void (*InitUI)(const Renderer* const pRenderer, const UiInfo* const pInfo);
+void (*InitUI)(const Renderer* const pRenderer, const UIDesc* const pInfo);
 void (*DestroyUI)(const Renderer* const pRenderer);
 void (*RenderUI)(const CommandBuffer* const pCommandBuffer);
 
@@ -505,14 +505,6 @@ void ExitSE()
 void OnRendererApiSwitch()
 {
 	gRendererAPI = (gRendererAPI == VULKAN) ? DIRECTX : VULKAN;
-}
-
-const char* GetRendererApi()
-{
-	if (gRendererAPI == VULKAN)
-		return "VULKAN";
-
-	return "DIRECTX";
 }
 
 void NewFrameApi()

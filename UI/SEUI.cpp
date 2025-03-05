@@ -215,7 +215,7 @@ void ProcessSubComponentDropDown(SubComponent* pSubComponent, uint32_t id)
 	ImGui::Text(pDropDown->pLabel);
 	if (ImGui::BeginCombo("##", pDropDown->pNames[index], ImGuiWindowFlags_None))
 	{
-		for (int n = 0; n < pDropDown->numNames; n++)
+		for (uint32_t n = 0; n < pDropDown->numNames; n++)
 		{
 			bool is_selected = (index == n);
 			if (ImGui::Selectable(pDropDown->pNames[n], is_selected))
