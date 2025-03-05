@@ -5,7 +5,6 @@
 	<PostBuildEvent>
 	  <Command>
 		if exist "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\ rmdir "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\ /s /q
-		if exist "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\ rmdir "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\ /s /q
 		
 		mkdir "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\HLSL\"
 		mkdir "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\GLSL\"
@@ -14,6 +13,7 @@
 		xcopy "$(ProjectDir)Shaders\*" "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\" /s /y /d
 		xcopy "$(ProjectDir)Textures\*" "$(ProjectDir)$(Platform)\$(Configuration)\Textures\" /s /y /d
 		xcopy "$(SolutionDir)..\Renderer\ShaderCompiler.exe" "$(ProjectDir)$(Platform)\$(Configuration)" /s /y /d
+		
 		xcopy "$(SolutionDir)..\Renderer\DirectX\DirectXShaderCompiler\bin\x64\dxc.exe" "$(ProjectDir)$(Platform)\$(Configuration)" /s /y /d
 		xcopy "$(SolutionDir)..\Renderer\Vulkan\VulkandSDK\glslc.exe" "$(ProjectDir)$(Platform)\$(Configuration)" /s /y /d
 		
@@ -27,12 +27,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\..\SecondEngine\Renderer\Vulkan\VulkanSDK\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Renderer\Vulkan\VulkanSDK\Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows (/SUBSYSTEM:WINDOWS)</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>..\$(Platform)\$(Configuration)\SecondEngine.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)$(Platform)\$(Configuration)\SecondEngine.lib</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
@@ -41,13 +41,13 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\..\SecondEngine\Renderer\Vulkan\VulkanSDK\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Renderer\Vulkan\VulkanSDK\Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows (/SUBSYSTEM:WINDOWS)</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>..\$(Platform)\$(Configuration)\SecondEngine.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)$(Platform)\$(Configuration)\SecondEngine.lib</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
