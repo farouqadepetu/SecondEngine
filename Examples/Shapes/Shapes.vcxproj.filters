@@ -24,9 +24,6 @@
     <FxCompile Include="Shaders\HLSL\resources.h.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapes.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\HLSL\shapes.vert.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
@@ -39,12 +36,18 @@
     <FxCompile Include="Shaders\HLSL\shapes_wire.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shapes2D.frag.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shapes3D.frag.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\GLSL\resources.h.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
-    <None Include="Shaders\GLSL\shapes.frag.glsl">
+    <None Include="Shaders\GLSL\shapes2D.frag.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
     <None Include="Shaders\GLSL\shapes.vert.glsl">
@@ -57,6 +60,9 @@
       <Filter>Shaders\GLSL</Filter>
     </None>
     <None Include="Shaders\GLSL\skybox.vert.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shapes3D.frag.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
   </ItemGroup>

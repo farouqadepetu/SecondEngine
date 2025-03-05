@@ -9,8 +9,5 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-    if(perObjectBuffer.isShape2D)
-        outColor = texture(sampler2D(gTexture2D, gSampler), outTexCoords);
-    else
-        outColor = texture(samplerCube(gTextureCube, gSampler), outTexCoords3D);
+	outColor = texture(samplerCube(gTextureCube, gSampler), outTexCoords3D);
 }

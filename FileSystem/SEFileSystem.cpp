@@ -16,12 +16,13 @@ void ReadFile(const char* filename, char** buffer, uint32_t* fileSize, FileType 
 		break;
 	}
 
+	char errorMsg[256]{};
 	if (!file)
 	{
-		char msg[256] = "Failed to open file ";
-		strcat_s(msg, filename);
-		strcat_s(msg, ". Exiting prorgam.");
-		MessageBoxA(nullptr, msg, "File open error.", MB_OK);
+		strcat_s(errorMsg, "Failed to open file ");
+		strcat_s(errorMsg, filename);
+		strcat_s(errorMsg, ". Exiting prorgam.");
+		MessageBoxA(nullptr, errorMsg, "File open error.", MB_OK);
 		exit(-1);
 	}
 
@@ -36,16 +37,55 @@ void ReadFile(const char* filename, char** buffer, uint32_t* fileSize, FileType 
 	int result = fread(buf, sizeof(char), size, file);
 	if (result != size)
 	{
-		char msg[256] = "Failed to read file ";
-		strcat_s(msg, filename);
-		strcat_s(msg, ". Exiting prorgam.");
-		MessageBoxA(nullptr, msg, "File read error.", MB_OK);
+		strcat_s(errorMsg, "Failed to read file ");
+		strcat_s(errorMsg, filename);
+		strcat_s(errorMsg, ". Exiting prorgam.");
+		MessageBoxA(nullptr, errorMsg, "File read error.", MB_OK);
+		exit(-1);
 	}
 
 	fclose(file);
 
 	*buffer = buf;
 	*fileSize = size;
+}
+
+void WriteFile(const char* filename, char* buffer, uint32_t numChars, FileType type)
+{
+	FILE* file = nullptr;
+
+	switch (type)
+	{
+	case TEXT:
+		fopen_s(&file, filename, "w");
+		break;
+	case BINARY:
+		fopen_s(&file, filename, "wb");
+		break;
+	}
+
+	char errorMsg[256]{};
+	if (!file)
+	{
+		strcat_s(errorMsg, "Failed to open file ");
+		strcat_s(errorMsg, filename);
+		strcat_s(errorMsg, ". Exiting prorgam.");
+		MessageBoxA(nullptr, errorMsg, "File open error.", MB_OK);
+		exit(-1);
+	}
+
+
+	int result = fwrite(buffer, sizeof(char), numChars, file);
+	if (result != numChars)
+	{
+		strcat_s(errorMsg, "Failed to write to file ");
+		strcat_s(errorMsg, filename);
+		strcat_s(errorMsg, ". Exiting prorgam.");
+		MessageBoxA(nullptr, errorMsg, "File write error.", MB_OK);
+		exit(-1);
+	}
+
+	fclose(file);
 }
 
 void GetCurrentPath(char* dir)

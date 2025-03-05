@@ -17,8 +17,10 @@ RenderTarget gDepthBuffer;
 RootSignature gGraphicsRootSignature;
 
 Shader gShapesVertexShader;
-Shader gShapesPixelShader;
-Pipeline gShapesPipeline;
+Shader gShapes2DPixelShader;
+Shader gShapes3DPixelShader;
+Pipeline gShapes2DPipeline;
+Pipeline gShapes3DPipeline;
 
 Shader gShapesWirePixelShader;
 Pipeline gShapesWirePipeline;
@@ -52,7 +54,6 @@ uint32_t* gIndices = nullptr;
 struct PerObjectUniformData
 {
 	mat4 model;
-	bool isShape2D;
 };
 
 struct PerFrameUniformData
@@ -143,9 +144,13 @@ public:
 		shaderInfo.type = SHADER_TYPE_VERTEX;
 		CreateShader(&gRenderer, &shaderInfo, &gShapesVertexShader);
 
-		shaderInfo.filename = "shapes.frag";
+		shaderInfo.filename = "shapes2D.frag";
 		shaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &shaderInfo, &gShapesPixelShader);
+		CreateShader(&gRenderer, &shaderInfo, &gShapes2DPixelShader);
+
+		shaderInfo.filename = "shapes3D.frag";
+		shaderInfo.type = SHADER_TYPE_PIXEL;
+		CreateShader(&gRenderer, &shaderInfo, &gShapes3DPixelShader);
 
 		shaderInfo.filename = "shapes_wire.frag";
 		shaderInfo.type = SHADER_TYPE_PIXEL;
@@ -244,7 +249,7 @@ public:
 		graphicsPipelineInfo.rasInfo.lineWidth = 1.0f;
 		graphicsPipelineInfo.blendInfo.enableBlend = false;
 		graphicsPipelineInfo.pVertexShader = &gShapesVertexShader;
-		graphicsPipelineInfo.pPixelShader = &gShapesPixelShader;
+		graphicsPipelineInfo.pPixelShader = &gShapes2DPixelShader;
 		graphicsPipelineInfo.renderTargetFormat = gSwapChain.pRenderTargets[0].info.format;
 		graphicsPipelineInfo.depthInfo.depthTestEnable = true;
 		graphicsPipelineInfo.depthInfo.depthWriteEnable = true;
@@ -252,7 +257,10 @@ public:
 		graphicsPipelineInfo.depthFormat = gDepthBuffer.info.format;
 		graphicsPipelineInfo.pVertexInputInfo = &vertexInputInfo;
 		graphicsPipelineInfo.pRootSignature = &gGraphicsRootSignature;
-		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapesPipeline);
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapes2DPipeline);
+
+		graphicsPipelineInfo.pPixelShader = &gShapes3DPixelShader;
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapes3DPipeline);
 
 		graphicsPipelineInfo.rasInfo.fillMode = FILL_MODE_WIREFRAME;
 		graphicsPipelineInfo.pPixelShader = &gShapesWirePixelShader;
@@ -477,7 +485,7 @@ public:
 		InitUI(&gRenderer, &uiDesc);
 
 		MainComponentInfo mcInfo;
-		mcInfo.pLabel = "##";
+		mcInfo.pLabel = "FILL MODE";
 		mcInfo.position = vec2(GetWidth(pWindow) - 125.0f, 100.0f);
 		mcInfo.size = vec2(125.0f, 90.0f);
 		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
@@ -528,7 +536,8 @@ public:
 
 		DestroyPipeline(&gRenderer, &gSkyboxPipeline);
 		DestroyPipeline(&gRenderer, &gShapesWirePipeline);
-		DestroyPipeline(&gRenderer, &gShapesPipeline);
+		DestroyPipeline(&gRenderer, &gShapes3DPipeline);
+		DestroyPipeline(&gRenderer, &gShapes2DPipeline);
 
 		DestroyRootSignature(&gRenderer, &gGraphicsRootSignature);
 
@@ -538,7 +547,8 @@ public:
 		DestroyShader(&gRenderer, &gSkyboxVertexShader);
 		DestroyShader(&gRenderer, &gSkyboxPixelShader);
 		DestroyShader(&gRenderer, &gShapesWirePixelShader);
-		DestroyShader(&gRenderer, &gShapesPixelShader);
+		DestroyShader(&gRenderer, &gShapes3DPixelShader);
+		DestroyShader(&gRenderer, &gShapes2DPixelShader);
 		DestroyShader(&gRenderer, &gShapesVertexShader);
 
 		DestroyRenderTarget(&gRenderer, &gDepthBuffer);
@@ -625,78 +635,60 @@ public:
 
 		mat4 model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 6.0f, 0.0f);
 		gShapesUniformData[EQUILATERAL_TRIANGLE].model = Transpose(model);
-		gShapesUniformData[EQUILATERAL_TRIANGLE].isShape2D = true;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 6.0f, 0.0f);
 		gShapesUniformData[RIGHT_TRIANGLE].model = Transpose(model);
-		gShapesUniformData[RIGHT_TRIANGLE].isShape2D = true;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(4.0f, 6.0f, 0.0f);
 		gShapesUniformData[QUAD].model = Transpose(model);
-		gShapesUniformData[QUAD].isShape2D = true;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 6.0f, 0.0f);
 		gShapesUniformData[CIRCLE].model = Transpose(model);
-		gShapesUniformData[CIRCLE].isShape2D = true;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 4.0f, 0.0f);
 		gShapesUniformData[BOX].model = Transpose(model);
-		gShapesUniformData[BOX].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 4.0f, 0.0f);
 		gShapesUniformData[SQUARE_PYRAMID].model = Transpose(model);
-		gShapesUniformData[SQUARE_PYRAMID].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(4.0f, 4.0f, 0.0f);
 		gShapesUniformData[TRIANGULAR_PYRAMID].model = Transpose(model);
-		gShapesUniformData[TRIANGULAR_PYRAMID].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 2.0f, 0.0f);
 		gShapesUniformData[SPHERE].model = Transpose(model);
-		gShapesUniformData[SPHERE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, 2.0f, 0.0f);
 		gShapesUniformData[HEMI_SPHERE].model = Transpose(model);
-		gShapesUniformData[HEMI_SPHERE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 2.0f, 0.0f);
 		gShapesUniformData[HEMI_SPHERE_BASE].model = Transpose(model);
-		gShapesUniformData[HEMI_SPHERE_BASE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
 		gShapesUniformData[CYLINDER].model = Transpose(model);
-		gShapesUniformData[CYLINDER].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, 0.0f, 0.0f);
 		gShapesUniformData[CYLINDER_TOP_BASE].model = Transpose(model);
-		gShapesUniformData[CYLINDER_TOP_BASE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 0.0f, 0.0f);
 		gShapesUniformData[CYLINDER_BOTTOM_BASE].model = Transpose(model);
-		gShapesUniformData[CYLINDER_BOTTOM_BASE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(9.0f, 0.0f, 0.0f);
 		gShapesUniformData[CYLINDER_BASE].model = Transpose(model);
-		gShapesUniformData[CYLINDER_BASE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, -2.0f, 0.0f);
 		gShapesUniformData[CONE].model = Transpose(model);
-		gShapesUniformData[CONE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, -2.0f, 0.0f);
 		gShapesUniformData[CONE_BASE].model = Transpose(model);
-		gShapesUniformData[CONE_BASE].isShape2D = false;
 
 		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(5.0f, -4.0f, 0.0f);
 		gShapesUniformData[TORUS].model = Transpose(model);
-		gShapesUniformData[TORUS].isShape2D = false;
 
 		gPerFrameUniformData.view = Transpose(gCamera.viewMat);
 		gPerFrameUniformData.projection = Transpose(gCamera.perspectiveProjMat);
 
 		model = mat4::Scale(1000.0f, 1000.0f, 1000.0f);
 		gSkyBoxUniformData.model = Transpose(model);
-		gSkyBoxUniformData.isShape2D = true;
 
 		mat4 viewMat = gCamera.viewMat;
 		viewMat.SetRow(3, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -775,17 +767,34 @@ public:
 		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
 		//Draw Shapes
-		if(gFillMode == FILL_MODE_SOLID)
-			BindPipeline(pCommandBuffer, &gShapesPipeline);
-		else //gFillMode == FILL_MODE_WIREFRAME
-			BindPipeline(pCommandBuffer, &gShapesWirePipeline);
-
-		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-
-		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
+		if (gFillMode == FILL_MODE_SOLID)
 		{
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
-			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+			BindPipeline(pCommandBuffer, &gShapes2DPipeline);
+			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+
+			for (uint32_t i = 0; i < 4; ++i)
+			{
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+			}
+
+			BindPipeline(pCommandBuffer, &gShapes3DPipeline);
+			for (uint32_t i = 4; i < MAX_SHAPES; ++i)
+			{
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+			}
+		}
+		else //gFillMode == FILL_MODE_WIREFRAME
+		{
+			BindPipeline(pCommandBuffer, &gShapesWirePipeline);
+			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+
+			for (uint32_t i = 0; i < MAX_SHAPES; ++i)
+			{
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+			}
 		}
 
 		//Draw Skybox

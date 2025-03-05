@@ -93,11 +93,15 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapes.frag.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes.vert.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\shapes.vert.hlsl">
+    <FxCompile Include="Shaders\HLSL\shapes2D.frag.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shapes3D.frag.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
@@ -116,8 +120,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\GLSL\resources.h.glsl" />
-    <None Include="Shaders\GLSL\shapes.frag.glsl" />
+    <None Include="Shaders\GLSL\shapes2D.frag.glsl" />
     <None Include="Shaders\GLSL\shapes.vert.glsl" />
+    <None Include="Shaders\GLSL\shapes3D.frag.glsl" />
     <None Include="Shaders\GLSL\shapes_wire.frag.glsl" />
     <None Include="Shaders\GLSL\skybox.frag.glsl" />
     <None Include="Shaders\GLSL\skybox.vert.glsl" />

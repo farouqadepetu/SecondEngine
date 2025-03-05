@@ -10,8 +10,5 @@ struct VertexOutput
 
 float4 psMain(VertexOutput vout) : SV_Target
 {
-    if(isShape2D)
-        return gTexture2D.Sample(gSampler, vout.outputTexCoords);
-    else
-        return gTextureCube.Sample(gSampler, vout.outputTexCoords3D);
+    return gTexture2D.Sample(gSampler, vout.outputTexCoords);
 }

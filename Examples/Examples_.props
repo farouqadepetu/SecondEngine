@@ -5,6 +5,8 @@
 	<PostBuildEvent>
 	  <Command>
 		if exist "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\ rmdir "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\ /s /q
+		if exist "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\ rmdir "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\ /s /q
+		
 		mkdir "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\HLSL\"
 		mkdir "$(ProjectDir)$(Platform)\$(Configuration)\CompiledShaders\GLSL\"
 		

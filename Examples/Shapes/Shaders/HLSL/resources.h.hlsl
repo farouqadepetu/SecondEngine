@@ -7,7 +7,6 @@ cbuffer PerFrameUniformBuffer : register(b0)
 cbuffer PerObjectUniformBuffer : register(b1)
 {
     float4x4 model;
-    bool isShape2D;
 };
 
 Texture2D gTexture2D : register(t0);
