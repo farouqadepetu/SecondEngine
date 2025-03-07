@@ -491,16 +491,19 @@ public:
 		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
 		CreateMainComponent(&mcInfo, &gGuiWindow);
 
-		SubComponentRadioButton radio{};
-		radio.pLabel = "SOLID";
-		radio.id = 0;
-		radio.pData = &gFillMode;
-		AddSubComponent(&gGuiWindow, &radio, SUB_COMPONENT_TYPE_RADIO_BUTTON);
+		SubComponent radio0{};
+		radio0.type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
+		radio0.radio.pLabel = "SOLID";
+		radio0.radio.id = 0;
+		radio0.radio.pData = &gFillMode;
+		AddSubComponent(&gGuiWindow, &radio0);
 
-		radio.pLabel = "WIREFRAME";
-		radio.id = 1;
-		radio.pData = &gFillMode;
-		AddSubComponent(&gGuiWindow, &radio, SUB_COMPONENT_TYPE_RADIO_BUTTON);
+		SubComponent radio1{};
+		radio1.type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
+		radio1.radio.pLabel = "WIREFRAME";
+		radio1.radio.id = 1;
+		radio1.radio.pData = &gFillMode;
+		AddSubComponent(&gGuiWindow, &radio1);
 
 	}
 

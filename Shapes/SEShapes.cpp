@@ -507,23 +507,16 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 	float thetaStepRate = 10.0f; //degrees
 	float phiStepRate = 10.0f; //degrees
 
-	uint32_t numCircles = (180.0f / phiStepRate);
+	uint32_t numCircles = (180.0f / phiStepRate) + 1;
 	uint32_t numVerticesPerCircle = (360.0f / thetaStepRate) + 1;
 
 	float u = 0.0f;
 	float v = 0.0f;
 	float uStep = 1.0f / (numVerticesPerCircle - 1);
-	float vStep = 1.0f / numCircles;
-
-	//Top Vertex
-	vertex.position.Set(0.0f, 1.0f, 0.0f, 1.0f);
-	vertex.texCoords.Set(0.5f, 0.5f);
-	vertex.normal.Set(0.0f, 1.0f, 0.0f, 0.0f);
-	arrpush(vertexList, vertex);
-	v += vStep;
+	float vStep = 1.0f / (numCircles - 1);
 
 	//Compute the vertices and texture coordinates.
-	for (uint32_t i = 0; i < numCircles - 1 ; ++i)
+	for (uint32_t i = 0; i < numCircles; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
 		{
@@ -543,31 +536,15 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 		u = 0.0f;
 	}
 
-	//Bottom Vertex
-	vertex.position.Set(0.0f, -1.0f, 0.0f, 1.0f);
-	vertex.texCoords.Set(0.5f, 0.5f);
-	vertex.normal.Set(0.0f, -1.0f, 0.0f, 0.0f);
-	arrpush(vertexList, vertex);
-
-	//Top Triangles
-	for (uint32_t i = 0; i < numVerticesPerCircle - 1; ++i)
-	{
-		arrpush(*indices, 0);
-		arrpush(*indices, i + 2);
-		arrpush(*indices, i + 1);
-
-		indexCount += 3;
-	}
-
-	for (uint32_t i = 0; i < numCircles - 2; ++i)
+	for (uint32_t i = 0; i < numCircles - 1; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle - 1; ++j)
 		{
 			//Indices of the vertices that make up a quad
-			uint32_t topLeft = (i * numVerticesPerCircle) + j + 1;
-			uint32_t topRight = (i * numVerticesPerCircle) + j + 2;
-			uint32_t bottomLeft = ((i + 1) * numVerticesPerCircle) + j + 1;
-			uint32_t bottomRight = ((i + 1) * numVerticesPerCircle) + j + 2;
+			uint32_t topLeft = (i * numVerticesPerCircle) + j;
+			uint32_t topRight = (i * numVerticesPerCircle) + j + 1;
+			uint32_t bottomLeft = ((i + 1) * numVerticesPerCircle) + j;
+			uint32_t bottomRight = ((i + 1) * numVerticesPerCircle) + j + 1;
 
 			arrpush(*indices, topLeft);
 			arrpush(*indices, topRight);
@@ -579,18 +556,6 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 
 			indexCount += 6;
 		}
-	}
-
-	//Bottom Triangles
-	uint32_t index = arrlenu(vertexList) - 1; //index of the bottom vertex
-	uint32_t index2 = index - numVerticesPerCircle; //index of the first vertex of the last circle
-	for (uint32_t i = 0; i < numVerticesPerCircle - 1; ++i)
-	{
-		arrpush(*indices, index);
-		arrpush(*indices, index2 + i);
-		arrpush(*indices, index2 + i + 1);
-
-		indexCount += 3;
 	}
 
 	uint32_t numVertices = arrlenu(vertexList);
@@ -616,25 +581,18 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 	Vertex vertex;
 
 	float thetaStepRate = 10.0f; //degrees
-	float phiStepRate = 9.0f; //degrees
+	float phiStepRate = 10.0f; //degrees
 
-	uint32_t numCircles = (90 / phiStepRate);
-	uint32_t numVerticesPerCircle = (360 / thetaStepRate) + 1;
+	uint32_t numCircles = (90.0f / phiStepRate) + 1;
+	uint32_t numVerticesPerCircle = (360.0f / thetaStepRate) + 1;
 
 	float u = 0.0f;
 	float v = 0.0f;
 	float uStep = 1.0f / (numVerticesPerCircle - 1);
-	float vStep = 1.0f / numCircles;
-
-	//Top Vertex
-	vertex.position.Set(0.0f, 0.5f, 0.0f, 1.0f);
-	vertex.texCoords.Set(0.5f, 0.5f);
-	vertex.normal.Set(0.0f, 0.5f, 0.0f, 0.0f);
-	arrpush(vertexList, vertex);
-	v += vStep;
+	float vStep = 1.0f / (numCircles - 1);
 
 	//Compute the vertices and texture coordinates.
-	for (uint32_t i = 0; i < numCircles - 1; ++i)
+	for (uint32_t i = 0; i < numCircles; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
 		{
@@ -654,25 +612,15 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 		u = 0.0f;
 	}
 
-	//Top Triangles
-	for (uint32_t i = 0; i < numVerticesPerCircle - 1; ++i)
-	{
-		arrpush(*indices, 0);
-		arrpush(*indices, i + 2);
-		arrpush(*indices, i + 1);
-
-		indexCount += 3;
-	}
-
-	for (uint32_t i = 0; i < numCircles - 2; ++i)
+	for (uint32_t i = 0; i < numCircles - 1; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle - 1; ++j)
 		{
 			//Indices of the vertices that make up a quad
-			uint32_t topLeft = (i * numVerticesPerCircle) + j + 1;
-			uint32_t topRight = (i * numVerticesPerCircle) + j + 2;
-			uint32_t bottomLeft = ((i + 1) * numVerticesPerCircle) + j + 1;
-			uint32_t bottomRight = ((i + 1) * numVerticesPerCircle) + j + 2;
+			uint32_t topLeft = (i * numVerticesPerCircle) + j;
+			uint32_t topRight = (i * numVerticesPerCircle) + j + 1;
+			uint32_t bottomLeft = ((i + 1) * numVerticesPerCircle) + j;
+			uint32_t bottomRight = ((i + 1) * numVerticesPerCircle) + j + 1;
 
 			arrpush(*indices, topLeft);
 			arrpush(*indices, topRight);
@@ -737,10 +685,10 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
-	float thetaStepRate = 16.0f; //degrees
+	float thetaStepRate = 10.0f; //degrees
 	float h = 1.0f;
 
-	uint32_t numCircles = 4;
+	uint32_t numCircles = 20;
 	uint32_t numVerticesPerCircle = (360.0f / thetaStepRate) + 1;
 
 	float u = 0.0f;
@@ -858,6 +806,16 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 		vertexList[i2].normal += normal;
 	}
 
+	//The positions of the first and last vertex of each circle are the same, so they must have the same normal.
+	for (uint32_t i = 0; i < numCircles; ++i)
+	{
+		uint32_t firstVertex = i * numVerticesPerCircle;
+		uint32_t lastVertex = i * numVerticesPerCircle + (numVerticesPerCircle - 1);
+		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
+		vertexList[firstVertex].normal = normal;
+		vertexList[lastVertex].normal = normal;
+	}
+
 	uint32_t numVertices = arrlenu(vertexList);
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
@@ -882,10 +840,10 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
-	float thetaStepRate = 15.0f; //degrees
+	float thetaStepRate = 10.0f; //degrees
 	float r = 1.0f;
 
-	uint32_t numCircles = 4;
+	uint32_t numCircles = 20;
 	uint32_t numVerticesPerCircle = (360.0f / thetaStepRate) + 1;
 
 	float u = 0.0f;
@@ -893,15 +851,8 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 	float uStep = 1.0f / (numVerticesPerCircle - 1);
 	float vStep = 1.0f / (numCircles - 1);
 
-	//Top Vertex
-	vertex.position.Set(0.0f, 0.5f, 0.0f, 1.0f);
-	vertex.texCoords.Set(0.5f, 0.5f);
-	vertex.normal.Set(0.0f, 0.5f, 0.0f, 0.0f);
-	arrpush(vertexList, vertex);
-	v += vStep;
-
 	//Compute the vertices and texture coordinates.
-	for (uint32_t i = 0; i < numCircles - 1; ++i)
+	for (uint32_t i = 0; i < numCircles; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
 		{
@@ -920,26 +871,34 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 		u = 0.0f;
 	}
 
-	//Top Triangles
-	for (uint32_t i = 0; i < numVerticesPerCircle - 1; ++i)
+	//The vertices of the first cirlce have the same position. 
+	//Create triangles with the 2nd circle.
+	for (uint32_t i = 0; i < numVerticesPerCircle; ++i)
 	{
-		arrpush(*indices, 0);
-		arrpush(*indices, i + 2);
-		arrpush(*indices, i + 1);
+		for (uint32_t j = 0; j < numVerticesPerCircle - 1; ++j)
+		{
+			Triangle triangle{};
+			CreateTriangle(&triangle, vertexList, i, numVerticesPerCircle + j + 1, numVerticesPerCircle + j);
+			arrpush(triangleList, triangle);
 
-		indexCount += 3;
+			arrpush(*indices, triangle.i0);
+			arrpush(*indices, triangle.i1);
+			arrpush(*indices, triangle.i2);
+
+			indexCount += 3;
+		}
 	}
 
 	//Generate the triangles
-	for (uint32_t i = 0; i < numCircles - 2; ++i)
+	for (uint32_t i = 1; i < numCircles - 1; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle - 1; ++j)
 		{
 			//Indices of the vertices that make up a quad
-			uint32_t topLeft = (i * numVerticesPerCircle) + j + 1;
-			uint32_t topRight = (i * numVerticesPerCircle) + j + 2;
-			uint32_t bottomLeft = ((i + 1) * numVerticesPerCircle) + j + 1;
-			uint32_t bottomRight = ((i + 1) * numVerticesPerCircle) + j + 2;
+			uint32_t topLeft = (i * numVerticesPerCircle) + j;
+			uint32_t topRight = (i * numVerticesPerCircle) + j + 1;
+			uint32_t bottomLeft = ((i + 1) * numVerticesPerCircle) + j;
+			uint32_t bottomRight = ((i + 1) * numVerticesPerCircle) + j + 1;
 
 			Triangle triangle{};
 			CreateTriangle(&triangle, vertexList, topLeft, topRight, bottomRight);
@@ -997,6 +956,34 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 		vertexList[i2].normal += normal;
 	}
 
+
+	//The positions of the first and last vertex of each circle are the same, so they must have the same normal.
+	for (uint32_t i = 0; i < numCircles; ++i)
+	{
+		//The vertices of the first cirlce have the same position, so they must have the same normal.
+		if (i == 0)
+		{
+			vec4 normal;
+			for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
+			{
+				normal += vertexList[j].normal;
+			}
+
+			for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
+			{
+				vertexList[j].normal = normal;
+			}
+		}
+		else
+		{
+			uint32_t firstVertex = i * numVerticesPerCircle;
+			uint32_t lastVertex = i * numVerticesPerCircle + (numVerticesPerCircle - 1);
+			vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
+			vertexList[firstVertex].normal = normal;
+			vertexList[lastVertex].normal = normal;
+		}
+	}
+
 	uint32_t numVertices = arrlenu(vertexList);
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
@@ -1021,8 +1008,8 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
-	float thetaStepRate = 9.0f; //degrees
-	float phiStepRate = 9.0f;
+	float thetaStepRate = 10.0f; //degrees
+	float phiStepRate = 10.0f;
 	float r = 1.0f;
 
 	uint32_t numCircles = (360.0f / phiStepRate) + 1;
@@ -1097,7 +1084,27 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 		vertexList[i2].normal += normal;
 	}
 
+	//The positions of the first and last vertex of each circle are the same, so they must have the same normal.
+	for (uint32_t i = 0; i < numCircles; ++i)
+	{
+		uint32_t firstVertex = i * numCircles; //first vertex of each circle.
+		uint32_t lastVertex = i * numCircles + (numCircles - 1); //last vertex of each circle.
+		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
+		vertexList[firstVertex].normal = normal;
+		vertexList[lastVertex].normal = normal;
+	}
+
+	//The positions of the vertices of the first and last circle are the same, so they must have the same normal.
 	uint32_t numVertices = arrlenu(vertexList);
+	for (uint32_t i = 0; i < numVerticesPerCircle; ++i)
+	{
+		uint32_t firstVertex = i; //vertices of the first circle.
+		uint32_t lastVertex = numVertices - numVerticesPerCircle + i; //vertices of the last circle
+		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
+		vertexList[firstVertex].normal = normal;
+		vertexList[lastVertex].normal = normal;
+	}
+
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);

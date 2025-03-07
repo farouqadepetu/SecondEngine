@@ -330,10 +330,11 @@ void CreateComponents(Window* pWindow)
 		| MAIN_COMPONENT_FLAGS_NO_NAV | MAIN_COMPONENT_FLAGS_NO_BACKGROUND | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
 	CreateMainComponent(&mcInfo, &gFrameStatsWindow);
 
-	SubComponentText frameStatsText{};
-	frameStatsText.text = gFrameStatString;
-	frameStatsText.color = vec4(1.0f, 1.0f, 0.0f, 1.0f);
-	AddSubComponent(&gFrameStatsWindow, &frameStatsText, SUB_COMPONENT_TYPE_TEXT);
+	SubComponent fpsText{};
+	fpsText.type = SUB_COMPONENT_TYPE_TEXT;
+	fpsText.text.text = gFrameStatString;
+	fpsText.text.color = vec4(1.0f, 1.0f, 0.0f, 1.0f);
+	AddSubComponent(&gFrameStatsWindow, &fpsText);
 
 	uint32_t width = GetWidth(pWindow);
 	mcInfo.pLabel = "API";
@@ -343,12 +344,13 @@ void CreateComponents(Window* pWindow)
 		MAIN_COMPONENT_FLAGS_NO_RESIZE;
 	CreateMainComponent(&mcInfo, &gApiWindow);
 
-	SubComponentDropDown apiDropDown{};
-	apiDropDown.pLabel = "Renderer API";
-	apiDropDown.pData = &gNextApiIndex;
-	apiDropDown.numNames = 2;
-	apiDropDown.pNames = gApiNames;
-	AddSubComponent(&gApiWindow, &apiDropDown, SUB_COMPONENT_TYPE_DROPDOWN);
+	SubComponent api{};
+	api.type = SUB_COMPONENT_TYPE_DROPDOWN;
+	api.dropDown.pLabel = "Renderer API";
+	api.dropDown.pData = &gNextApiIndex;
+	api.dropDown.numNames = 2;
+	api.dropDown.pNames = gApiNames;
+	AddSubComponent(&gApiWindow, &api);
 }
 
 void OnApiSwitch(App* pApp, Window* pWindow, Timer* timer)
@@ -365,8 +367,8 @@ void OnApiSwitch(App* pApp, Window* pWindow, Timer* timer)
 
 	WndInfo wndData{};
 	wndData.wndName = pApp->appName;
-	wndData.width = 1080;
-	wndData.height = 720;
+	wndData.width = 1280;
+	wndData.height = 800;
 	CreateWindow(&wndData, pWindow);
 
 	InitUserInterface(pWindow);
@@ -406,8 +408,8 @@ int WindowsMain(App* pApp)
 	Window window{};
 	WndInfo wndData{};
 	wndData.wndName = pApp->appName;
-	wndData.width = 1080;
-	wndData.height = 720;
+	wndData.width = 1280;
+	wndData.height = 800;
 	CreateWindow(&wndData, &window);
 
 	Timer timer{};

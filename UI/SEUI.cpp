@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 MainComponent** gMainComponentList = nullptr;
-ImFont* gCousineRegularFont = nullptr;
+ImFont* gFont = nullptr;
 
 void SetFluentUITheme() {
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -78,8 +78,36 @@ void InitUserInterface(Window* pWindow)
 	SetFluentUITheme();
 
 	ImGuiIO& io = ImGui::GetIO();
-	//gCousineRegularFont = io.Fonts->AddFontFromFileTTF("../../ThirdParty/imgui/Cousine-Regular.ttf", 15.0f);
+
+	char dir[MAX_FILE_PATH]{};
+	GetCurrentPath(dir);
+	strcat_s(dir, "Fonts\\framd.ttf");
+	OutputDebugStringA(dir);
+
+	gFont = io.Fonts->AddFontFromFileTTF(dir, 15.0f);
+	io.FontDefault = gFont;
 }
+
+/*struct SubComponent
+{
+	SubComponentType type;
+	union
+	{
+		SubComponentText* pText;
+		SubComponentDropDown* pDropDown;
+		SubComponentSliderInt* pSliderInt;
+		SubComponentSliderFloat* pSliderFloat;
+		SubComponentSliderFloat2* pSliderFloat2;
+		SubComponentSliderFloat3* pSliderFloat3;
+		SubComponentSliderFloat4* pSliderFloat4;
+		SubComponentCheckBox* pCheckBox;
+		SubComponentButton* pButton;
+		SubComponentRadioButton* pRadioButton;
+	};
+
+	bool dynamic;
+	bool show;
+};*/
 
 void DestroyUserInterface()
 {
@@ -99,108 +127,34 @@ void DestroyMainComponent(MainComponent* pMainComponent)
 {
 	for (uint32_t i = 0; i < arrlen(pMainComponent->pSubComponents); ++i)
 	{
-		free(pMainComponent->pSubComponents[i]);
+		if(pMainComponent->pSubComponents[i]->dynamic == false)
+			free(pMainComponent->pSubComponents[i]);
 	}
 	arrfree(pMainComponent->pSubComponents);
 }
 
-void AddSubComponent(MainComponent* pMainComponent, void* pSubComponent, SubComponentType type)
+void AddSubComponent(MainComponent* pMainComponent, SubComponent* pSubComponent)
 {
-	SubComponent* pSc = (SubComponent*)calloc(1, sizeof(SubComponent));
-	switch (type)
+	if (pSubComponent->dynamic == true)
 	{
-		case SUB_COMPONENT_TYPE_TEXT:
-		{
-			SubComponentText* pScText = (SubComponentText*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_TEXT;
-			pSc->subCompnentText = *pScText;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_DROPDOWN:
-		{
-			SubComponentDropDown* pScDropDown = (SubComponentDropDown*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_DROPDOWN;
-			pSc->subComponentDropDown = *pScDropDown;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_SLIDER_INT:
-		{
-			SubComponentSliderInt* pScSliderInt = (SubComponentSliderInt*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_SLIDER_INT;
-			pSc->subComponentSliderInt = *pScSliderInt;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_SLIDER_FLOAT:
-		{
-			SubComponentSliderFloat* pScSliderFloat = (SubComponentSliderFloat*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_SLIDER_FLOAT;
-			pSc->subComponentSliderFloat = *pScSliderFloat;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_SLIDER_FLOAT2:
-		{
-			SubComponentSliderFloat2* pScSliderFloat2 = (SubComponentSliderFloat2*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_SLIDER_FLOAT2;
-			pSc->subComponentSliderFloat2 = *pScSliderFloat2;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_SLIDER_FLOAT3:
-		{
-			SubComponentSliderFloat3* pScSliderFloat3 = (SubComponentSliderFloat3*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_SLIDER_FLOAT3;
-			pSc->subComponentSliderFloat3 = *pScSliderFloat3;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_SLIDER_FLOAT4:
-		{
-			SubComponentSliderFloat4* pScSliderFloat4 = (SubComponentSliderFloat4*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_SLIDER_FLOAT4;
-			pSc->subComponentSliderFloat4 = *pScSliderFloat4;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_CHECKBOX:
-		{
-			SubComponentCheckBox* pScCheckBox = (SubComponentCheckBox*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_CHECKBOX;
-			pSc->subComponentCheckBox = *pScCheckBox;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_BUTTON:
-		{
-			SubComponentButton* pScButton = (SubComponentButton*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_BUTTON;
-			pSc->subComponentButton = *pScButton;
-			break;
-		}
-
-		case SUB_COMPONENT_TYPE_RADIO_BUTTON:
-		{
-			SubComponentRadioButton* pScRadioButton = (SubComponentRadioButton*)pSubComponent;
-			pSc->type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
-			pSc->subComponentRadioButton = *pScRadioButton;
-			break;
-		}
+		arrpush(pMainComponent->pSubComponents, pSubComponent);
+		return;
 	}
-
-	arrpush(pMainComponent->pSubComponents, pSc);
+	else
+	{
+		SubComponent* pSc = (SubComponent*)calloc(1, sizeof(SubComponent));
+		*pSc = *pSubComponent;
+		arrpush(pMainComponent->pSubComponents, pSc);
+	}
 }
 
 void ProcessSubComponentText(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentText* pText = &pSubComponent->subCompnentText;
-	vec4 color = pText->color;
+	vec4 color = pSubComponent->text.color;
 	ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(color.GetX() * 255, color.GetY() * 255, color.GetZ() * 255, color.GetW() * 255));
-	ImGui::Text(pText->text);
+	ImGui::Text(pSubComponent->text.text);
 	ImGui::PopStyleColor();
 
 	ImGui::PopID();
@@ -210,17 +164,16 @@ void ProcessSubComponentDropDown(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentDropDown* pDropDown = &pSubComponent->subComponentDropDown;
-	uint32_t index = *pDropDown->pData;
-	ImGui::Text(pDropDown->pLabel);
-	if (ImGui::BeginCombo("##", pDropDown->pNames[index], ImGuiWindowFlags_None))
+	uint32_t index = *pSubComponent->dropDown.pData;
+	ImGui::Text(pSubComponent->dropDown.pLabel);
+	if (ImGui::BeginCombo("##", pSubComponent->dropDown.pNames[index], ImGuiWindowFlags_None))
 	{
-		for (uint32_t n = 0; n < pDropDown->numNames; n++)
+		for (uint32_t n = 0; n < pSubComponent->dropDown.numNames; n++)
 		{
 			bool is_selected = (index == n);
-			if (ImGui::Selectable(pDropDown->pNames[n], is_selected))
+			if (ImGui::Selectable(pSubComponent->dropDown.pNames[n], is_selected))
 			{
-				*pSubComponent->subComponentDropDown.pData = n;
+				*pSubComponent->dropDown.pData = n;
 			}
 			if (is_selected)
 				ImGui::SetItemDefaultFocus();
@@ -235,33 +188,37 @@ bool ProcessSubComponentSliderInt(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentSliderInt* pSliderInt = &pSubComponent->subComponentSliderInt;
 	bool valueChanged = false;
 	char textBuffer[16]{};
-	snprintf(textBuffer, 16, pSliderInt->format, *pSliderInt->pData);
-	ImGui::Text(pSliderInt->pLabel);
+	snprintf(textBuffer, 16, pSubComponent->sliderInt.format, *pSubComponent->sliderInt.pData);
+	ImGui::Text(pSubComponent->sliderInt.pLabel);
+
+	int32_t* data = pSubComponent->sliderInt.pData;
+	int32_t min = pSubComponent->sliderInt.min;
+	int32_t max = pSubComponent->sliderInt.max;
+	int32_t stepRate = pSubComponent->sliderInt.stepRate;
 	if (ImGui::GetIO().WantTextInput)
 	{
-		valueChanged = ImGui::SliderInt("##", pSliderInt->pData, pSliderInt->min, pSliderInt->max, textBuffer);
+		valueChanged = ImGui::SliderInt("##", data, min, max, textBuffer);
 
-		int32_t sliderValue = int32_t((*pSliderInt->pData - pSliderInt->min) / pSliderInt->stepRate);
-		*pSliderInt->pData = pSliderInt->min + sliderValue * pSliderInt->stepRate;
+		int32_t sliderValue = int32_t((*data - min) / stepRate);
+		*data = min + sliderValue * stepRate;
 	}
 	else
 	{
-		const int32_t numValues = int32_t((pSliderInt->max - pSliderInt->min) / pSliderInt->stepRate);
+		const int32_t numValues = int32_t((max - min) / stepRate);
 
-		int32_t sliderValue = int32_t((*pSliderInt->pData - pSliderInt->min) / pSliderInt->stepRate);
+		int32_t sliderValue = int32_t((*data - min) / stepRate);
 
 		valueChanged = ImGui::SliderInt("##", &sliderValue, 0, numValues, textBuffer);
-		*pSliderInt->pData = pSliderInt->min + sliderValue * pSliderInt->stepRate;
+		*data = min + sliderValue * stepRate;
 	}
 
-	if (*pSliderInt->pData < pSliderInt->min)
-		*pSliderInt->pData = pSliderInt->min;
+	if (*data < min)
+		*data = min;
 
-	if (*pSliderInt->pData > pSliderInt->max)
-		*pSliderInt->pData = pSliderInt->max;
+	if (*data > max)
+		*data = max;
 
 	ImGui::PopID();
 
@@ -272,34 +229,38 @@ bool ProcessSubComponentFloat(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentSliderFloat* pSliderFloat = &pSubComponent->subComponentSliderFloat;
 	bool valueChanged = false;
 	char textBuffer[16]{};
-	snprintf(textBuffer, 16, pSliderFloat->format, *pSliderFloat->pData);
-	ImGui::Text(pSliderFloat->pLabel);
+	snprintf(textBuffer, 16, pSubComponent->sliderFloat.format, *pSubComponent->sliderFloat.pData);
+	ImGui::Text(pSubComponent->sliderFloat.pLabel);
+
+	float* data = pSubComponent->sliderFloat.pData;
+	float min = pSubComponent->sliderFloat.min;
+	float max = pSubComponent->sliderFloat.max;
+	float stepRate = pSubComponent->sliderFloat.stepRate;
 
 	if (ImGui::GetIO().WantTextInput)
 	{
-		valueChanged = ImGui::SliderFloat("##", pSliderFloat->pData, pSliderFloat->min, pSliderFloat->max, textBuffer);
+		valueChanged = ImGui::SliderFloat("##", data, min, max, textBuffer);
 
-		int32_t sliderValue = int32_t(((*pSliderFloat->pData - pSliderFloat->min) / pSliderFloat->stepRate) + 0.5f);
-		*pSliderFloat->pData = pSliderFloat->min + (float)sliderValue * pSliderFloat->stepRate;
+		int32_t sliderValue = int32_t((*data - min) / stepRate);
+		*data = min + (float)sliderValue * stepRate;
 	}
 	else
 	{
-		const int32_t numValues = int32_t((pSliderFloat->max - pSliderFloat->min) / pSliderFloat->stepRate);
+		const int32_t numValues = int32_t((max - min) / stepRate);
 
-		int32_t sliderValue = int32_t(((*pSliderFloat->pData - pSliderFloat->min) / pSliderFloat->stepRate) + 0.5f);
+		int32_t sliderValue = int32_t((*data - min) / stepRate);
 
 		valueChanged = ImGui::SliderInt("##", &sliderValue, 0, numValues, textBuffer);
-		*pSliderFloat->pData = pSliderFloat->min + (float)sliderValue * pSliderFloat->stepRate;
+		*data = min + (float)sliderValue * stepRate;
 	}
 
-	if (*pSliderFloat->pData < pSliderFloat->min)
-		*pSliderFloat->pData = pSliderFloat->min;
+	if (*data < min)
+		*data = min;
 
-	if (*pSliderFloat->pData > pSliderFloat->max)
-		*pSliderFloat->pData = pSliderFloat->max;
+	if (*data > max)
+		*data = max;
 
 	ImGui::PopID();
 
@@ -308,21 +269,20 @@ bool ProcessSubComponentFloat(SubComponent* pSubComponent, uint32_t id)
 
 bool ProcessSubComponentFloat2(SubComponent* pSubComponent, uint32_t id)
 {
-	SubComponentSliderFloat2* pSliderFloat2 = &pSubComponent->subComponentSliderFloat2;
 	bool valueChanged = false;
 	char textBuffer[16]{};
 
-	ImGui::Text(pSliderFloat2->pLabel);
+	ImGui::Text(pSubComponent->sliderFloat2.pLabel);
 
-	float data[2] = { pSliderFloat2->pData->GetX(), pSliderFloat2->pData->GetY() };
-	float min[2] = { pSliderFloat2->min.GetX(), pSliderFloat2->min.GetY() };
-	float max[2] = { pSliderFloat2->max.GetX(), pSliderFloat2->max.GetY() };
-	float stepRate[2] = { pSliderFloat2->stepRate.GetX(), pSliderFloat2->stepRate.GetY() };
+	float data[2] = { pSubComponent->sliderFloat2.pData->GetX(), pSubComponent->sliderFloat2.pData->GetY() };
+	float min[2] = { pSubComponent->sliderFloat2.min.GetX(), pSubComponent->sliderFloat2.min.GetY() };
+	float max[2] = { pSubComponent->sliderFloat2.max.GetX(), pSubComponent->sliderFloat2.max.GetY() };
+	float stepRate[2] = { pSubComponent->sliderFloat2.stepRate.GetX(), pSubComponent->sliderFloat2.stepRate.GetY() };
 
 	for (uint32_t i = 0; i < 2; ++i)
 	{
 		ImGui::PushID(id + i);
-		snprintf(textBuffer, 16, pSliderFloat2->format, data[i]);
+		snprintf(textBuffer, 16, pSubComponent->sliderFloat2.format, data[i]);
 		if (ImGui::GetIO().WantTextInput)
 		{
 			valueChanged |= ImGui::SliderFloat("##", &data[i], min[i], max[i], textBuffer);
@@ -348,28 +308,28 @@ bool ProcessSubComponentFloat2(SubComponent* pSubComponent, uint32_t id)
 
 		ImGui::PopID();
 	}
-	pSliderFloat2->pData->Set(data[0], data[1]);
+	pSubComponent->sliderFloat2.pData->Set(data[0], data[1]);
 
 	return valueChanged;
 }
 
 bool ProcessSubComponentFloat3(SubComponent* pSubComponent, uint32_t id)
 {
-	SubComponentSliderFloat3* pSliderFloat3 = &pSubComponent->subComponentSliderFloat3;
 	bool valueChanged = false;
 	char textBuffer[16]{};
 
-	ImGui::Text(pSliderFloat3->pLabel);
+	ImGui::Text(pSubComponent->sliderFloat3.pLabel);
 
-	float data[3] = { pSliderFloat3->pData->GetX(), pSliderFloat3->pData->GetY(), pSliderFloat3->pData->GetZ() };
-	float min[3] = { pSliderFloat3->min.GetX(), pSliderFloat3->min.GetY(), pSliderFloat3->min.GetZ() };
-	float max[3] = { pSliderFloat3->max.GetX(), pSliderFloat3->max.GetY(), pSliderFloat3->max.GetZ() };
-	float stepRate[3] = { pSliderFloat3->stepRate.GetX(), pSliderFloat3->stepRate.GetY(), pSliderFloat3->stepRate.GetZ() };
+	float data[3] = { pSubComponent->sliderFloat3.pData->GetX(), pSubComponent->sliderFloat3.pData->GetY(), pSubComponent->sliderFloat3.pData->GetZ() };
+	float min[3] = { pSubComponent->sliderFloat3.min.GetX(), pSubComponent->sliderFloat3.min.GetY(), pSubComponent->sliderFloat3.min.GetZ() };
+	float max[3] = { pSubComponent->sliderFloat3.max.GetX(), pSubComponent->sliderFloat3.max.GetY(), pSubComponent->sliderFloat3.max.GetZ() };
+	float stepRate[3] = { pSubComponent->sliderFloat3.stepRate.GetX(), pSubComponent->sliderFloat3.stepRate.GetY(),
+		pSubComponent->sliderFloat3.stepRate.GetZ() };
 
 	for (uint32_t i = 0; i < 3; ++i)
 	{
 		ImGui::PushID(id + i);
-		snprintf(textBuffer, 16, pSliderFloat3->format, data[i]);
+		snprintf(textBuffer, 16, pSubComponent->sliderFloat3.format, data[i]);
 		if (ImGui::GetIO().WantTextInput)
 		{
 			valueChanged |= ImGui::SliderFloat("##", &data[i], min[i], max[i], textBuffer);
@@ -395,28 +355,35 @@ bool ProcessSubComponentFloat3(SubComponent* pSubComponent, uint32_t id)
 
 		ImGui::PopID();
 	}
-	pSliderFloat3->pData->Set(data[0], data[1], data[2]);
+	pSubComponent->sliderFloat3.pData->Set(data[0], data[1], data[2]);
 
 	return valueChanged;
 }
 
 bool ProcessSubComponentFloat4(SubComponent* pSubComponent, uint32_t id)
 {
-	SubComponentSliderFloat4* pSliderFloat4 = &pSubComponent->subComponentSliderFloat4;
+	//SubComponentSliderFloat4* pSliderFloat4 = &pSubComponent->subComponentSliderFloat4;
 	bool valueChanged = false;
 	char textBuffer[16]{};
 
-	ImGui::Text(pSliderFloat4->pLabel);
+	ImGui::Text(pSubComponent->sliderFloat4.pLabel);
 
-	float data[4] = { pSliderFloat4->pData->GetX(), pSliderFloat4->pData->GetY(), pSliderFloat4->pData->GetZ(), pSliderFloat4->pData->GetW() };
-	float min[4] = { pSliderFloat4->min.GetX(), pSliderFloat4->min.GetY(), pSliderFloat4->min.GetZ(), pSliderFloat4->min.GetW() };
-	float max[4] = { pSliderFloat4->max.GetX(), pSliderFloat4->max.GetY(), pSliderFloat4->max.GetZ(), pSliderFloat4->max.GetW() };
-	float stepRate[4] = { pSliderFloat4->stepRate.GetX(), pSliderFloat4->stepRate.GetY(), pSliderFloat4->stepRate.GetZ(), pSliderFloat4->stepRate.GetW() };
+	float data[4] = { pSubComponent->sliderFloat4.pData->GetX(), pSubComponent->sliderFloat4.pData->GetY(),
+		pSubComponent->sliderFloat4.pData->GetZ(), pSubComponent->sliderFloat4.pData->GetW() };
+
+	float min[4] = { pSubComponent->sliderFloat4.min.GetX(), pSubComponent->sliderFloat4.min.GetY(),
+		pSubComponent->sliderFloat4.min.GetZ(), pSubComponent->sliderFloat4.min.GetW() };
+
+	float max[4] = { pSubComponent->sliderFloat4.max.GetX(), pSubComponent->sliderFloat4.max.GetY(),
+		pSubComponent->sliderFloat4.max.GetZ(), pSubComponent->sliderFloat4.max.GetW() };
+
+	float stepRate[4] = { pSubComponent->sliderFloat4.stepRate.GetX(),pSubComponent->sliderFloat4.stepRate.GetY(),
+		pSubComponent->sliderFloat4.stepRate.GetZ(), pSubComponent->sliderFloat4.stepRate.GetW() };
 
 	for (uint32_t i = 0; i < 4; ++i)
 	{
 		ImGui::PushID(id + i);
-		snprintf(textBuffer, 16, pSliderFloat4->format, data[i]);
+		snprintf(textBuffer, 16, pSubComponent->sliderFloat4.format, data[i]);
 		if (ImGui::GetIO().WantTextInput)
 		{
 			valueChanged |= ImGui::SliderFloat("##", &data[i], min[i], max[i], textBuffer);
@@ -442,7 +409,7 @@ bool ProcessSubComponentFloat4(SubComponent* pSubComponent, uint32_t id)
 
 		ImGui::PopID();
 	}
-	pSliderFloat4->pData->Set(data[0], data[1], data[2], data[3]);
+	pSubComponent->sliderFloat4.pData->Set(data[0], data[1], data[2], data[3]);
 
 	return valueChanged;
 }
@@ -451,9 +418,9 @@ void ProcessSubComponentCheckBox(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentCheckBox* pCheckBox = &pSubComponent->subComponentCheckBox;
-	ImGui::Text(pCheckBox->pLabel);
-	ImGui::Checkbox("##", pCheckBox->pData);
+	//SubComponentCheckBox* pCheckBox = &pSubComponent->subComponentCheckBox;
+	ImGui::Text(pSubComponent->checkBox.pLabel);
+	ImGui::Checkbox("##", pSubComponent->checkBox.pData);
 
 	ImGui::PopID();
 }
@@ -462,9 +429,9 @@ void ProcessSubComponentButton(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentButton* pButton = &pSubComponent->subComponentButton;
-	if (ImGui::Button(pButton->pLabel))
-		pButton->pCallback(pButton->pUserData);
+	//SubComponentButton* pButton = &pSubComponent->subComponentButton;
+	if (ImGui::Button(pSubComponent->button.pLabel))
+		pSubComponent->pCallback(pSubComponent->button.pUserData);
 
 	ImGui::PopID();
 }
@@ -473,12 +440,11 @@ void ProcessSubComponentRadioButton(SubComponent* pSubComponent, uint32_t id)
 {
 	ImGui::PushID(id);
 
-	SubComponentRadioButton* pRadioButton = &pSubComponent->subComponentRadioButton;
-	ImGui::RadioButton(pRadioButton->pLabel, pRadioButton->pData, pRadioButton->id);
+	//SubComponentRadioButton* pRadioButton = &pSubComponent->subComponentRadioButton;
+	ImGui::RadioButton(pSubComponent->radio.pLabel, pSubComponent->radio.pData, pSubComponent->radio.id);
 
 	ImGui::PopID();
 }
-
 
 void ProcessSubComponent(SubComponent* pSubComponent, uint32_t id)
 {
@@ -534,6 +500,9 @@ void UpdateUserInterface()
 
 	for (uint32_t i = 0; i < arrlen(gMainComponentList); ++i)
 	{
+		if (gMainComponentList[i]->show == false)
+			continue;
+
 		if (!ImGui::Begin(gMainComponentList[i]->info.pLabel, nullptr, gMainComponentList[i]->info.flags))
 		{
 			ImGui::End();
@@ -550,8 +519,10 @@ void UpdateUserInterface()
 		uint32_t id = 0;
 		for (uint32_t j = 0; j < arrlen(gMainComponentList[i]->pSubComponents); ++j)
 		{
-			SubComponent* subComponent = gMainComponentList[i]->pSubComponents[j];
-			ProcessSubComponent(subComponent, id);
+			SubComponent* subComponent = (SubComponent*)gMainComponentList[i]->pSubComponents[j];
+
+			if(subComponent->dynamic == false || (subComponent->dynamic == true && subComponent->show == true))
+				ProcessSubComponent(subComponent, id);
 
 			if (subComponent->type == SUB_COMPONENT_TYPE_SLIDER_FLOAT2)
 				id += 2;

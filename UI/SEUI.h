@@ -93,106 +93,101 @@ enum SubComponentType
     SUB_COMPONENT_TYPE_RADIO_BUTTON
 };
 
-struct SubComponentText
-{
-    char* text;
-    vec4 color;
-};
-
-struct SubComponentDropDown
-{
-    const char* pLabel;
-    uint32_t* pData;
-    const char* const* pNames;
-    uint32_t numNames;
-};
-
-struct SubComponentSliderInt
-{
-    const char* pLabel;
-    int32_t min;
-    int32_t max;
-    int32_t stepRate;
-    int32_t* pData;
-    char format[16] = { "%d" };
-};
-
-struct SubComponentSliderFloat
-{
-    const char* pLabel;
-    float min;
-    float max;
-    float stepRate;
-    float* pData;
-    char format[16] = { "%.3f" };
-};
-
-struct SubComponentSliderFloat2
-{
-    const char* pLabel;
-    vec2 min;
-    vec2 max;
-    vec2 stepRate;
-    vec2* pData;
-    char format[16] = { "%.3f" };
-};
-
-struct SubComponentSliderFloat3
-{
-    const char* pLabel;
-    vec3 min;
-    vec3 max;
-    vec3 stepRate;
-    vec3* pData;
-    char format[16] = { "%.3f" };
-};
-
-struct SubComponentSliderFloat4
-{
-    const char* pLabel;
-    vec4 min;
-    vec4 max;
-    vec4 stepRate;
-    vec4* pData;
-    char format[16] = { "%.3f" };
-};
-
-struct SubComponentCheckBox
-{
-    const char* pLabel;
-    bool* pData;
-};
-
-struct SubComponentButton
-{
-    const char* pLabel;
-    ComponentCallback pCallback;
-    void* pUserData;
-};
-
-struct SubComponentRadioButton
-{
-    const char* pLabel;
-    int32_t* pData;
-    int32_t id;
-};
-
 struct SubComponent
 {
     SubComponentType type;
     union
     {
-        SubComponentText subCompnentText;
-        SubComponentDropDown subComponentDropDown;
-        SubComponentSliderInt subComponentSliderInt;
-        SubComponentSliderFloat subComponentSliderFloat;
-        SubComponentSliderFloat2 subComponentSliderFloat2;
-        SubComponentSliderFloat3 subComponentSliderFloat3;
-        SubComponentSliderFloat4 subComponentSliderFloat4;
-        SubComponentCheckBox subComponentCheckBox;
-        SubComponentButton subComponentButton;
-        SubComponentRadioButton subComponentRadioButton;
+        struct SubComponentText
+        {
+            char* text;
+            vec4 color;
+        }text;
+
+        struct SubComponentDropDown
+        {
+            const char* pLabel;
+            uint32_t* pData;
+            const char* const* pNames;
+            uint32_t numNames;
+        }dropDown;
+
+        struct SubComponentSliderInt
+        {
+            const char* pLabel;
+            int32_t min;
+            int32_t max;
+            int32_t stepRate;
+            int32_t* pData;
+            const char* format;
+        }sliderInt;
+
+        struct SubComponentSliderFloat
+        {
+            const char* pLabel;
+            float min;
+            float max;
+            float stepRate;
+            float* pData;
+            const char* format;
+        }sliderFloat;
+
+        struct SubComponentSliderFloat2
+        {
+            const char* pLabel;
+            vec2 min;
+            vec2 max;
+            vec2 stepRate;
+            vec2* pData;
+            const char* format;
+        }sliderFloat2;
+
+        struct SubComponentSliderFloat3
+        {
+            const char* pLabel;
+            vec3 min;
+            vec3 max;
+            vec3 stepRate;
+            vec3* pData;
+            const char* format;
+        }sliderFloat3;
+
+
+        struct SubComponentSliderFloat4
+        {
+            const char* pLabel;
+            vec4 min;
+            vec4 max;
+            vec4 stepRate;
+            vec4* pData;
+            const char* format;
+        }sliderFloat4;
+
+
+        struct SubComponentCheckBox
+        {
+            const char* pLabel;
+            bool* pData;
+        }checkBox;
+
+
+        struct SubComponentButton
+        {
+            const char* pLabel;
+            void* pUserData;
+        }button;
+
+        struct SubComponentRadioButton
+        {
+            const char* pLabel;
+            int32_t* pData;
+            int32_t id;
+        }radio;
     };
+
+    ComponentCallback pCallback;
+    bool dynamic;
+    bool show;
 };
 
 struct MainComponentInfo
@@ -206,10 +201,11 @@ struct MainComponentInfo
 struct MainComponent
 {
     MainComponentInfo info;
-	SubComponent** pSubComponents = nullptr;
+    SubComponent** pSubComponents = nullptr;
+    bool show = true;
 };
 
 
 void CreateMainComponent(MainComponentInfo* pInfo, MainComponent* pMainComponent);
 void DestroyMainComponent(MainComponent* pMainComponent);
-void AddSubComponent(MainComponent* pMainComponent, void* pSubComponent, SubComponentType type);
+void AddSubComponent(MainComponent* pMainComponent, SubComponent* pSubComponent);
