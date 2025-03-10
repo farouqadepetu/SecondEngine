@@ -21,13 +21,10 @@ enum ShaderType
 	COMP
 };
 
-void CompileShaders(const char* currentDir, const char* lastSlash, const char* debug, ShadingLanguage language)
+void CompileShaders(const char* executableDir, const char* inputDir, ShadingLanguage language)
 {
-	uint32_t length = 0;
-	length = lastSlash - currentDir + 1;
-
 	char inputDirectory[MAX_FILE_PATH]{};
-	strncpy_s(inputDirectory, currentDir, length);
+	strcpy_s(inputDirectory, inputDir);
 
 	switch (language)
 	{
@@ -38,6 +35,9 @@ void CompileShaders(const char* currentDir, const char* lastSlash, const char* d
 		strcat_s(inputDirectory, "Shaders\\GLSL\\*");
 		break;
 	}
+
+	//Find Debug substring
+	char* debug = strstr(inputDirectory, "Debug");
 
 	HANDLE fileHandle = INVALID_HANDLE_VALUE;
 	WIN32_FIND_DATAA findData{};
@@ -65,7 +65,7 @@ void CompileShaders(const char* currentDir, const char* lastSlash, const char* d
 		else
 		{
 			char inputFileWithPath[MAX_FILE_PATH]{};
-			strncpy_s(inputFileWithPath, currentDir, length);
+			strcpy_s(inputFileWithPath, inputDir);
 
 			switch (language)
 			{
@@ -87,7 +87,7 @@ void CompileShaders(const char* currentDir, const char* lastSlash, const char* d
 			strncpy_s(outputFile, findData.cFileName, dotLength);
 
 			char outputFileWithPath[MAX_FILE_PATH]{};
-			strncpy_s(outputFileWithPath, currentDir, length);
+			strcpy_s(outputFileWithPath, inputDir);
 			switch (language)
 			{
 			case HLSL:
@@ -122,7 +122,8 @@ void CompileShaders(const char* currentDir, const char* lastSlash, const char* d
 
 			if (language == HLSL)
 			{
-				strcat_s(commandLine, "dxc.exe ");
+				strcpy_s(commandLine, executableDir);
+				strcat_s(commandLine, "DirectX\\DirectXShaderCompiler\\bin\\x64\\dxc.exe ");
 				strcat_s(commandLine, inputFileWithPath);
 
 				if (debug != nullptr)
@@ -150,7 +151,9 @@ void CompileShaders(const char* currentDir, const char* lastSlash, const char* d
 			}
 			else //GLSL
 			{
-				strcat_s(commandLine, "glslc.exe  --target-env=vulkan1.3 ");
+				strcpy_s(commandLine, executableDir);
+				strcat_s(commandLine, "Vulkan\\VulkanSDK\\glslc.exe ");
+				strcat_s(commandLine, "--target-env=vulkan1.3 ");
 
 				switch (type)
 				{
@@ -204,19 +207,35 @@ void CompileShaders(const char* currentDir, const char* lastSlash, const char* d
 	}
 }
 
-int main()
+int main(int argc, char** argv)
 {
-	char currentDirectory[MAX_FILE_PATH]{};
-	GetModuleFileNameA(nullptr, currentDirectory, MAX_FILE_PATH);
+	printf("argc = %d\n", argc);
+	printf("Arg 0 = %s\n", argv[0]);
+
+	if (argc < 2 || argc > 2)
+	{
+		printf("There should only be 2 arguments. Exiting Program!\n");
+		ExitProcess(-1);
+	}
+
+	printf("Arg 1 = %s\n", argv[1]);
+
+	char executableDirectory[MAX_FILE_PATH]{};
+	char inputDirectory[MAX_FILE_PATH]{};
 
 	//Find last slash
-	char* lastSlash = strrchr(currentDirectory, '\\');
+	char* lastSlash = strrchr(argv[0], '\\');
 
-	//Find Debug substring
-	char* debug = strstr(currentDirectory, "Debug");
+	uint32_t length = 0;
+	length = lastSlash - argv[0] + 1;
+	strncpy_s(executableDirectory, argv[0], length);
+	printf("Executable Directory = %s\n", executableDirectory);
 
-	CompileShaders(currentDirectory, lastSlash, debug, HLSL);
-	CompileShaders(currentDirectory, lastSlash, debug, GLSL);
+	strcpy_s(inputDirectory, argv[1]);
+	printf("Input Directory = %s\n", inputDirectory);
+
+	CompileShaders(executableDirectory, inputDirectory, HLSL);
+	CompileShaders(executableDirectory, inputDirectory, GLSL);
 
 
 	return 0;

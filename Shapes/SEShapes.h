@@ -7,6 +7,7 @@ struct Vertex
 {
 	vec4 position;
 	vec4 normal;
+	vec4 tangent;
 	vec2 texCoords;
 };
 

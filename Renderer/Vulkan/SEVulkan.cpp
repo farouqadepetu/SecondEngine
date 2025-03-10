@@ -1153,6 +1153,7 @@ void CreateLogicalDevice(Renderer* pRenderer)
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.samplerAnisotropy = true;
+	deviceFeatures.fillModeNonSolid = true;
 
 	const char* extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME , VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 	if (!CheckDeviceExtensionSupport(pRenderer, extensions, 2))
@@ -1588,9 +1589,7 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	layoutInfoPerDraw.pBindings = perDrawBindings;
 
 	VULKAN_ERROR_CHECK(vkCreateDescriptorSetLayout(pRenderer->vk.logicalDevice, &layoutInfoPerDraw,
-		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_DRAW]))
-
-	
+		nullptr, &pRootSignature->vk.descriptorSetLayouts[UPDATE_FREQUENCY_PER_DRAW]));
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1601,9 +1600,12 @@ void VulkanCreateRootSignature(const Renderer* const pRenderer, const RootSignat
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
+	VkPushConstantRange pushConstant{};
+	pushConstant.offset = 0;
+	pushConstant.size = 0;
+	pushConstant.stageFlags = 0;
 	if (pInfo->useRootConstants == true)
 	{
-		VkPushConstantRange pushConstant{};
 		pushConstant.offset = 0;
 		pushConstant.size = pInfo->rootConstantsInfo.numValues * pInfo->rootConstantsInfo.stride;
 

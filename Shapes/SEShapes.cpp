@@ -34,6 +34,62 @@ vec4 ComputeNormal(const Triangle* const triangle)
 	return vec4(result.GetX(), result.GetY(), result.GetZ(), 0.0f);
 }
 
+vec4 ComputeTangent(const Triangle* const triangle)
+{
+	uint32_t i0 = triangle->i0;
+	uint32_t i1 = triangle->i1;
+	uint32_t i2 = triangle->i2;
+
+	//e0 = p1 - p0
+	//e1 = p2 - p0
+	vec4 e0(triangle->vertices[i1].position - triangle->vertices[i0].position);
+	vec4 e1(triangle->vertices[i2].position - triangle->vertices[i0].position);
+
+	float e0x = e0.GetX();
+	float e0y = e0.GetY();
+	float e0z = e0.GetZ();
+
+	float e1x = e1.GetX();
+	float e1y = e1.GetY();
+	float e1z = e1.GetZ();
+
+	//u0 = t1x - t0x
+	//u1 = t2x - t0x
+	float u0 = triangle->vertices[i1].texCoords.GetX() - triangle->vertices[i0].texCoords.GetX();
+	float u1 = triangle->vertices[i2].texCoords.GetX() - triangle->vertices[i0].texCoords.GetX();
+
+	//v0 = t1y - t0y
+	//v1 = t2y - t0y
+	float v0 = triangle->vertices[i1].texCoords.GetY() - triangle->vertices[i0].texCoords.GetY();
+	float v1 = triangle->vertices[i2].texCoords.GetY() - triangle->vertices[i0].texCoords.GetY();
+
+	float f = (u0 * v1 - u1 * v0);
+
+	if (f != 0)
+		f = 1.0f / f;
+	else
+		f = 0.0f;
+
+	float tx = f * (v1 * e0x - v0 * e1x);
+	float ty = f * (v1 * e0y - v0 * e1y);
+	float tz = f * (v1 * e0z - v0 * e1z);
+
+	return vec4(tx, ty, tz, 0.0f);
+}
+
+void Reorthogonalize_GramSchmidt(vec4* x, vec4* y, vec4* z)
+{
+	vec3 v0 = Normalize(vec3(x->GetX(), x->GetY(), x->GetZ()));
+	vec3 v1 = Normalize(vec3(y->GetX(), y->GetY(), y->GetZ()));
+	vec3 v2 = Normalize(vec3(z->GetX(), z->GetY(), z->GetZ()));
+
+	v0 = Normalize(v0 - DotProduct(v0, v2) * v2);
+	v1 = CrossProduct(v0, v2);
+
+	*x = vec4(v0.GetX(), v0.GetY(), v0.GetZ(), 0.0f);
+	*y = vec4(v1.GetX(), v1.GetY(), v1.GetZ(), 0.0f);
+}
+
 void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
@@ -48,10 +104,18 @@ void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* 
 
 	Triangle triangle{};
 	CreateTriangle(&triangle, triangleVertices, 0, 1, 2);
-	vec4 normal = ComputeNormal(&triangle);
+	vec4 normal;
+	vec4 tangent;
+	normal = ComputeNormal(&triangle);
+	tangent = ComputeTangent(&triangle);
+
 	triangleVertices[0].normal = normal;
 	triangleVertices[1].normal = normal;
 	triangleVertices[2].normal = normal;
+
+	triangleVertices[0].tangent = tangent;
+	triangleVertices[1].tangent = tangent;
+	triangleVertices[2].tangent = tangent;
 
 	arrpush(*vertices, triangleVertices[0]);
 	arrpush(*vertices, triangleVertices[1]);
@@ -84,10 +148,18 @@ void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 
 	Triangle triangle{};
 	CreateTriangle(&triangle, triangleVertices, 0, 1, 2);
-	vec4 normal = ComputeNormal(&triangle);
+	vec4 normal;
+	vec4 tangent;
+	normal = ComputeNormal(&triangle);
+	tangent = ComputeTangent(&triangle);
+
 	triangleVertices[0].normal = normal;
 	triangleVertices[1].normal = normal;
 	triangleVertices[2].normal = normal;
+
+	triangleVertices[0].tangent = tangent;
+	triangleVertices[1].tangent = tangent;
+	triangleVertices[2].tangent = tangent;
 
 	arrpush(*vertices, triangleVertices[0]);
 	arrpush(*vertices, triangleVertices[1]);
@@ -126,13 +198,22 @@ void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	CreateTriangle(&triangles[1], quadVertices, 0, 2, 3);
 	for (uint32_t i = 0; i < 2; ++i)
 	{
-		vec4 normal = ComputeNormal(&triangles[i]);
+		vec4 normal;
+		vec4 tangent;
+		normal = ComputeNormal(&triangles[i]);
+		tangent = ComputeTangent(&triangles[i]);
+
 		uint32_t i0 = triangles[i].i0;
 		uint32_t i1 = triangles[i].i1;
 		uint32_t i2 = triangles[i].i2;
+
 		quadVertices[i0].normal += normal;
 		quadVertices[i1].normal += normal;
 		quadVertices[i2].normal += normal;
+
+		quadVertices[i0].tangent += tangent;
+		quadVertices[i1].tangent += tangent;
+		quadVertices[i2].tangent += tangent;
 
 		arrpush(*indices, i0);
 		arrpush(*indices, i1);
@@ -144,6 +225,8 @@ void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	for (uint32_t i = 0; i < 4; ++i)
 	{
 		quadVertices[i].normal = Normalize(quadVertices[i].normal);
+		quadVertices[i].tangent = Normalize(quadVertices[i].tangent);
+
 	}
 
 	arrpush(*vertices, quadVertices[0]);
@@ -193,26 +276,33 @@ void CreateCircle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 
 	//Create the triangles.
 	//Using the triangle fan method, so the number of triangles equals to the number of vertices of the circle.
-	Triangle* triangles = nullptr;
 	uint32_t numTriangles = arrlenu(vertexList) - 2;
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
 		Triangle triangle{};
 		CreateTriangle(&triangle, vertexList, 0, i + 2, i + 1);
 
-		//Compute the normals
-		vec4 normal = ComputeNormal(&triangle);
+		//Compute the normal, tangent and bitangent
+		vec4 normal;
+		vec4 tangent;
+		normal = ComputeNormal(&triangle);
+		tangent = ComputeTangent(&triangle);
+
 		uint32_t i0 = triangle.i0;
 		uint32_t i1 = triangle.i1;
 		uint32_t i2 = triangle.i2;
+
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
 
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
+
 		arrpush(*indices, i0);
 		arrpush(*indices, i1);
 		arrpush(*indices, i2);
-		arrpush(triangles, triangle);
 
 		indexCount += 3;
 	}
@@ -220,11 +310,12 @@ void CreateCircle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 	for (uint32_t i = 0; i < arrlenu(vertexList); ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
 	*outIndexCount = indexCount;
-	arrfree(triangles);
 	arrfree(vertexList);
 }
 
@@ -308,14 +399,23 @@ void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	uint32_t numTriangles = arrlenu(triangles);
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
-		//Compute the normals
-		vec4 normal = ComputeNormal(&triangles[i]);
+		//Compute the normal, tangent
+		vec4 normal;
+		vec4 tangent;
+		normal = ComputeNormal(&triangles[i]);
+		tangent = ComputeTangent(&triangles[i]);
+
 		uint32_t i0 = triangles[i].i0;
 		uint32_t i1 = triangles[i].i1;
 		uint32_t i2 = triangles[i].i2;
+
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
 
 		arrpush(*indices, i0);
 		arrpush(*indices, i1);
@@ -327,6 +427,8 @@ void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	for (uint32_t i = 0; i < arrlenu(vertexList); ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
@@ -392,14 +494,23 @@ void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 	uint32_t numTriangles = arrlenu(triangles);
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
-		//Compute the normals
-		vec4 normal = ComputeNormal(&triangles[i]);
+		//Compute the normal and tangent
+		vec4 normal;
+		vec4 tangent;
+		normal = ComputeNormal(&triangles[i]);
+		tangent = ComputeTangent(&triangles[i]);
+
 		uint32_t i0 = triangles[i].i0;
 		uint32_t i1 = triangles[i].i1;
 		uint32_t i2 = triangles[i].i2;
+
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
 
 		arrpush(*indices, i0);
 		arrpush(*indices, i1);
@@ -411,6 +522,8 @@ void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 	for (uint32_t i = 0; i < arrlenu(vertexList); ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
@@ -466,14 +579,24 @@ void CreateTriangularPyramid(Vertex** vertices, uint32_t** indices, uint32_t* ou
 	uint32_t numTriangles = arrlenu(triangles);
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
-		//Compute the normals
-		vec4 normal = ComputeNormal(&triangles[i]);
+		//Compute the normal, tangent and bitangent
+		vec4 normal;
+		vec4 tangent;
+		vec4 bitangent;
+		normal = ComputeNormal(&triangles[i]);
+		tangent = ComputeTangent(&triangles[i]);
+
 		uint32_t i0 = triangles[i].i0;
 		uint32_t i1 = triangles[i].i1;
 		uint32_t i2 = triangles[i].i2;
+
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
 
 		arrpush(*indices, i0);
 		arrpush(*indices, i1);
@@ -485,6 +608,8 @@ void CreateTriangularPyramid(Vertex** vertices, uint32_t** indices, uint32_t* ou
 	for (uint32_t i = 0; i < arrlenu(vertexList); ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
@@ -528,6 +653,17 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 			vertex.texCoords.Set(u, v);
 			vertex.normal.Set(x, y , z, 0.0f);
 
+			/*vec3 tangent = vec3(-sin(v * PI) * sin(u * PI2), 0.0f, sin(v * PI) * cos(u * PI2));
+			vec3 bitangent = vec3(cos(v * PI) * cos(u * PI2), -sin(v * PI), cos(v * PI) * sin(u * PI2));
+			//vec3 normal = CrossProduct(bitangent, tangent);
+
+			//vertex.tangent.Set(-sin(v * PI) * sin(u * PI2), 0.0f, sin(v * PI) * cos(u * PI2), 0.0f);
+			//vertex.bitangent.Set(cos(v * PI) * cos(u * PI2), -sin(v * PI), cos(v * PI) * sin(u * PI2), 0.0f);
+
+			vertex.tangent.Set(tangent.GetX(), tangent.GetY(), tangent.GetZ(), 0.0f);
+			vertex.bitangent.Set(bitangent.GetX(), bitangent.GetY(), bitangent.GetZ(), 0.0f);
+			//vertex.normal.Set(normal.GetX(), normal.GetY(), normal.GetZ(), 0.0f);*/
+
 			arrpush(vertexList, vertex);
 
 			u += uStep;
@@ -536,6 +672,7 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 		u = 0.0f;
 	}
 
+	Triangle* triangleList = nullptr;
 	for (uint32_t i = 0; i < numCircles - 1; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle - 1; ++j)
@@ -555,17 +692,56 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 			arrpush(*indices, bottomLeft);
 
 			indexCount += 6;
+
+			Triangle triangle{};
+			CreateTriangle(&triangle, vertexList, topLeft, topRight, bottomRight);
+			arrpush(triangleList, triangle);
+
+			CreateTriangle(&triangle, vertexList, topLeft, bottomRight, bottomLeft);
+			arrpush(triangleList, triangle);
 		}
+	}
+
+	//Compute the normal, tangent and bitangent
+	uint32_t numTriangles = arrlenu(triangleList);
+	for (uint32_t i = 0; i < numTriangles; ++i)
+	{
+		vec4 tangent;
+		tangent = ComputeTangent(&triangleList[i]);
+
+		uint32_t i0 = triangleList[i].i0;
+		uint32_t i1 = triangleList[i].i1;
+		uint32_t i2 = triangleList[i].i2;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
+	}
+
+	//The positions of the first and last vertex of each circle are the same, so they must have the same TBN.
+	for (uint32_t i = 0; i < numCircles; ++i)
+	{
+		uint32_t firstVertex = i * numVerticesPerCircle;
+		uint32_t lastVertex = i * numVerticesPerCircle + (numVerticesPerCircle - 1);
+		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
+		vertexList[firstVertex].normal = normal;
+		vertexList[lastVertex].normal = normal;
+
+		vec4 tangent = vertexList[firstVertex].tangent + vertexList[lastVertex].tangent;
+		vertexList[firstVertex].tangent = tangent;
+		vertexList[lastVertex].tangent = tangent;
 	}
 
 	uint32_t numVertices = arrlenu(vertexList);
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
 		arrpush(*vertices, vertexList[i]);
 	}
 
 	*outIndexCount = indexCount;
+	arrfree(triangleList);
 	arrfree(vertexList);
 }
 
@@ -612,6 +788,7 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 		u = 0.0f;
 	}
 
+	Triangle* triangleList = nullptr;
 	for (uint32_t i = 0; i < numCircles - 1; ++i)
 	{
 		for (uint32_t j = 0; j < numVerticesPerCircle - 1; ++j)
@@ -631,6 +808,13 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 			arrpush(*indices, bottomLeft);
 
 			indexCount += 6;
+
+			Triangle triangle{};
+			CreateTriangle(&triangle, vertexList, topLeft, topRight, bottomRight);
+			arrpush(triangleList, triangle);
+
+			CreateTriangle(&triangle, vertexList, topLeft, bottomRight, bottomLeft);
+			arrpush(triangleList, triangle);
 		}
 	}
 
@@ -662,14 +846,47 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 		}
 	}
 
+	//Compute the normal, tangent and bitangent
+	uint32_t numTriangles = arrlenu(triangleList);
+	for (uint32_t i = 0; i < numTriangles; ++i)
+	{
+		vec4 tangent;
+		tangent = ComputeTangent(&triangleList[i]);
+
+		uint32_t i0 = triangleList[i].i0;
+		uint32_t i1 = triangleList[i].i1;
+		uint32_t i2 = triangleList[i].i2;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
+	}
+
+	//The positions of the first and last vertex of each circle are the same, so they must have the same TBN.
+	for (uint32_t i = 0; i < numCircles; ++i)
+	{
+		uint32_t firstVertex = i * numVerticesPerCircle;
+		uint32_t lastVertex = i * numVerticesPerCircle + (numVerticesPerCircle - 1);
+		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
+		vertexList[firstVertex].normal = normal;
+		vertexList[lastVertex].normal = normal;
+
+		vec4 tangent = vertexList[firstVertex].tangent + vertexList[lastVertex].tangent;
+		vertexList[firstVertex].tangent = tangent;
+		vertexList[lastVertex].tangent = tangent;
+	}
+
 	uint32_t numVertices = arrlenu(vertexList);
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
 	*outIndexCount = indexCount;
+	arrfree(triangleList);
 	arrfree(vertexList);
 }
 
@@ -791,11 +1008,15 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 		}
 	}
 
-	//Compute the normals
+	//Compute the normal, tangent and bitangent
 	uint32_t numTriangles = arrlenu(triangleList);
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
-		vec4 normal = ComputeNormal(&triangleList[i]);
+		vec4 normal;
+		vec4 tangent;
+		vec4 bitangent;
+		normal = ComputeNormal(&triangleList[i]);
+		tangent = ComputeTangent(&triangleList[i]);
 
 		uint32_t i0 = triangleList[i].i0;
 		uint32_t i1 = triangleList[i].i1;
@@ -804,9 +1025,13 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
 	}
 
-	//The positions of the first and last vertex of each circle are the same, so they must have the same normal.
+	//The positions of the first and last vertex of each circle are the same, so they must have the same TBN.
 	for (uint32_t i = 0; i < numCircles; ++i)
 	{
 		uint32_t firstVertex = i * numVerticesPerCircle;
@@ -814,12 +1039,18 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
 		vertexList[firstVertex].normal = normal;
 		vertexList[lastVertex].normal = normal;
+
+		vec4 tangent = vertexList[firstVertex].tangent + vertexList[lastVertex].tangent;
+		vertexList[firstVertex].tangent = tangent;
+		vertexList[lastVertex].tangent = tangent;
 	}
 
 	uint32_t numVertices = arrlenu(vertexList);
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
@@ -945,7 +1176,11 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 	uint32_t numTriangles = arrlenu(triangleList);
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
-		vec4 normal = ComputeNormal(&triangleList[i]);
+		vec4 normal;
+		vec4 tangent;
+		vec4 bitangent;
+		normal = ComputeNormal(&triangleList[i]);
+		tangent = ComputeTangent(&triangleList[i]);
 
 		uint32_t i0 = triangleList[i].i0;
 		uint32_t i1 = triangleList[i].i1;
@@ -954,6 +1189,10 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
 	}
 
 
@@ -964,14 +1203,18 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 		if (i == 0)
 		{
 			vec4 normal;
+			vec4 tangent;
+			vec4 bitangent;
 			for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
 			{
 				normal += vertexList[j].normal;
+				tangent += vertexList[j].tangent;
 			}
 
 			for (uint32_t j = 0; j < numVerticesPerCircle; ++j)
 			{
 				vertexList[j].normal = normal;
+				vertexList[j].tangent = tangent;
 			}
 		}
 		else
@@ -981,6 +1224,10 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 			vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
 			vertexList[firstVertex].normal = normal;
 			vertexList[lastVertex].normal = normal;
+
+			vec4 tangent = vertexList[firstVertex].tangent + vertexList[lastVertex].tangent;
+			vertexList[firstVertex].tangent = tangent;
+			vertexList[lastVertex].tangent = tangent;
 		}
 	}
 
@@ -988,6 +1235,8 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
 		arrpush(*vertices, vertexList[i]);
 	}
 
@@ -1073,7 +1322,11 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 	uint32_t numTriangles = arrlenu(triangleList);
 	for (uint32_t i = 0; i < numTriangles; ++i)
 	{
-		vec4 normal = ComputeNormal(&triangleList[i]);
+		vec4 normal;
+		vec4 tangent;
+		vec4 bitangent;
+		normal = ComputeNormal(&triangleList[i]);
+		tangent = ComputeTangent(&triangleList[i]);
 
 		uint32_t i0 = triangleList[i].i0;
 		uint32_t i1 = triangleList[i].i1;
@@ -1082,6 +1335,10 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 		vertexList[i0].normal += normal;
 		vertexList[i1].normal += normal;
 		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
 	}
 
 	//The positions of the first and last vertex of each circle are the same, so they must have the same normal.
@@ -1089,9 +1346,14 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 	{
 		uint32_t firstVertex = i * numCircles; //first vertex of each circle.
 		uint32_t lastVertex = i * numCircles + (numCircles - 1); //last vertex of each circle.
+
 		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
 		vertexList[firstVertex].normal = normal;
 		vertexList[lastVertex].normal = normal;
+
+		vec4 tangent = vertexList[firstVertex].tangent + vertexList[lastVertex].tangent;
+		vertexList[firstVertex].tangent = tangent;
+		vertexList[lastVertex].tangent = tangent;
 	}
 
 	//The positions of the vertices of the first and last circle are the same, so they must have the same normal.
@@ -1100,14 +1362,20 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 	{
 		uint32_t firstVertex = i; //vertices of the first circle.
 		uint32_t lastVertex = numVertices - numVerticesPerCircle + i; //vertices of the last circle
+
 		vec4 normal = vertexList[firstVertex].normal + vertexList[lastVertex].normal;
 		vertexList[firstVertex].normal = normal;
 		vertexList[lastVertex].normal = normal;
+
+		vec4 tangent = vertexList[firstVertex].tangent + vertexList[lastVertex].tangent;
+		vertexList[firstVertex].tangent = tangent;
+		vertexList[lastVertex].tangent = tangent;
 	}
 
 	for (uint32_t i = 0; i < numVertices; ++i)
 	{
 		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
 		arrpush(*vertices, vertexList[i]);
 	}
 

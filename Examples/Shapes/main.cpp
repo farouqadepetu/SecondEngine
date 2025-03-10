@@ -185,12 +185,19 @@ public:
 
 		vertexInputInfo.vertexAttributes[2].binding = 0;
 		vertexInputInfo.vertexAttributes[2].location = 2;
-		vertexInputInfo.vertexAttributes[2].semanticName = "TEXCOORD";
+		vertexInputInfo.vertexAttributes[2].semanticName = "TANGENT";
 		vertexInputInfo.vertexAttributes[2].semanticIndex = 0;
-		vertexInputInfo.vertexAttributes[2].format = TinyImageFormat_R32G32_SFLOAT;
+		vertexInputInfo.vertexAttributes[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
 		vertexInputInfo.vertexAttributes[2].offset = 32;
 
-		vertexInputInfo.numVertexAttributes = 3;
+		vertexInputInfo.vertexAttributes[3].binding = 0;
+		vertexInputInfo.vertexAttributes[3].location = 3;
+		vertexInputInfo.vertexAttributes[3].semanticName = "TEXCOORD";
+		vertexInputInfo.vertexAttributes[3].semanticIndex = 0;
+		vertexInputInfo.vertexAttributes[3].format = TinyImageFormat_R32G32_SFLOAT;
+		vertexInputInfo.vertexAttributes[3].offset = 48;
+
+		vertexInputInfo.numVertexAttributes = 4;
 
 		RootParameterInfo rootParameterInfos[5]{};
 		rootParameterInfos[0].binding = 0;
