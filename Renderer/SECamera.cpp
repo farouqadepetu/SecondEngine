@@ -31,6 +31,16 @@ void UpdatePerspectiveProjectionMatrix(Camera* cam)
 	cam->perspectiveProjMat.SetRow(3, 0.0f, 0.0f, (-cam->nearP * cam->farP) / fMinusN, 0.0f);
 }
 
+void UpdateOrthographicProjectionMatrix(Camera* cam)
+{
+	float fMinusN = cam->farP - cam->nearP;
+	float nMinusF = cam->nearP - cam->farP;
+	cam->orthographicProjMat.SetRow(0, 2.0f / cam->width, 0.0f, 0.0f, 0.0f);
+	cam->orthographicProjMat.SetRow(1, 0.0f, 2.0f / cam->height, 0.0f, 0.0f);
+	cam->orthographicProjMat.SetRow(2, 0.0f, 0.0f, 1.0f / fMinusN, 0.0f);
+	cam->orthographicProjMat.SetRow(3, 0.0f, 0.0f, cam->nearP / nMinusF, 1.0f);
+}
+
 void RotateCamera(Camera* cam, quat rot)
 {
 	cam->right = Rotate(rot, cam->right);

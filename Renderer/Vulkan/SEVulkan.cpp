@@ -588,7 +588,7 @@ void VulkanResourceBarrier(const CommandBuffer* const pCommandBuffer, const uint
 			imageBarrier[imageBarrierCount].pNext = nullptr;
 			imageBarrier[imageBarrierCount].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			imageBarrier[imageBarrierCount].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			imageBarrier[imageBarrierCount].image = pBarrierInfos[i].pRenderTarget->vk.image;
+			imageBarrier[imageBarrierCount].image = pBarrierInfos[i].pRenderTarget->texture.vk.image;
 			imageBarrier[imageBarrierCount].subresourceRange.aspectMask = (isDepth) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 			imageBarrier[imageBarrierCount].subresourceRange.baseMipLevel = 0;
 			imageBarrier[imageBarrierCount].subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
@@ -634,7 +634,7 @@ void VulkanCreateRenderTarget(const Renderer* const pRenderer, const RenderTarge
 {
 	bool isDepth = TinyImageFormat_IsDepthOnly(pInfo->format) || TinyImageFormat_IsDepthAndStencil(pInfo->format);
 
-	VkImageCreateInfo createImageInfo{};
+	/*VkImageCreateInfo createImageInfo{};
 	createImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	createImageInfo.pNext = nullptr;
 	createImageInfo.flags = 0;
@@ -648,6 +648,12 @@ void VulkanCreateRenderTarget(const Renderer* const pRenderer, const RenderTarge
 	createImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	createImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	createImageInfo.usage = (isDepth) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	
+	if (pInfo->type & TEXTURE_TYPE_TEXTURE)
+		createImageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+	if (pInfo->type & TEXTURE_TYPE_RW_TEXTURE)
+		createImageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+
 	createImageInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
 	createImageInfo.queueFamilyIndexCount = 3;
 	createImageInfo.pQueueFamilyIndices = pRenderer->vk.familyIndices;
@@ -660,13 +666,30 @@ void VulkanCreateRenderTarget(const Renderer* const pRenderer, const RenderTarge
 	allocCreateInfo.priority = 1.0f;
 
 	VULKAN_ERROR_CHECK(vmaCreateImage(pRenderer->vk.allocator, &createImageInfo,
-		&allocCreateInfo, &pRenderTarget->vk.image, &pRenderTarget->vk.allocation, nullptr));
+		&allocCreateInfo, &pRenderTarget->vk.image, &pRenderTarget->vk.allocation, nullptr));*/
+
+	TextureInfo texInfo{};
+	texInfo.filename = nullptr;
+	texInfo.width = pInfo->width;
+	texInfo.height = pInfo->height;
+	texInfo.depth = 1;
+	texInfo.arraySize = 1;
+	texInfo.mipCount = 1;
+	texInfo.format = pInfo->format;
+	texInfo.dimension = TEXTURE_DIMENSION_2D;
+	texInfo.type = pInfo->type;
+	texInfo.isCubeMap = false;
+	texInfo.isRenderTarget = true;
+	texInfo.initialState = pInfo->initialState;
+	texInfo.clearValue = pInfo->clearValue;
+
+	CreateTexture(pRenderer, &texInfo, &pRenderTarget->texture);
 
 	VkImageViewCreateInfo createImageViewInfo{};
 	createImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	createImageViewInfo.pNext = nullptr;
 	createImageViewInfo.flags = 0;
-	createImageViewInfo.image = pRenderTarget->vk.image;
+	createImageViewInfo.image = pRenderTarget->texture.vk.image;
 	createImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	createImageViewInfo.format = (VkFormat)TinyImageFormat_ToVkFormat(pInfo->format);
 	createImageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -694,7 +717,7 @@ void VulkanCreateRenderTarget(const Renderer* const pRenderer, const RenderTarge
 void VulkanDestroyRenderTarget(const Renderer* const pRenderer, RenderTarget* attachment)
 {
 	vkDestroyImageView(pRenderer->vk.logicalDevice, attachment->vk.imageView, nullptr);
-	vmaDestroyImage(pRenderer->vk.allocator, attachment->vk.image, attachment->vk.allocation);
+	vmaDestroyImage(pRenderer->vk.allocator, attachment->texture.vk.image, attachment->texture.vk.allocation);
 }
 
 //SWAPCHAIN
@@ -855,7 +878,7 @@ void VulkanCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo*
 
 	for (uint32_t i = 0; i < pSwapChain->numRenderTargets; ++i)
 	{
-		pSwapChain->pRenderTargets[i].vk.image = images[i];
+		pSwapChain->pRenderTargets[i].texture.vk.image = images[i];
 		pSwapChain->pRenderTargets[i].info.width = extent.width;
 		pSwapChain->pRenderTargets[i].info.height = extent.height;
 		pSwapChain->pRenderTargets[i].info.format = pInfo->format;
@@ -871,7 +894,7 @@ void VulkanCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo*
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.image = pSwapChain->pRenderTargets[i].vk.image;
+		createInfo.image = pSwapChain->pRenderTargets[i].texture.vk.image;
 		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		createInfo.format = (VkFormat)TinyImageFormat_ToVkFormat(pInfo->format);
 		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -1155,7 +1178,7 @@ void CreateLogicalDevice(Renderer* pRenderer)
 	deviceFeatures.samplerAnisotropy = true;
 	deviceFeatures.fillModeNonSolid = true;
 
-	const char* extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME , VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
+	const char* extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME , VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME };
 	if (!CheckDeviceExtensionSupport(pRenderer, extensions, 2))
 	{
 		MessageBox(nullptr, L"One or more device extensions are not avaiable. Exiting Program.", L"Device extensions error.", MB_OK);
@@ -1784,7 +1807,7 @@ void VulkanCreateBlendInfo(const PipelineInfo* const pInfo, VkPipelineColorBlend
 	pBlendStateCreateInfo->sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	pBlendStateCreateInfo->logicOpEnable = false;
 	pBlendStateCreateInfo->logicOp = VK_LOGIC_OP_COPY;
-	pBlendStateCreateInfo->attachmentCount = 1;
+	pBlendStateCreateInfo->attachmentCount = pInfo->numRenderTargets;
 	pBlendStateCreateInfo->pAttachments = pBlendState;
 	pBlendStateCreateInfo->blendConstants[0] = 1.0f;
 	pBlendStateCreateInfo->blendConstants[1] = 1.0f;
@@ -1851,9 +1874,13 @@ void VulkanCreateGraphicsPipeline(const Renderer* const pRenderer, const Pipelin
 	pipelineRendingerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
 	pipelineRendingerCreateInfo.pNext = nullptr;
 	pipelineRendingerCreateInfo.viewMask = 0;
-	pipelineRendingerCreateInfo.colorAttachmentCount = 1;
-	VkFormat colorFormat = (VkFormat)TinyImageFormat_ToVkFormat(pInfo->renderTargetFormat);
-	pipelineRendingerCreateInfo.pColorAttachmentFormats = &colorFormat;
+	pipelineRendingerCreateInfo.colorAttachmentCount = pInfo->numRenderTargets;
+	VkFormat colorFormats[MAX_RENDERTARGETS]{};
+	for (uint32_t i = 0; i < pInfo->numRenderTargets; ++i)
+	{
+		colorFormats[i] = (VkFormat)TinyImageFormat_ToVkFormat(pInfo->renderTargetFormat[i]);
+	}
+	pipelineRendingerCreateInfo.pColorAttachmentFormats = colorFormats;
 
 	if (pInfo->depthInfo.depthTestEnable)
 	{
@@ -1937,18 +1964,25 @@ void VulkanBindRenderTarget(CommandBuffer* pCommandBuffer, const BindRenderTarge
 	}
 
 	VkRenderingAttachmentInfoKHR colorAttachment{};
-	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-	colorAttachment.pNext = nullptr;
-	colorAttachment.imageView = pInfo->pRenderTarget->vk.imageView;
-	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	colorAttachment.resolveMode = VK_RESOLVE_MODE_NONE;
-	colorAttachment.loadOp = (VkAttachmentLoadOp)pInfo->depthTargetLoadOp;
-	colorAttachment.storeOp = (VkAttachmentStoreOp)pInfo->depthTargetStoreOp;
+	VkExtent2D extent = { 0, 0 };
+	if (pInfo->pRenderTarget)
+	{
+		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+		colorAttachment.pNext = nullptr;
+		colorAttachment.imageView = pInfo->pRenderTarget->vk.imageView;
+		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		colorAttachment.resolveMode = VK_RESOLVE_MODE_NONE;
+		colorAttachment.loadOp = (VkAttachmentLoadOp)pInfo->depthTargetLoadOp;
+		colorAttachment.storeOp = (VkAttachmentStoreOp)pInfo->depthTargetStoreOp;
 
-	VkClearValue clearValue{};
-	clearValue.color = { {pInfo->pRenderTarget->info.clearValue.r, pInfo->pRenderTarget->info.clearValue.g,
-		pInfo->pRenderTarget->info.clearValue.b, pInfo->pRenderTarget->info.clearValue.a} };
-	colorAttachment.clearValue = clearValue;
+		VkClearValue clearValue{};
+		clearValue.color = { {pInfo->pRenderTarget->info.clearValue.r, pInfo->pRenderTarget->info.clearValue.g,
+			pInfo->pRenderTarget->info.clearValue.b, pInfo->pRenderTarget->info.clearValue.a} };
+		colorAttachment.clearValue = clearValue;
+
+		extent.width = pInfo->pRenderTarget->info.width;
+		extent.height = pInfo->pRenderTarget->info.height;
+	}
 
 	VkRenderingAttachmentInfoKHR depthAttachment{};
 	if (pInfo->pDepthTarget)
@@ -1964,6 +1998,12 @@ void VulkanBindRenderTarget(CommandBuffer* pCommandBuffer, const BindRenderTarge
 		VkClearValue clearValue{};
 		clearValue.depthStencil = { pInfo->pDepthTarget->info.clearValue.depth, pInfo->pDepthTarget->info.clearValue.stencil};
 		depthAttachment.clearValue = clearValue;
+
+		if (pInfo->pRenderTarget == nullptr)
+		{
+			extent.width = pInfo->pDepthTarget->info.width;
+			extent.height = pInfo->pDepthTarget->info.height;
+		}
 	}
 
 	VkRenderingInfoKHR renderingInfo{};
@@ -1971,11 +2011,11 @@ void VulkanBindRenderTarget(CommandBuffer* pCommandBuffer, const BindRenderTarge
 	renderingInfo.pNext = nullptr;
 	renderingInfo.flags = 0;
 	renderingInfo.renderArea.offset = { 0, 0 };
-	renderingInfo.renderArea.extent = { pInfo->pRenderTarget->info.width, pInfo->pRenderTarget->info.height };
+	renderingInfo.renderArea.extent = extent;
 	renderingInfo.layerCount = 1;
 	renderingInfo.viewMask = 0;
-	renderingInfo.colorAttachmentCount = 1;
-	renderingInfo.pColorAttachments = &colorAttachment;
+	renderingInfo.colorAttachmentCount = (pInfo->pRenderTarget) ? 1 : 0;
+	renderingInfo.pColorAttachments = (pInfo->pRenderTarget) ? &colorAttachment : nullptr;
 	renderingInfo.pDepthAttachment = (pInfo->pDepthTarget) ? &depthAttachment : nullptr;
 	renderingInfo.pStencilAttachment = nullptr;
 
@@ -2257,7 +2297,6 @@ void VulkanDestroyDescriptorSet(DescriptorSet* pDescriptorSet)
 void VulkanUpdateDescriptorSet(const Renderer* const pRenderer, const DescriptorSet* const  pDescriptorSet,
 	const uint32_t index, const uint32_t numInfos, const UpdateDescriptorSetInfo* const pInfos)
 {
-
 	VkWriteDescriptorSet* descriptorWrites = (VkWriteDescriptorSet*)calloc(numInfos, sizeof(VkWriteDescriptorSet));
 	uint32_t numBufferInfos = 0;
 	uint32_t numImageInfos = 0;

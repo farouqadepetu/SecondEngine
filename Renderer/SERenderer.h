@@ -311,6 +311,7 @@ enum MipMapMode
 	MIPMAP_MODE_LINEAR
 };
 
+#define MAX_RENDERTARGETS 8
 struct PipelineInfo
 {
 	PipelineType type;
@@ -347,7 +348,11 @@ struct PipelineInfo
 	}depthInfo;
 
 	Topology topology;
-	TinyImageFormat renderTargetFormat;
+
+	uint32_t numRenderTargets;
+	TinyImageFormat renderTargetFormat[MAX_RENDERTARGETS];
+
+
 	TinyImageFormat depthFormat;
 };
 
@@ -463,6 +468,56 @@ enum ResourceState
 	RESOURCE_STATE_COMMON = 0x2000
 };
 
+enum TextureType
+{
+	TEXTURE_TYPE_NONE = 0x0,
+	TEXTURE_TYPE_TEXTURE = 0x1,
+	TEXTURE_TYPE_RW_TEXTURE = 0x2
+};
+
+struct TextureInfo
+{
+	const char* filename;
+
+	//ONLY NEED TO FILL THIS OUT IF FILENAME IS NULLPTR (YOU WANT TO CREATE AN EMPTY TEXTURE)
+	uint32_t width;
+	uint32_t height;
+	uint32_t depth;
+	uint32_t arraySize;
+	uint32_t mipCount;
+	TinyImageFormat format;
+	TextureDimension dimension;
+	TextureType type;
+	bool isCubeMap;
+	bool isRenderTarget;
+	ResourceState initialState;
+	ClearValue clearValue;
+};
+
+struct Texture
+{
+	struct
+	{
+		VkImage image;
+		VmaAllocation allocation;
+		VkImageView imageView;
+	}vk;
+
+	struct
+	{
+		ID3D12Resource* resource;
+		D3D12MA::Allocation* allocation;
+
+		uint32_t cpuSrvDescriptorId;
+		uint32_t cpuUavDescriptorId;
+
+		uint32_t gpuSrvDescriptorId;
+		uint32_t gpuUavDescriptorId;
+	}dx;
+
+	TextureType type;
+};
+
 struct RenderTargetInfo
 {
 	uint32_t width;
@@ -470,21 +525,23 @@ struct RenderTargetInfo
 	TinyImageFormat format;
 	ClearValue clearValue;
 	ResourceState initialState;
+	TextureType type;
 };
 
 struct RenderTarget
 {
+	Texture texture;
 	struct
 	{
-		VkImage image;
+		//VkImage image;
 		VkImageView imageView;
-		VmaAllocation allocation;
+		//VmaAllocation allocation;
 	}vk;
 
 	struct
 	{
-		ID3D12Resource* resource;
-		D3D12MA::Allocation* allocation;
+		//ID3D12Resource* resource;
+		//D3D12MA::Allocation* allocation;
 		uint32_t descriptorId;
 	}dx;
 
@@ -583,53 +640,6 @@ struct Buffer
 
 	uint32_t size;
 	uint32_t type;
-};
-
-enum TextureType
-{
-	TEXTURE_TYPE_TEXTURE = 0x1,
-	TEXTURE_TYPE_RW_TEXTURE = 0x2
-};
-
-struct TextureInfo
-{
-	const char* filename;
-
-	//ONLY NEED TO FILL THIS OUT IF FILENAME IS NULLPTR (YOU WANT TO CREATE AN EMPTY TEXTURE)
-	uint32_t width;
-	uint32_t height;
-	uint32_t depth;
-	uint32_t arraySize;
-	uint32_t mipCount;
-	TinyImageFormat format;
-	TextureDimension dimension;
-	TextureType type;
-	bool isCubeMap;
-	ResourceState initialState;
-};
-
-struct Texture
-{
-	struct
-	{
-		VkImage image;
-		VmaAllocation allocation;
-		VkImageView imageView;
-	}vk;
-
-	struct
-	{
-		ID3D12Resource* resource;
-		D3D12MA::Allocation* allocation;
-
-		uint32_t cpuSrvDescriptorId;
-		uint32_t cpuUavDescriptorId;
-
-		uint32_t gpuSrvDescriptorId;
-		uint32_t gpuUavDescriptorId;
-	}dx;
-
-	TextureType type;
 };
 
 struct SamplerInfo

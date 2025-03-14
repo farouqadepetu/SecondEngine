@@ -257,7 +257,8 @@ public:
 		graphicsPipelineInfo.blendInfo.enableBlend = false;
 		graphicsPipelineInfo.pVertexShader = &gShapesVertexShader;
 		graphicsPipelineInfo.pPixelShader = &gShapes2DPixelShader;
-		graphicsPipelineInfo.renderTargetFormat = gSwapChain.pRenderTargets[0].info.format;
+		graphicsPipelineInfo.numRenderTargets = 1;
+		graphicsPipelineInfo.renderTargetFormat[0] = gSwapChain.pRenderTargets[0].info.format;
 		graphicsPipelineInfo.depthInfo.depthTestEnable = true;
 		graphicsPipelineInfo.depthInfo.depthWriteEnable = true;
 		graphicsPipelineInfo.depthInfo.depthFunction = DEPTH_FUNCTION_LESS;

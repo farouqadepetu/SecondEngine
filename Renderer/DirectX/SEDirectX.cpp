@@ -359,12 +359,12 @@ void DirectXDescriptorHeapAllocate(const Renderer* const pRenderer, DirectXDescr
 		handle.ptr += (index * pHeap->descriptorSize);
 		if (pInfo->type == VIEW_TYPE_RTV)
 		{
-			pRenderer->dx.device->CreateRenderTargetView(pInfo->pRenderTarget->dx.resource, pInfo->pRtvDesc, handle);
+			pRenderer->dx.device->CreateRenderTargetView(pInfo->pRenderTarget->texture.dx.resource, pInfo->pRtvDesc, handle);
 			pInfo->pRenderTarget->dx.descriptorId = index;
 		}
 		else if (pInfo->type == VIEW_TYPE_DSV)
 		{
-			pRenderer->dx.device->CreateDepthStencilView(pInfo->pRenderTarget->dx.resource, pInfo->pDsvDesc, handle);
+			pRenderer->dx.device->CreateDepthStencilView(pInfo->pRenderTarget->texture.dx.resource, pInfo->pDsvDesc, handle);
 			pInfo->pRenderTarget->dx.descriptorId = index;
 		}
 		else if (pInfo->type == VIEW_TYPE_CBV)
@@ -890,7 +890,7 @@ void DirectXResourceBarrier(const CommandBuffer* const pCommandBuffer, const uin
 				break;
 
 			case BARRIER_TYPE_RENDER_TARGET:
-				barriers[i].UAV.pResource = pBarrierInfos[i].pRenderTarget->dx.resource;
+				barriers[i].UAV.pResource = pBarrierInfos[i].pRenderTarget->texture.dx.resource;
 				break;
 			}
 		}
@@ -913,7 +913,7 @@ void DirectXResourceBarrier(const CommandBuffer* const pCommandBuffer, const uin
 				break;
 
 			case BARRIER_TYPE_RENDER_TARGET:
-				barriers[i].Transition.pResource = pBarrierInfos[i].pRenderTarget->dx.resource;
+				barriers[i].Transition.pResource = pBarrierInfos[i].pRenderTarget->texture.dx.resource;
 				break;
 			}
 		}
@@ -972,7 +972,7 @@ void DirectXCreateRenderTarget(const Renderer* const pRenderer, const RenderTarg
 {
 	bool const isDepth = TinyImageFormat_IsDepthOnly(pInfo->format) || TinyImageFormat_IsDepthAndStencil(pInfo->format);
 
-	D3D12_RESOURCE_DESC resourceDesc{};
+	/*D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	resourceDesc.Alignment = 0;
 	resourceDesc.Width = pInfo->width;
@@ -1006,10 +1006,27 @@ void DirectXCreateRenderTarget(const Renderer* const pRenderer, const RenderTarg
 		clearValue.Color[1] = pInfo->clearValue.g;
 		clearValue.Color[2] = pInfo->clearValue.b;
 		clearValue.Color[3] = pInfo->clearValue.a;
-	}
+	}*/
 
-	DIRECTX_ERROR_CHECK(pRenderer->dx.allocator->CreateResource(&allocationDesc, &resourceDesc,
-		initialState, &clearValue, &pRenderTarget->dx.allocation, IID_PPV_ARGS(&pRenderTarget->dx.resource)));
+	TextureInfo texInfo{};
+	texInfo.filename = nullptr;
+	texInfo.width = pInfo->width;
+	texInfo.height = pInfo->height;
+	texInfo.depth = 1;
+	texInfo.arraySize = 1;
+	texInfo.mipCount = 1;
+	texInfo.format = pInfo->format;
+	texInfo.dimension = TEXTURE_DIMENSION_2D;
+	texInfo.type = pInfo->type;
+	texInfo.isCubeMap = false;
+	texInfo.isRenderTarget = true;
+	texInfo.initialState = pInfo->initialState;
+	texInfo.clearValue = pInfo->clearValue;
+
+	CreateTexture(pRenderer, &texInfo, &pRenderTarget->texture);
+
+	//DIRECTX_ERROR_CHECK(pRenderer->dx.allocator->CreateResource(&allocationDesc, &resourceDesc,
+		//initialState, &clearValue, &pRenderTarget->dx.allocation, IID_PPV_ARGS(&pRenderTarget->dx.resource)));
 
 	if (isDepth)
 	{
@@ -1048,8 +1065,8 @@ void DirectXCreateRenderTarget(const Renderer* const pRenderer, const RenderTarg
 void DirectXDestroyRenderTarget(const Renderer* const pRenderer, RenderTarget* pRenderTarget)
 {
 	DirectXDescriptorHeapFree(&gRtvHeap, pRenderTarget->dx.descriptorId, 0);
-	SAFE_RELEASE(pRenderTarget->dx.resource);
-	SAFE_RELEASE(pRenderTarget->dx.allocation);
+	SAFE_RELEASE(pRenderTarget->texture.dx.resource);
+	SAFE_RELEASE(pRenderTarget->texture.dx.allocation);
 }
 
 void DirectXCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain)
@@ -1091,7 +1108,7 @@ void DirectXCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo
 
 	for (uint32_t i = 0; i < bufferCount; ++i)
 	{
-		DIRECTX_ERROR_CHECK(pSwapChain->dx.swapChain->GetBuffer(i, IID_PPV_ARGS(&pSwapChain->pRenderTargets[i].dx.resource)));
+		DIRECTX_ERROR_CHECK(pSwapChain->dx.swapChain->GetBuffer(i, IID_PPV_ARGS(&pSwapChain->pRenderTargets[i].texture.dx.resource)));
 
 		DirectXDescriptroHeapAllocateInfo heapAllocateInfo{};
 		heapAllocateInfo.type = VIEW_TYPE_RTV;
@@ -1114,7 +1131,7 @@ void DirectXDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapCh
 	for (uint32_t i = 0; i < pSwapChain->numRenderTargets; ++i)
 	{
 		DirectXDescriptorHeapFree(&gRtvHeap, pSwapChain->pRenderTargets[i].dx.descriptorId, 0);
-		SAFE_RELEASE(pSwapChain->pRenderTargets[i].dx.resource);
+		SAFE_RELEASE(pSwapChain->pRenderTargets[i].texture.dx.resource);
 	}
 	SAFE_FREE(pSwapChain->pRenderTargets);
 	SAFE_RELEASE(pSwapChain->dx.swapChain);
@@ -1596,15 +1613,20 @@ void DirectXCreateGraphicsPipleine(const Renderer* const pRenderer, const Pipeli
 	desc.StreamOutput.RasterizedStream = 0;
 	desc.BlendState.AlphaToCoverageEnable = false;
 	desc.BlendState.IndependentBlendEnable = false;
-	desc.BlendState.RenderTarget[0] = blendDesc;
 	desc.SampleMask = UINT_MAX;
 	desc.RasterizerState = rasterDesc;
 	desc.DepthStencilState = dsDesc;
 	desc.InputLayout = layoutDesc;
 	desc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	desc.PrimitiveTopologyType = TranslateTopologyToD3D12PrimitiveTopology(pInfo->topology);
-	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->renderTargetFormat);
+	desc.NumRenderTargets = pInfo->numRenderTargets;
+
+	for (uint32_t i = 0; i < pInfo->numRenderTargets; ++i)
+	{
+		desc.RTVFormats[i] = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->renderTargetFormat[i]);
+		desc.BlendState.RenderTarget[i] = blendDesc;
+	}
+
 	desc.DSVFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->depthFormat);
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
@@ -2106,6 +2128,72 @@ void DirectXCopyTexture(const Renderer* const pRenderer, const TextureDesc* cons
 	free(footprints);
 }
 
+DXGI_FORMAT GetUavFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+	case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		return DXGI_FORMAT_B8G8R8X8_UNORM;
+
+	case DXGI_FORMAT_R32_TYPELESS:
+	case DXGI_FORMAT_R32_FLOAT:
+		return DXGI_FORMAT_R32_FLOAT;
+
+	default:
+		return format;
+	}
+}
+
+DXGI_FORMAT GetSrvFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	// 32-bit with Stencil
+	case DXGI_FORMAT_R32G8X24_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+	case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+		return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+	//No Stencil
+	case DXGI_FORMAT_R32_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT:
+	case DXGI_FORMAT_R32_FLOAT:
+		return DXGI_FORMAT_R32_FLOAT;
+
+	//24-bit with stencil
+	case DXGI_FORMAT_R24G8_TYPELESS:
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+	case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+		return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+	//16-bit without Stencil
+	case DXGI_FORMAT_R16_TYPELESS:
+	case DXGI_FORMAT_D16_UNORM:
+	case DXGI_FORMAT_R16_UNORM:
+		return DXGI_FORMAT_R16_UNORM;
+
+	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+		return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	default:
+		return format;
+	}
+}
+
 void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* const pInfo, Texture* pTexture)
 {
 	D3D12_RESOURCE_DESC resourceDesc{};
@@ -2174,6 +2262,8 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 	}
 	else
 	{
+		bool const isDepth = TinyImageFormat_IsDepthOnly(pInfo->format) || TinyImageFormat_IsDepthAndStencil(pInfo->format);
+
 		switch (pInfo->dimension)
 		{
 		case TEXTURE_DIMENSION_1D:
@@ -2195,7 +2285,36 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		resourceDesc.SampleDesc.Count = 1;
 		resourceDesc.SampleDesc.Quality = 0;
 		resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		resourceDesc.Flags = (pInfo->type & TEXTURE_TYPE_RW_TEXTURE) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		
+		if (pInfo->type & TEXTURE_TYPE_RW_TEXTURE)
+			resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		if (isDepth)
+			resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		else if(pInfo->isRenderTarget)
+			resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		D3D12_CLEAR_VALUE clearValue{};
+		clearValue.Format = resourceDesc.Format;
+		
+		if (isDepth)
+		{
+			clearValue.DepthStencil.Depth = pInfo->clearValue.depth;
+			clearValue.DepthStencil.Stencil = pInfo->clearValue.stencil;
+		}
+		else
+		{
+			clearValue.Color[0] = pInfo->clearValue.r;
+			clearValue.Color[1] = pInfo->clearValue.g;
+			clearValue.Color[2] = pInfo->clearValue.b;
+			clearValue.Color[3] = pInfo->clearValue.a;
+		}
+
+		D3D12_CLEAR_VALUE* pClearValue = nullptr;
+		if (isDepth || pInfo->isRenderTarget)
+			pClearValue = &clearValue;
+		
 
 		D3D12MA::ALLOCATION_DESC allocationDesc{};
 		allocationDesc.Flags = D3D12MA::ALLOCATION_FLAG_NONE;
@@ -2203,20 +2322,26 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		allocationDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_NONE;
 		allocationDesc.pPrivateData = nullptr;
 
+		if (isDepth || pInfo->isRenderTarget)
+		{
+			pClearValue = &clearValue;
+			allocationDesc.Flags = D3D12MA::ALLOCATION_FLAG_COMMITTED;
+		}
+
 		D3D12_RESOURCE_STATES initialState = DirectXGetResourecState(pInfo->initialState);
 
 		DIRECTX_ERROR_CHECK(pRenderer->dx.allocator->CreateResource(&allocationDesc, &resourceDesc,
-			initialState, nullptr, &pTexture->dx.allocation, IID_PPV_ARGS(&pTexture->dx.resource)));
+			initialState, pClearValue, &pTexture->dx.allocation, IID_PPV_ARGS(&pTexture->dx.resource)));
 
 		texType = pInfo->type;
 	}
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = resourceDesc.Format;
+	srvDesc.Format = GetSrvFormat(resourceDesc.Format);
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	uavDesc.Format = resourceDesc.Format;
+	uavDesc.Format = GetUavFormat(resourceDesc.Format);
 
 	switch (resourceDesc.Dimension)
 	{

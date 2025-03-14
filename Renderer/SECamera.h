@@ -11,12 +11,16 @@ struct Camera
 
 	mat4 viewMat;
 
-	float aspectRatio;
-	float vFov;
 	float nearP;
 	float farP;
 
+	float aspectRatio;
+	float vFov;
 	mat4 perspectiveProjMat;
+
+	float width;
+	float height;
+	mat4 orthographicProjMat;
 };
 
 //Defines the camera space.
@@ -27,6 +31,9 @@ void UpdateViewMatrix(Camera* cam);
 
 //Updates the perspective projection matrix of the specified camera.
 void UpdatePerspectiveProjectionMatrix(Camera* cam);
+
+//Updates the orthographics projection matrix of the specified camera.
+void UpdateOrthographicProjectionMatrix(Camera* cam);
 
 //Rotates the camera using a rotation quaternion.
 //Updates the cameras axes.

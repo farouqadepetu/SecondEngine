@@ -718,7 +718,7 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 		vertexList[i2].tangent += tangent;
 	}
 
-	//The positions of the first and last vertex of each circle are the same, so they must have the same TBN.
+	//The positions of the first and last vertex of each circle are the same, so they must have the same tangent and normal.
 	for (uint32_t i = 0; i < numCircles; ++i)
 	{
 		uint32_t firstVertex = i * numVerticesPerCircle;
