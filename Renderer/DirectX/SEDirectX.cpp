@@ -395,7 +395,7 @@ void DirectXDescriptorHeapAllocate(const Renderer* const pRenderer, DirectXDescr
 			else //TEXTURE
 			{
 				pRenderer->dx.device->CreateUnorderedAccessView(pInfo->pTexture->dx.resource, nullptr, pInfo->pUavDesc, handle);
-				pInfo->pBuffer->dx.cpuUavDescriptorId = index;
+				pInfo->pTexture->dx.cpuUavDescriptorId = index;
 			}
 		}
 		else //VIEW_TYPE_SAMPLER
@@ -1950,7 +1950,6 @@ void DirectXCreateBuffer(const Renderer* const pRenderer, const BufferInfo* pInf
 	allocationDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_NONE;
 	allocationDesc.pPrivateData = nullptr;
 
-	//NEED TO WORK ON INITIAL STATES
 	D3D12_RESOURCE_STATES initialState = DirectXGetResourecState(pInfo->initialState);
 	if (pInfo->usage == MEMORY_USAGE_CPU_ONLY || pInfo->usage == MEMORY_USAGE_CPU_TO_GPU)
 	{
@@ -2198,7 +2197,7 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 {
 	D3D12_RESOURCE_DESC resourceDesc{};
 	TextureDesc texDesc{};
-	TextureType texType{};
+	uint32_t texType{};
 	if (pInfo->filename != nullptr)
 	{
 		uint8_t* bitData = nullptr;
@@ -2679,11 +2678,14 @@ void DirectXBindDescriptorSet(const CommandBuffer* const pCommandBuffer, const u
 	}
 	else // PIPELINE_TYPE_COMPUTE
 	{
-		D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvUavHandle = gCbvSrvUavHeap.gpuHeap->GetGPUDescriptorHandleForHeapStart();
-		cbvSrvUavHandle.ptr += (pDescriptorSet->dx.heapIndices[index] * gCbvSrvUavHeap.descriptorSize);
-		pCommandBuffer->dx.commandList->SetComputeRootDescriptorTable(
-			pDescriptorSet->pRootSignature->dx.rootParamterIndices[pDescriptorSet->updateFrequency],
-			cbvSrvUavHandle);
+		if (pDescriptorSet->dx.heapIndices[index] >= 0)
+		{
+			D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvUavHandle = gCbvSrvUavHeap.gpuHeap->GetGPUDescriptorHandleForHeapStart();
+			cbvSrvUavHandle.ptr += (pDescriptorSet->dx.heapIndices[index] * gCbvSrvUavHeap.descriptorSize);
+			pCommandBuffer->dx.commandList->SetComputeRootDescriptorTable(
+				pDescriptorSet->pRootSignature->dx.rootParamterIndices[pDescriptorSet->updateFrequency],
+				cbvSrvUavHandle);
+		}
 	}
 }
 

@@ -15,6 +15,7 @@ SwapChain gSwapChain;
 RenderTarget gDepthBuffer;
 
 RenderTarget gShadowMap;
+RenderTarget gShadowMapPL[6];
 
 RootSignature gGraphicsRootSignature;
 
@@ -58,6 +59,7 @@ DescriptorSet gDescriptorSetPerNone;
 
 Camera gCamera;
 Camera gDLCamera;
+Camera gPLCamera[6];
 
 Vertex* gVertices = nullptr;
 uint32_t* gIndices = nullptr;
@@ -67,12 +69,6 @@ struct CameraData
 	mat4 cameraView;
 	mat4 cameraProjection;
 	vec4 cameraPos;
-};
-
-struct ObjectData
-{
-	mat4 objectModel;
-	mat4 objectInverseModel;
 };
 
 struct LightSourceData
@@ -145,6 +141,12 @@ enum
 	MAX_LIGHT_SOURCES
 };
 
+struct ObjectData
+{
+	mat4 objectModel[MAX_SHAPES];
+	mat4 objectInverseModel[MAX_SHAPES];
+};
+
 PointLight gPointLight;
 Buffer gPointLightUniformBuffer[gNumFrames];
 
@@ -155,13 +157,14 @@ Spotlight gSpotlight;
 Buffer gSpotlightUniformBuffer[gNumFrames];
 
 LightSourceData gLightSourceData;
-Buffer gLightSourceUniformBuffer[gNumFrames];
+LightSourceData gLightSourceDataPL[6];
+Buffer gLightSourceUniformBuffer[gNumFrames * 7];
 
 CameraData gCameraData;
 Buffer gCameraUniformBuffer[gNumFrames];
 
-ObjectData gShapesData[MAX_SHAPES];
-Buffer gShapesUniformBuffers[gNumFrames * MAX_SHAPES];
+ObjectData gShapesData;
+Buffer gShapesUniformBuffers[gNumFrames];
 
 ObjectData gSkyBoxData;
 Buffer gSkyboxUniformBuffer[gNumFrames];
@@ -169,6 +172,7 @@ Buffer gSkyboxUniformBuffer[gNumFrames];
 CameraData gSkyboxCameraData;
 Buffer gSkyboxCameraBuffer[gNumFrames];
 
+uint32_t gVertexCounts[MAX_SHAPES];
 uint32_t gVertexOffsets[MAX_SHAPES];
 uint32_t gIndexOffsets[MAX_SHAPES];
 uint32_t gIndexCounts[MAX_SHAPES];
@@ -195,6 +199,7 @@ float gOuterCutoffAngle = 5.0f;
 struct RootConstants
 {
 	uint32_t currentLightSource;
+	uint32_t shape;
 };
 
 RootConstants gConstants;
@@ -246,6 +251,11 @@ public:
 		dbInfo.initialState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
 		dbInfo.type = TEXTURE_TYPE_TEXTURE;
 		CreateRenderTarget(&gRenderer, &dbInfo, &gShadowMap);
+
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			CreateRenderTarget(&gRenderer, &dbInfo, &gShadowMapPL[i]);
+		}
 
 		ShaderInfo shaderInfo{};
 
@@ -347,7 +357,7 @@ public:
 		rootParameterInfos[2].numDescriptors = 1;
 		rootParameterInfos[2].stages = STAGE_VERTEX | STAGE_PIXEL;
 		rootParameterInfos[2].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
+		rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_DRAW;
 
 		//Point light
 		rootParameterInfos[3].binding = 3;
@@ -431,7 +441,7 @@ public:
 		rootParameterInfos[11].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
 		RootConstantsInfo rootConstantInfo{};
-		rootConstantInfo.numValues = 1;
+		rootConstantInfo.numValues = 2;
 		rootConstantInfo.baseRegister = 6;
 		rootConstantInfo.registerSpace = 0;
 		rootConstantInfo.stride = sizeof(RootConstants);
@@ -493,27 +503,27 @@ public:
 
 		gVertexOffsets[PLANE] = arrlenu(gVertices);
 		gIndexOffsets[PLANE] = arrlenu(gIndices);
-		CreateQuad(&gVertices, &gIndices, &gIndexCounts[PLANE]);
+		CreateQuad(&gVertices, &gIndices, &gVertexCounts[PLANE], & gIndexCounts[PLANE]);
 
 		gVertexOffsets[BOX] = arrlenu(gVertices);
 		gIndexOffsets[BOX] = arrlenu(gIndices);
-		CreateBox(&gVertices, &gIndices, &gIndexCounts[BOX]);
+		CreateBox(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[BOX]);
 
 		gVertexOffsets[SPHERE] = arrlenu(gVertices);
 		gIndexOffsets[SPHERE] = arrlenu(gIndices);
-		CreateSphere(&gVertices, &gIndices, &gIndexCounts[SPHERE]);
+		CreateSphere(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[SPHERE]);
 
 		gVertexOffsets[HEMI_SPHERE] = arrlenu(gVertices);
 		gIndexOffsets[HEMI_SPHERE] = arrlenu(gIndices);
-		CreateHemiSphere(&gVertices, &gIndices, &gIndexCounts[HEMI_SPHERE], true);
+		CreateHemiSphere(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[HEMI_SPHERE], true);
 
 		gVertexOffsets[TORUS] = arrlenu(gVertices);
 		gIndexOffsets[TORUS] = arrlenu(gIndices);
-		CreateTorus(&gVertices, &gIndices, &gIndexCounts[TORUS], 2.0f, 1.0f);
+		CreateTorus(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[TORUS], 2.0f, 1.0f);
 
 		gVertexOffsets[CYLINDER] = arrlenu(gVertices);
 		gIndexOffsets[CYLINDER] = arrlenu(gIndices);
-		CreateCylinder(&gVertices, &gIndices, &gIndexCounts[CYLINDER], true, true);
+		CreateCylinder(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[CYLINDER], true, true);
 
 		BufferInfo vbInfo{};
 		vbInfo.size = arrlen(gVertices) * sizeof(Vertex);
@@ -531,23 +541,15 @@ public:
 		ibInfo.initialState = RESOURCE_STATE_INDEX_BUFFER;
 		CreateBuffer(&gRenderer, &ibInfo, &gIndexBuffer);
 
-		for (uint32_t i = 0; i < gNumFrames * MAX_SHAPES; ++i)
-		{
-			BufferInfo ubInfo{};
-			ubInfo.type = BUFFER_TYPE_UNIFORM;
-			ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
-			ubInfo.data = nullptr;
-
-			ubInfo.size = sizeof(ObjectData);
-			CreateBuffer(&gRenderer, &ubInfo, &gShapesUniformBuffers[i]);
-		}
-
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
 			BufferInfo ubInfo{};
 			ubInfo.type = BUFFER_TYPE_UNIFORM;
 			ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
 			ubInfo.data = nullptr;
+
+			ubInfo.size = sizeof(ObjectData) * MAX_SHAPES;
+			CreateBuffer(&gRenderer, &ubInfo, &gShapesUniformBuffers[i]);
 
 			ubInfo.size = sizeof(CameraData);
 			CreateBuffer(&gRenderer, &ubInfo, &gCameraUniformBuffer[i]);
@@ -595,58 +597,27 @@ public:
 		samplerInfo.maxLod = 0.0f;
 		CreateSampler(&gRenderer, &samplerInfo, &gSampler);
 
-		DescriptorSetInfo uniformSetInfo{};
-		uniformSetInfo.pRootSignature = &gGraphicsRootSignature;
-		uniformSetInfo.numSets = MAX_SHAPES * gNumFrames + 2;
-		uniformSetInfo.updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
-		CreateDescriptorSet(&gRenderer, &uniformSetInfo, &gDescriptorSetPerFrame);
+		DescriptorSetInfo setInfo{};
+		setInfo.pRootSignature = &gGraphicsRootSignature;
+		setInfo.numSets = gNumFrames + 2;
+		setInfo.updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
+		CreateDescriptorSet(&gRenderer, &setInfo, &gDescriptorSetPerFrame);
 
-		DescriptorSetInfo texturesSetInfo{};
-		texturesSetInfo.pRootSignature = &gGraphicsRootSignature;
-		texturesSetInfo.numSets = 1;
-		texturesSetInfo.updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-		CreateDescriptorSet(&gRenderer, &texturesSetInfo, &gDescriptorSetPerNone);
-
-		for (uint32_t i = 0; i < MAX_SHAPES * gNumFrames; ++i)
-		{
-			UpdateDescriptorSetInfo updatePerFrame[6]{};
-			updatePerFrame[0].binding = 0;
-			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[i / MAX_SHAPES];
-
-			updatePerFrame[1].binding = 1;
-			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[1].pBuffer = &gShapesUniformBuffers[i];
-
-			updatePerFrame[2].binding = 2;
-			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[2].pBuffer = &gLightSourceUniformBuffer[i / MAX_SHAPES];
-
-			updatePerFrame[3].binding = 3;
-			updatePerFrame[3].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[i / MAX_SHAPES];
-
-			updatePerFrame[4].binding = 4;
-			updatePerFrame[4].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[i / MAX_SHAPES];
-
-			updatePerFrame[5].binding = 5;
-			updatePerFrame[5].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[i / MAX_SHAPES];
-
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 6, updatePerFrame);
-		}
+		setInfo.pRootSignature = &gGraphicsRootSignature;
+		setInfo.numSets = 1;
+		setInfo.updateFrequency = UPDATE_FREQUENCY_PER_NONE;
+		CreateDescriptorSet(&gRenderer, &setInfo, &gDescriptorSetPerNone);
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
 			UpdateDescriptorSetInfo updatePerFrame[6]{};
 			updatePerFrame[0].binding = 0;
 			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gSkyboxCameraBuffer[i];
+			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[i];
 
 			updatePerFrame[1].binding = 1;
 			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[1].pBuffer = &gSkyboxUniformBuffer[i];
+			updatePerFrame[1].pBuffer = &gShapesUniformBuffers[i];
 
 			updatePerFrame[2].binding = 2;
 			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
@@ -664,7 +635,16 @@ public:
 			updatePerFrame[5].type = UPDATE_TYPE_UNIFORM_BUFFER;
 			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[i];
 
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + MAX_SHAPES * gNumFrames, 6, updatePerFrame);
+			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 6, updatePerFrame);
+
+			updatePerFrame[0].binding = 0;
+			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[0].pBuffer = &gSkyboxCameraBuffer[i];
+
+			updatePerFrame[1].binding = 1;
+			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[1].pBuffer = &gSkyboxUniformBuffer[i];
+			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, gNumFrames + i, 6, updatePerFrame);
 		}
 
 		UpdateDescriptorSetInfo updateImageSetInfo[6]{};
@@ -704,6 +684,14 @@ public:
 		gDLCamera.nearP = 1.0f;
 		gDLCamera.farP = 25.0f;
 
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			gPLCamera[i].vFov = 90.0f;
+			gPLCamera[i].nearP = 1.0f;
+			gPLCamera[i].farP = 100.0f;
+		}
+
+		
 		UIDesc uiInfo{};
 		uiInfo.pWindow = pWindow;
 		uiInfo.pQueue = &gGraphicsQueue;
@@ -797,6 +785,7 @@ public:
 		DestroyUI(&gRenderer);
 		DestroyDescriptorSet(&gDescriptorSetPerNone);
 		DestroyDescriptorSet(&gDescriptorSetPerFrame);
+		DestroyDescriptorSet(&gDescriptorSetPerDraw);
 
 		DestroySampler(&gRenderer, &gSampler);
 		DestroyTexture(&gRenderer, &gWoodColor);
@@ -806,6 +795,7 @@ public:
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
+			DestroyBuffer(&gRenderer, &gShapesUniformBuffers[i]);
 			DestroyBuffer(&gRenderer, &gCameraUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gLightSourceUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gSkyboxCameraBuffer[i]);
@@ -815,11 +805,6 @@ public:
 			DestroyBuffer(&gRenderer, &gSpotlightUniformBuffer[i]);
 			DestroySemaphore(&gRenderer, &gImageAvailableSemaphores[i]);
 			DestroyCommandBuffer(&gRenderer, &gGraphicsCommandBuffers[i]);
-		}
-
-		for (uint32_t i = 0; i < gNumFrames * MAX_SHAPES; ++i)
-		{
-			DestroyBuffer(&gRenderer, &gShapesUniformBuffers[i]);
 		}
 
 		DestroyPipeline(&gRenderer, &gSkyboxPipeline);
@@ -844,6 +829,10 @@ public:
 		DestroyShader(&gRenderer, &gShadowMapPS);
 		DestroyShader(&gRenderer, &gLightSourcePS);
 
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			DestroyRenderTarget(&gRenderer, &gShadowMapPL[i]);
+		}
 		DestroyRenderTarget(&gRenderer, &gShadowMap);
 		DestroyRenderTarget(&gRenderer, &gDepthBuffer);
 
@@ -942,16 +931,16 @@ public:
 
 		mat4 model[MAX_SHAPES];
 		model[PLANE] = mat4::Scale(50.0f, 50.0f, 50.0f) * mat4::RotX(90.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
-		model[BOX] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(-10.0f, 0.5f, 0.0f);
-		model[SPHERE] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(-5.0f, 2.0f, 0.0f);
-		model[HEMI_SPHERE] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(0.0f, 2.0f, 0.0f);
-		model[TORUS] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(5.0f, 2.0f, 0.0f);
-		model[CYLINDER] = mat4::Scale(1.0f, 5.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(10.0f, 3.0f, 0.0f);
+		model[BOX] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(-10.0f, 0.5f, 0.0f);
+		model[SPHERE] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(-5.0f, 1.0f, 0.0f);
+		model[HEMI_SPHERE] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 1.0f, 0.0f);
+		model[TORUS] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(5.0f, 4.0f, 0.0f);
+		model[CYLINDER] = mat4::Scale(1.0f, 5.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(10.0f, 4.0f, 0.0f);
 
 		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
 		{
-			gShapesData[i].objectModel = Transpose(model[i]);
-			gShapesData[i].objectInverseModel = Inverse(model[i]);
+			gShapesData.objectModel[i] = Transpose(model[i]);
+			gShapesData.objectInverseModel[i] = Inverse(model[i]);
 		}
 
 		vec4 lightColor = vec4(gLightColor.GetX(), gLightColor.GetY(), gLightColor.GetZ(), 1.0f);
@@ -973,8 +962,29 @@ public:
 
 		if (gCurrentLightSource == POINT_LIGHT)
 		{
-			gLightSourceData.lightSourceModel = mat4::Scale(0.1f, 0.1f, 0.1f) *
-				mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ());
+			vec3 position = vec3(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ());
+
+			LookAt(&gPLCamera[0], position, position + vec3(1.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f)); //right
+			LookAt(&gPLCamera[1], position, position + vec3(-1.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f)); //left
+
+			LookAt(&gPLCamera[2], position, position + vec3(0.0f, 1.0f, 0.0f), vec3(0.0f, 0.0f, -1.0f)); //top
+			LookAt(&gPLCamera[3], position, position + vec3(0.0f, -1.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f)); //bottom
+
+			LookAt(&gPLCamera[4], position, position + vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f)); //back
+			LookAt(&gPLCamera[5], position, position + vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f)); //front
+
+			for (uint32_t i = 0; i < 6; ++i)
+			{
+				gLightSourceDataPL[i].lightSourceModel = mat4::Scale(0.1f, 0.1f, 0.1f) *
+					mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ());
+
+				UpdateViewMatrix(&gPLCamera[i]);
+				UpdatePerspectiveProjectionMatrix(&gPLCamera[i]);
+
+				gLightSourceDataPL[i].lightSourceView = Transpose(gPLCamera[i].viewMat);
+				gLightSourceDataPL[i].lightSourceProjection = Transpose(gPLCamera[i].perspectiveProjMat);
+			}
+
 		}
 		else if (gCurrentLightSource == DIRECTIONAL_LIGHT)
 		{
@@ -991,7 +1001,7 @@ public:
 		gLightSourceData.lightSourceProjection = Transpose(gDLCamera.orthographicProjMat);
 
 		model[0] = mat4::Scale(1000.0f, 1000.0f, 1000.0f);
-		gSkyBoxData.objectModel = Transpose(model[0]);
+		gSkyBoxData.objectModel[0] = Transpose(model[0]);
 
 		mat4 viewMat = gCamera.viewMat;
 		viewMat.SetRow(3, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -1036,10 +1046,6 @@ public:
 		memcpy(data, &gSpotlight, sizeof(Spotlight));
 		UnmapMemory(&gRenderer, &gSpotlightUniformBuffer[gCurrentFrame]);
 
-		MapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame], &data);
-		memcpy(data, &gLightSourceData, sizeof(LightSourceData));
-		UnmapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame]);
-
 		MapMemory(&gRenderer, &gSkyboxUniformBuffer[gCurrentFrame], &data);
 		memcpy(data, &gSkyBoxData, sizeof(ObjectData));
 		UnmapMemory(&gRenderer, &gSkyboxUniformBuffer[gCurrentFrame]);
@@ -1048,13 +1054,13 @@ public:
 		memcpy(data, &gSkyboxCameraData, sizeof(CameraData));
 		UnmapMemory(&gRenderer, &gSkyboxCameraBuffer[gCurrentFrame]);
 
-		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
-		{
-			uint32_t index = gCurrentFrame * MAX_SHAPES + i;
-			MapMemory(&gRenderer, &gShapesUniformBuffers[index], &data);
-			memcpy(data, &gShapesData[i], sizeof(ObjectData));
-			UnmapMemory(&gRenderer, &gShapesUniformBuffers[index]);
-		}
+		MapMemory(&gRenderer, &gShapesUniformBuffers[gCurrentFrame], &data);
+		memcpy(data, &gShapesData, sizeof(ObjectData));
+		UnmapMemory(&gRenderer, &gShapesUniformBuffers[gCurrentFrame]);
+
+		MapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame], &data);
+		memcpy(data, &gLightSourceData, sizeof(LightSourceData));
+		UnmapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame]);
 
 		uint32_t imageIndex = 0;
 		AcquireNextImage(&gRenderer, &gSwapChain, &gImageAvailableSemaphores[gCurrentFrame], &imageIndex);
@@ -1069,21 +1075,20 @@ public:
 		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
 		//Draw to shadow map
-		BarrierInfo barrierInfo{};
-		barrierInfo.type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo.pRenderTarget = &gShadowMap;
-		barrierInfo.currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
-		barrierInfo.newState = RESOURCE_STATE_DEPTH_WRITE;
-		ResourceBarrier(pCommandBuffer, 1, &barrierInfo);
+		BarrierInfo barrierInfo[8]{};
+		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+		barrierInfo[0].pRenderTarget = &gShadowMap;
+		barrierInfo[0].currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+		barrierInfo[0].newState = RESOURCE_STATE_DEPTH_WRITE;
 
-		BindRenderTargetInfo renderTargetInfo{};
-		renderTargetInfo.pRenderTarget = nullptr;
-		renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
-		renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
-		renderTargetInfo.pDepthTarget = &gShadowMap;
-		renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
-		renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
-		BindRenderTarget(pCommandBuffer, &renderTargetInfo);
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			barrierInfo[i + 1].type = BARRIER_TYPE_RENDER_TARGET;
+			barrierInfo[i + 1].pRenderTarget = &gShadowMapPL[i];
+			barrierInfo[i + 1].currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+			barrierInfo[i + 1].newState = RESOURCE_STATE_DEPTH_WRITE;
+		}
+		ResourceBarrier(pCommandBuffer, 7, barrierInfo);
 
 		ViewportInfo viewportInfo{};
 		viewportInfo.x = 0.0f;
@@ -1104,28 +1109,67 @@ public:
 		//SHAPES
 		BindPipeline(pCommandBuffer, &gShadowMapPipeline);
 		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-		BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 2, &gDescriptorSetPerDraw);
+
+		BindRenderTargetInfo renderTargetInfo{};
+		renderTargetInfo.pRenderTarget = nullptr;
+		renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
+		renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
+		renderTargetInfo.pDepthTarget = &gShadowMap;
+		renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
+		renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
+		BindRenderTarget(pCommandBuffer, &renderTargetInfo);
 
 		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
 		{
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
+			gConstants.shape = i;
+			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+		}
+
+		//Point light shadow maps
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			BindRenderTargetInfo renderTargetInfo{};
+			renderTargetInfo.pRenderTarget = nullptr;
+			renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
+			renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
+			renderTargetInfo.pDepthTarget = &gShadowMapPL[i];
+			renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
+			renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
+			BindRenderTarget(pCommandBuffer, &renderTargetInfo);
+
+			for (uint32_t j = 0; j < MAX_SHAPES; ++j)
+			{
+				gConstants.shape = j;
+				BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[j], 1, gIndexOffsets[j], gVertexOffsets[j], 0);
+			}
 		}
 
 		BindRenderTarget(pCommandBuffer, nullptr);
 
 		//Draw to render target with shadow map
-		barrierInfo.type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo.pRenderTarget = &gShadowMap;
-		barrierInfo.currentState = RESOURCE_STATE_DEPTH_WRITE;
-		barrierInfo.newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
-		ResourceBarrier(pCommandBuffer, 1, &barrierInfo);
+		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+		barrierInfo[0].pRenderTarget = &gShadowMap;
+		barrierInfo[0].currentState = RESOURCE_STATE_DEPTH_WRITE;
+		barrierInfo[0].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
 
-		barrierInfo.type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo.pRenderTarget = pRenderTarget;
-		barrierInfo.currentState = RESOURCE_STATE_PRESENT;
-		barrierInfo.newState = RESOURCE_STATE_RENDER_TARGET;
-		ResourceBarrier(pCommandBuffer, 1, &barrierInfo);
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			barrierInfo[i + 1].type = BARRIER_TYPE_RENDER_TARGET;
+			barrierInfo[i + 1].pRenderTarget = &gShadowMapPL[i];
+			barrierInfo[i + 1].currentState = RESOURCE_STATE_DEPTH_WRITE;
+			barrierInfo[i + 1].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+		}
+
+		barrierInfo[7].type = BARRIER_TYPE_RENDER_TARGET;
+		barrierInfo[7].pRenderTarget = pRenderTarget;
+		barrierInfo[7].currentState = RESOURCE_STATE_PRESENT;
+		barrierInfo[7].newState = RESOURCE_STATE_RENDER_TARGET;
+
+		ResourceBarrier(pCommandBuffer, 8, barrierInfo);
 
 		renderTargetInfo.pRenderTarget = pRenderTarget;
 		renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
@@ -1161,11 +1205,14 @@ public:
 			break;
 		}
 
-		BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
+		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 2, &gDescriptorSetPerDraw);
 
 		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
 		{
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_SHAPES + i, 1, &gDescriptorSetPerFrame);
+			gConstants.shape = i;
+			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
 		}
 
@@ -1173,24 +1220,26 @@ public:
 		{
 			//Draw Light Source
 			BindPipeline(pCommandBuffer, &gLightSourcePipeline);
-			BindDescriptorSet(pCommandBuffer, (gCurrentFrame * MAX_SHAPES) + SPHERE, 1, &gDescriptorSetPerFrame);
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
 		}
 
 		//Draw Skybox
 		BindPipeline(pCommandBuffer, &gSkyboxPipeline);
-		BindDescriptorSet(pCommandBuffer, MAX_SHAPES * gNumFrames + gCurrentFrame, 1, &gDescriptorSetPerFrame);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame + 2, 1, &gDescriptorSetPerFrame);
+		gConstants.shape = 0;
+		BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
 		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1, gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
 
 		RenderUI(pCommandBuffer);
 
 		BindRenderTarget(pCommandBuffer, nullptr);
 
-		barrierInfo.type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo.pRenderTarget = pRenderTarget;
-		barrierInfo.currentState = RESOURCE_STATE_RENDER_TARGET;
-		barrierInfo.newState = RESOURCE_STATE_PRESENT;
-		ResourceBarrier(pCommandBuffer, 1, &barrierInfo);
+		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+		barrierInfo[0].pRenderTarget = pRenderTarget;
+		barrierInfo[0].currentState = RESOURCE_STATE_RENDER_TARGET;
+		barrierInfo[0].newState = RESOURCE_STATE_PRESENT;
+		ResourceBarrier(pCommandBuffer, 1, barrierInfo);
 
 		EndCommandBuffer(pCommandBuffer);
 

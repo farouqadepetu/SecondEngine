@@ -90,7 +90,7 @@ void Reorthogonalize_GramSchmidt(vec4* x, vec4* y, vec4* z)
 	*y = vec4(v1.GetX(), v1.GetY(), v1.GetZ(), 0.0f);
 }
 
-void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
 
@@ -121,6 +121,11 @@ void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* 
 	arrpush(*vertices, triangleVertices[1]);
 	arrpush(*vertices, triangleVertices[2]);
 
+	if (outVertexCount != nullptr)
+	{
+		*outVertexCount = 3;
+	}
+
 	if (indices != nullptr)
 	{
 		arrpush(*indices, 0);
@@ -134,7 +139,7 @@ void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* 
 	}
 }
 
-void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
 
@@ -165,6 +170,11 @@ void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 	arrpush(*vertices, triangleVertices[1]);
 	arrpush(*vertices, triangleVertices[2]);
 
+	if (outVertexCount != nullptr)
+	{
+		*outVertexCount = 3;
+	}
+
 	if (indices != nullptr)
 	{
 		arrpush(*indices, 0);
@@ -178,7 +188,7 @@ void CreateRightTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 	}
 }
 
-void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex quadVertices[4]{};
 	Triangle triangles[2]{};
@@ -226,7 +236,6 @@ void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	{
 		quadVertices[i].normal = Normalize(quadVertices[i].normal);
 		quadVertices[i].tangent = Normalize(quadVertices[i].tangent);
-
 	}
 
 	arrpush(*vertices, quadVertices[0]);
@@ -234,16 +243,18 @@ void CreateQuad(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 	arrpush(*vertices, quadVertices[2]);
 	arrpush(*vertices, quadVertices[3]);
 
+	*outVertexCount = 4;
 	*outIndexCount = indexCount;
 }
 
-void CreateCircle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateCircle(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	//Parameteric equations used to the produce the vertices of a unit circle.
 	//x = cos(angle)
 	//y = sin(angle)
 
 	Vertex* vertexList = nullptr;
+	uint32_t vertexCount = 0;
 	uint32_t indexCount = 0;
 
 	float stepRate = 4.0f; //degrees
@@ -272,6 +283,8 @@ void CreateCircle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 		arrpush(vertexList, vertex);
 
 		angle += stepRate;
+
+		++vertexCount;
 	}
 
 	//Create the triangles.
@@ -315,11 +328,12 @@ void CreateCircle(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = vertexCount;
 	*outIndexCount = indexCount;
 	arrfree(vertexList);
 }
 
-void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex* vertexList = nullptr;
 	Triangle* triangles = nullptr;
@@ -432,12 +446,13 @@ void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = 8;
 	*outIndexCount = indexCount;
 	arrfree(triangles);
 	arrfree(vertexList);
 }
 
-void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex* vertexList = nullptr;
 	Triangle* triangles = nullptr;
@@ -527,12 +542,13 @@ void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outInd
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = 5;
 	*outIndexCount = indexCount;
 	arrfree(triangles);
 	arrfree(vertexList);
 }
 
-void CreateTriangularPyramid(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateTriangularPyramid(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex* vertexList = nullptr;
 	Triangle* triangles = nullptr;
@@ -613,12 +629,13 @@ void CreateTriangularPyramid(Vertex** vertices, uint32_t** indices, uint32_t* ou
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = 4;
 	*outIndexCount = indexCount;
 	arrfree(triangles);
 	arrfree(vertexList);
 }
 
-void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount)
+void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	//Parameteric equations used to the produce the vertices of a unit sphere.
 	//x = sin(phi) * cos(theta);
@@ -626,6 +643,7 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 	//z = sin(phi) * sin(theta)
 
 	Vertex* vertexList = nullptr;
+	uint32_t vertexCount = 0;
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
@@ -667,6 +685,8 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 			arrpush(vertexList, vertex);
 
 			u += uStep;
+
+			++vertexCount;
 		}
 		v += vStep;
 		u = 0.0f;
@@ -740,12 +760,13 @@ void CreateSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = vertexCount;
 	*outIndexCount = indexCount;
 	arrfree(triangleList);
 	arrfree(vertexList);
 }
 
-void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, bool base)
+void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount, bool base)
 {
 	//Parameteric equations used to the produce the vertices of a unit hemisphere.
 	//x = sin(phi) * cos(theta);
@@ -753,6 +774,7 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 	//z = sin(phi) * sin(theta)
 
 	Vertex* vertexList = nullptr;
+	uint32_t vertexCount = 0;
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
@@ -783,6 +805,8 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 			arrpush(vertexList, vertex);
 
 			u += uStep;
+
+			++vertexCount;
 		}
 		v += vStep;
 		u = 0.0f;
@@ -885,12 +909,14 @@ void CreateHemiSphere(Vertex** vertices, uint32_t** indices, uint32_t* outIndexC
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = vertexCount;
 	*outIndexCount = indexCount;
 	arrfree(triangleList);
 	arrfree(vertexList);
 }
 
-void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, bool topBase, bool bottomBase)
+void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount, 
+	bool topBase, bool bottomBase)
 {
 	//Parameteric equations used to the produce the vertices of a unit cylinder.
 	//x = cos(theta);
@@ -899,6 +925,7 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 
 	Vertex* vertexList = nullptr;
 	Triangle* triangleList = nullptr;
+	uint32_t vertexCount = 0;
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
@@ -928,6 +955,8 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 			arrpush(vertexList, vertex);
 
 			u += uStep;
+
+			++vertexCount;
 		}
 		v += vStep;
 		u = 0.0f;
@@ -1054,12 +1083,13 @@ void CreateCylinder(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCou
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = vertexCount;
 	*outIndexCount = indexCount;
 	arrfree(triangleList);
 	arrfree(vertexList);
 }
 
-void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, bool bottomBase)
+void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount, bool bottomBase)
 {
 	//Parameteric equations used to the produce the vertices of a unit cylinder.
 	//x = rcos(theta);
@@ -1068,6 +1098,7 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 
 	Vertex* vertexList = nullptr;
 	Triangle* triangleList = nullptr;
+	uint32_t vertexCount = 0;
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
@@ -1097,6 +1128,8 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 			arrpush(vertexList, vertex);
 
 			u += uStep;
+
+			++vertexCount;
 		}
 		v += vStep;
 		u = 0.0f;
@@ -1240,12 +1273,14 @@ void CreateCone(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, 
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = vertexCount;
 	*outIndexCount = indexCount;
 	arrfree(triangleList);
 	arrfree(vertexList);
 }
 
-void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount, float outerRaidus, float innerRadius)
+void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount, 
+	float outerRaidus, float innerRadius)
 {
 	//Parameteric equations used to the produce the vertices of a unit cylinder.
 	//x = (R + rcos(theta)) * cos(phi);
@@ -1254,6 +1289,7 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 
 	Vertex* vertexList = nullptr;
 	Triangle* triangleList = nullptr;
+	uint32_t vertexCount = 0;
 	uint32_t indexCount = 0;
 	Vertex vertex;
 
@@ -1284,6 +1320,8 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 			arrpush(vertexList, vertex);
 
 			u += uStep;
+
+			++vertexCount;
 		}
 		v += vStep;
 		u = 0.0f;
@@ -1379,6 +1417,7 @@ void CreateTorus(Vertex** vertices, uint32_t** indices, uint32_t* outIndexCount,
 		arrpush(*vertices, vertexList[i]);
 	}
 
+	*outVertexCount = vertexCount;
 	*outIndexCount = indexCount;
 	arrfree(triangleList);
 	arrfree(vertexList);

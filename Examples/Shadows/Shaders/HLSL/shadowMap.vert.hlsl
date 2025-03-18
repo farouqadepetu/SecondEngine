@@ -17,7 +17,9 @@ VertexOutput vsMain(VertexInput vin)
 {
     VertexOutput vout;
     
-    float4x4 mvp = mul(objectModel, mul(lightSourceView, lightSourceProjection));
+    uint index = constants.shape;
+    
+    float4x4 mvp = mul(objectModel[index], mul(lightSourceView, lightSourceProjection));
     float4 posH = mul(vin.inPos, mvp);
     
     vout.outPosH = posH;

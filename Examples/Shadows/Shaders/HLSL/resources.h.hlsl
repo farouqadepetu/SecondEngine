@@ -1,6 +1,8 @@
 #include "phong.h.hlsl"
 #include "pbr.h.hlsl"
 
+#define NUM_SHAPES 6
+
 cbuffer CameraUniformBuffer : register(b0)
 {
     float4x4 cameraView;
@@ -10,8 +12,8 @@ cbuffer CameraUniformBuffer : register(b0)
 
 cbuffer ObjectUniformBuffer : register(b1)
 {
-    float4x4 objectModel;
-    float4x4 objectInverseModel;
+    float4x4 objectModel[NUM_SHAPES];
+    float4x4 objectInverseModel[NUM_SHAPES];
 };
 
 cbuffer LightSourceUniformBuffer : register(b2)
@@ -39,6 +41,7 @@ cbuffer SpotLightUniformBuffer : register(b5)
 struct RootConstants
 {
     uint currentLightSource;
+    uint shape;
 };
 
 ConstantBuffer<RootConstants> constants : register(b6);

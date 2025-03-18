@@ -24,13 +24,15 @@ VertexOutput vsMain(VertexInput vin)
 {
     VertexOutput vout;
     
-    float4x4 mvp = mul(objectModel, mul(cameraView, cameraProjection));
-    float4x4 lvp = mul(objectModel, mul(lightSourceView, lightSourceProjection));
+    uint index = constants.shape;
+    
+    float4x4 mvp = mul(objectModel[index], mul(cameraView, cameraProjection));
+    float4x4 lvp = mul(objectModel[index], mul(lightSourceView, lightSourceProjection));
     float4 posH = mul(vin.inPos, mvp);
-    float4 posW = mul(vin.inPos, objectModel);
+    float4 posW = mul(vin.inPos, objectModel[index]);
     float4 posL = mul(vin.inPos, lvp);
-    float4 normal = mul(vin.inNormal, objectInverseModel);
-    float4 tangent = normalize(mul(vin.inTangent, objectInverseModel));
+    float4 normal = mul(vin.inNormal, objectInverseModel[index]);
+    float4 tangent = normalize(mul(vin.inTangent, objectInverseModel[index]));
     
     //re-orthogonalize using the gram-schmdit method.
     tangent = normalize(tangent - dot(tangent, normal) * normal);

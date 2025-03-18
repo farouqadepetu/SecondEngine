@@ -487,7 +487,7 @@ struct TextureInfo
 	uint32_t mipCount;
 	TinyImageFormat format;
 	TextureDimension dimension;
-	TextureType type;
+	uint32_t type;
 	bool isCubeMap;
 	bool isRenderTarget;
 	ResourceState initialState;
@@ -515,7 +515,7 @@ struct Texture
 		uint32_t gpuUavDescriptorId;
 	}dx;
 
-	TextureType type;
+	uint32_t type;
 };
 
 struct RenderTargetInfo
