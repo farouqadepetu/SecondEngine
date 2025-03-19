@@ -3,6 +3,9 @@
 struct VertexInput
 {
     float4 inPos : POSITION;
+    float4 inNormal : NORMAL;
+    float4 inTangent : TANGENT;
+    float2 inTexCoords : TEXCOORD;
 };
 
 struct VertexOutput

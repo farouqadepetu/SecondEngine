@@ -128,7 +128,7 @@ enum
 	POINT_LIGHT,
 	DIRECTIONAL_LIGHT,
 	SPOTLIGHT,
-	ALL
+	MAX_LIGHT_SOURCES
 };
 
 PointLight gPointLight;
@@ -151,6 +151,9 @@ Buffer gPerFrameBuffer[gNumFrames];
 
 PerObjectUniformData gShapesUniformData;
 Buffer gShapesUniformBuffers[gNumFrames];
+
+PerObjectUniformData gLightSourceUniformData[MAX_LIGHT_SOURCES];
+Buffer gLightSourceUniformBuffer[gNumFrames * MAX_LIGHT_SOURCES];
 
 PerObjectUniformData gSkyBoxUniformData;
 Buffer gSkyboxUniformBuffer[gNumFrames];
@@ -541,7 +544,7 @@ public:
 
 		gVertexOffsets[CONE] = arrlenu(gVertices);
 		gIndexOffsets[CONE] = arrlenu(gIndices);
-		CreateCone(&gVertices, &gIndices, &gIndexCounts[CONE], false);
+		CreateCone(&gVertices, &gIndices, &gIndexCounts[CONE], true);
 
 		gVertexOffsets[TORUS] = arrlenu(gVertices);
 		gIndexOffsets[TORUS] = arrlenu(gIndices);
@@ -592,6 +595,12 @@ public:
 
 			ubInfo.size = sizeof(PBRMaterial);
 			CreateBuffer(&gRenderer, &ubInfo, &gPbrMaterialUniformBuffer[i]);
+
+			for (uint32_t j = 0; j < MAX_LIGHT_SOURCES; ++j)
+			{
+				ubInfo.size = sizeof(PerObjectUniformData);
+				CreateBuffer(&gRenderer, &ubInfo, &gLightSourceUniformBuffer[i * MAX_LIGHT_SOURCES + j]);
+			}
 		}
 
 		TextureInfo texInfo{};
@@ -625,7 +634,7 @@ public:
 
 		DescriptorSetInfo uniformSetInfo{};
 		uniformSetInfo.pRootSignature = &gGraphicsRootSignature;
-		uniformSetInfo.numSets = gNumFrames + 2;
+		uniformSetInfo.numSets = 10;
 		uniformSetInfo.updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 		CreateDescriptorSet(&gRenderer, &uniformSetInfo, &gDescriptorSetPerFrame);
 
@@ -668,6 +677,15 @@ public:
 
 			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 7, updatePerFrame);
 
+			for (uint32_t j = 0; j < MAX_LIGHT_SOURCES; ++j)
+			{
+				updatePerFrame[1].binding = 1;
+				updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
+				updatePerFrame[1].pBuffer = &gLightSourceUniformBuffer[i * MAX_LIGHT_SOURCES + j];
+
+				UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i * MAX_LIGHT_SOURCES + 2 + j, 7, updatePerFrame);
+			}
+
 			updatePerFrame[0].binding = 0;
 			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
 			updatePerFrame[0].pBuffer = &gSkyboxPerFrameBuffer[i];
@@ -676,7 +694,8 @@ public:
 			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
 			updatePerFrame[1].pBuffer = &gSkyboxUniformBuffer[i];
 
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + 2, 7, updatePerFrame);
+			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + 8, 7, updatePerFrame);
+
 		}
 
 		UpdateDescriptorSetInfo updateImageSetInfo[6]{};
@@ -931,6 +950,11 @@ public:
 			DestroyBuffer(&gRenderer, &gPbrMaterialUniformBuffer[i]);
 			DestroySemaphore(&gRenderer, &gImageAvailableSemaphores[i]);
 			DestroyCommandBuffer(&gRenderer, &gGraphicsCommandBuffers[i]);
+
+			for (uint32_t j = 0; j < MAX_LIGHT_SOURCES; ++j)
+			{
+				DestroyBuffer(&gRenderer, &gLightSourceUniformBuffer[i * MAX_LIGHT_SOURCES + j]);
+			}
 		}
 
 		DestroyPipeline(&gRenderer, &gSkyboxPipeline);
@@ -1060,9 +1084,15 @@ public:
 		model = mat4::Scale(0.1f, 0.1f, 0.1f) * 
 			mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ());
 
+		gLightSourceUniformData[POINT_LIGHT].model = Transpose(model);
+
 		//Directional light
 		gDirectionalLight.direction = vec4(0.0f, 0.0f, -1.0f, 0.0f);
 		gDirectionalLight.color = lightColor;
+		model = mat4::Scale(0.1f, 0.1f, 0.1f) * mat4::RotX(-90.0f) *
+			mat4::Translate(-gDirectionalLight.direction.GetX(), -gDirectionalLight.direction.GetY(), -gDirectionalLight.direction.GetZ() + 2.0f);
+
+		gLightSourceUniformData[DIRECTIONAL_LIGHT].model = Transpose(model);
 
 		//Spotlight
 		gSpotlight.position = vec4(-2.0f, 0.0f, 0.0f, 1.0f);
@@ -1074,8 +1104,10 @@ public:
 		gSpotlight.color = lightColor;
 		gSpotlight.innerCutoff = cos(gInnerCutoffAngle * PI / 180.0f);
 		gSpotlight.outerCutoff = cos(gOuterCutoffAngle * PI / 180.0f);
-		model = mat4::Scale(0.1f, 0.1f, 0.1f) * 
+		model = mat4::Scale(0.2f, 0.2f, 0.2f) * mat4::RotZ(90.0f) *
 			mat4::Translate(gSpotlight.position.GetX(), gSpotlight.position.GetY(), gSpotlight.position.GetZ());
+
+		gLightSourceUniformData[SPOTLIGHT].model = Transpose(model);
 
 		for (uint32_t i = 0; i < MAX_MATERIALS; ++i)
 		{
@@ -1116,7 +1148,7 @@ public:
 			gMetallicSc.show = false;
 		}
 
-		if (gCurrentLightSource == SPOTLIGHT || gCurrentLightSource == ALL)
+		if (gCurrentLightSource == SPOTLIGHT || gCurrentLightSource == MAX_LIGHT_SOURCES)
 		{
 			gInnerCutoffSc.show = true;
 			gOuterCutoffSc.show = true;
@@ -1210,6 +1242,13 @@ public:
 		memcpy(data, &gSkyboxPerFrameUniformData, sizeof(PerFrameUniformData));
 		UnmapMemory(&gRenderer, &gSkyboxPerFrameBuffer[gCurrentFrame]);
 
+		for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; ++i)
+		{
+			MapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame * MAX_LIGHT_SOURCES + i], &data);
+			memcpy(data, &gLightSourceUniformData[i], sizeof(PerObjectUniformData));
+			UnmapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame * MAX_LIGHT_SOURCES + i]);
+		}
+
 		uint32_t imageIndex = 0;
 		AcquireNextImage(&gRenderer, &gSwapChain, &gImageAvailableSemaphores[gCurrentFrame], &imageIndex);
 
@@ -1274,14 +1313,36 @@ public:
 		{
 			//Draw Light Source
 			BindPipeline(pCommandBuffer, &gLightSourcePipeline);
-			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
-			BindPipeline(pCommandBuffer, &gLightSourcePipeline);
+
+			if (gCurrentLightSource == MAX_LIGHT_SOURCES)
+			{
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_LIGHT_SOURCES + 2 + POINT_LIGHT, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
+
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_LIGHT_SOURCES + 2 + DIRECTIONAL_LIGHT, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CONE], 1, gIndexOffsets[CONE], gVertexOffsets[CONE], 0);
+
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_LIGHT_SOURCES + 2 + SPOTLIGHT, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CONE], 1, gIndexOffsets[CONE], gVertexOffsets[CONE], 0);
+			}
+			else
+			{
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * MAX_LIGHT_SOURCES + 2 + gCurrentLightSource, 1, &gDescriptorSetPerFrame);
+				if (gCurrentLightSource == POINT_LIGHT)
+				{
+					DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
+				}
+				else
+				{
+					DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CONE], 1, gIndexOffsets[CONE], gVertexOffsets[CONE], 0);
+				}
+			}
 		}
 
 		//Draw Skybox
 		BindPipeline(pCommandBuffer, &gSkyboxPipeline);
 		BindDescriptorSet(pCommandBuffer, 1, 0, &gDescriptorSetPerNone);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame + 2, 1, &gDescriptorSetPerFrame);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame + 8, 1, &gDescriptorSetPerFrame);
 		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1,
 			gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
 
