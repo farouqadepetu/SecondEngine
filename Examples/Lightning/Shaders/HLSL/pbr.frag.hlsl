@@ -13,58 +13,60 @@ struct VertexOutput
 
 float4 psMain(VertexOutput vout) : SV_Target
 {
-    float4 sampledAlbedo = pow(gBricksColor.Sample(gSampler, vout.outTexCoords), 2.2f);
-    float4 sampledNormal = gBricksNormal.Sample(gSampler, vout.outTexCoords);
-    float sampledAO = gBricksAO.Sample(gSampler, vout.outTexCoords).r;
-    float sampledRoughness = gBricksRoughness.Sample(gSampler, vout.outTexCoords).r;
-    float displacement = gBricksDisplacement.Sample(gSampler, vout.outTexCoords).r;
+    float4 normal;
+    PBRMaterial material;
+    
+    if (constants.currentMapping == TEXTURE)
+    {
+        material.albedo = pow(gBricksColor.Sample(gSampler, vout.outTexCoords), 2.2f);
+        material.ao = gBricksAO.Sample(gSampler, vout.outTexCoords).r * 0.1f;
+        material.roughness = gBricksRoughness.Sample(gSampler, vout.outTexCoords).r;
+        material.metallic = 0.0f;
+        
+        normal = gBricksNormal.Sample(gSampler, vout.outTexCoords);
+        normal = normal * 2.0f - 1.0f;
+        normal.xy *= constants.normalScale;
+        normal = mul(normalize(normal), vout.outTBN);
+    }
+    else //MATERIAL
+    {
+        material.albedo = pbrMaterial.albedo;
+        normal = vout.outNormal;
+        material.roughness = pbrMaterial.roughness;
+        material.ao = pbrMaterial.ao;
+        material.metallic = pbrMaterial.metallic;
+    }
 
-    //Change range from [0,1] -> [-1,1]
-    sampledNormal = sampledNormal * 2.0f - 1.0f;
-    sampledNormal.xy *= constants.normalScale;
-    sampledNormal = mul(normalize(sampledNormal), vout.outTBN);
-    
-    float4 albedo = pbrMaterial.albedo * (constants.currentMapping == MATERIAL) +
-    sampledAlbedo * (constants.currentMapping == TEXTURE);
-    
-    float4 normal = vout.outNormal * (constants.currentMapping == MATERIAL) +
-    sampledNormal * (constants.currentMapping == TEXTURE);
-    
-    float roughness = pbrMaterial.roughness * (constants.currentMapping == MATERIAL) +
-    sampledRoughness * (constants.currentMapping == TEXTURE);
-    
-    float ao = pbrMaterial.ao * (constants.currentMapping == MATERIAL) + 
-    sampledAO * (constants.currentMapping == TEXTURE);
-
-    PBRPixelDesc desc;
-    desc.normal = normal;
-    desc.posW = vout.outPosW;
-    desc.posC = cameraPos;
-    desc.material.albedo = albedo;
-    desc.material.roughness = roughness;
-    desc.material.metallic = pbrMaterial.metallic;
-    desc.material.ao = ao;
+    PixelDesc desc;
+    desc.normal = normalize(normal.xyz);
+    desc.viewDir = normalize(cameraPos.xyz - vout.outPosW.xyz);
     
     float3 finalColor = float3(0.0f, 0.0f, 0.0f);
-    for (uint pLight = 0; pLight < NUM_POINT_LIGHTS; ++pLight)
+    
+    for (uint pLight = 0; pLight < constants.numPointLights; ++pLight)
     {
-        finalColor += ComputePointLight(pointLight, desc) *
-        (constants.currentLightSource == POINT || constants.currentLightSource == ALL);
+        desc.lightDir = normalize(pointLight.position.xyz - vout.outPosW.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        desc.distance = length(pointLight.position.xyz - vout.outPosW.xyz);
+        finalColor += ComputePointLight(pointLight, material, desc);
+    }
+  
+    for (uint dLight = 0; dLight < constants.numDirectionalLights; ++dLight)
+    {
+        desc.lightDir = normalize(-directionalLight.direction.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        finalColor += ComputeDirectionalLight(directionalLight, material, desc);
     }
     
-    for (uint dLight = 0; dLight < NUM_DIRECTIONAL_LIGHTS; ++dLight)
+    for (uint sLight = 0; sLight < constants.numSpotlights; ++sLight)
     {
-        finalColor += ComputeDirectionalLight(directionalLight, desc) * 
-        (constants.currentLightSource == DIRECTIONAL || constants.currentLightSource == ALL);
+        desc.lightDir = normalize(spotLight.position.xyz - vout.outPosW.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        desc.distance = length(spotLight.position.xyz - vout.outPosW.xyz);
+        finalColor += ComputeSpotlight(spotLight, material, desc);
     }
     
-    for (uint sLight = 0; sLight < NUM_SPOTLIGHTS; ++sLight)
-    {
-        finalColor += ComputeSpotlight(spotLight, desc) * 
-        (constants.currentLightSource == SPOTLIGHT || constants.currentLightSource == ALL);
-    }
-    
-    float3 ambient = float3(0.1f, 0.1f, 0.1f) * albedo.rgb * ao;
+    float3 ambient = material.albedo.rgb * material.ao;
     finalColor += ambient;
     
     //tonemapping

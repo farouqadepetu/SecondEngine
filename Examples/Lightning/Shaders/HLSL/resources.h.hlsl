@@ -1,5 +1,5 @@
-#include "phong.h.hlsl"
-#include "pbr.h.hlsl"
+#include "../ShaderLibrary/HLSL/phong.h.hlsl"
+#include "../ShaderLibrary/HLSL/pbr.h.hlsl"
 
 #define MATERIAL 0
 #define TEXTURE 1
@@ -45,16 +45,17 @@ cbuffer PBRMaterialUniformBuffer : register(b6)
 struct RootConstants
 {
     uint currentMapping;
-    uint currentLightSource;
+    uint numPointLights;
+    uint numDirectionalLights;
+    uint numSpotlights;
     float normalScale;
 };
 
 ConstantBuffer<RootConstants> constants : register(b7);
 
 Texture2D gBricksColor : register(t0);
-Texture2D gBricksDisplacement : register(t1);
-Texture2D gBricksAO : register(t2);
-Texture2D gBricksRoughness : register(t3);
-Texture2D gBricksNormal : register(t4);
-TextureCube gTextureCube : register(t5);
+Texture2D gBricksAO : register(t1);
+Texture2D gBricksRoughness : register(t2);
+Texture2D gBricksNormal : register(t3);
+TextureCube gTextureCube : register(t4);
 SamplerState gSampler : register(s0);

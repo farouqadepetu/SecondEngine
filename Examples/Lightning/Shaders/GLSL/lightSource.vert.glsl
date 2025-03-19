@@ -9,10 +9,7 @@ layout(location = 3) in vec2 inTexCoords;
 
 void main() 
 {
-    mat4 model = pointLightBuffer.pointLight.model * float(constants.currentLightSource == POINT) +
-    spotlightBuffer.spotlight.model * float(constants.currentLightSource == SPOTLIGHT);
-
-    mat4 mvp = perFrameBuffer.projection * perFrameBuffer.view * model;
+    mat4 mvp = perFrameBuffer.projection * perFrameBuffer.view * perObjectBuffer.model;
     vec4 posH = mvp * inPos;
 
     gl_Position = posH;

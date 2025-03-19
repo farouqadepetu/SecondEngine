@@ -5,6 +5,7 @@
 #include "../../../SecondEngine/Time/SETimer.h"
 #include "../../../SecondEngine/Shapes/SEShapes.h"
 #include "../../../SecondEngine/UI/SEUI.h"
+#include "../../Renderer/ShaderLibrary/lightSource.h"
 
 Renderer gRenderer;
 
@@ -40,11 +41,9 @@ Buffer gVertexBuffer;
 Buffer gIndexBuffer;
 
 Texture gBricksColor;
-Texture gBricksDisplacement;
 Texture gBricksAO;
 Texture gBricksRoughness;
 Texture gBricksNormal;
-Texture gYokohamaTexture;
 Texture gSkyboxTexture;
 Sampler gSampler;
 
@@ -69,30 +68,6 @@ struct PerObjectUniformData
 {
 	mat4 model;
 	mat4 transposeInverseModel;
-};
-
-struct PointLight
-{
-	vec4 position;
-	vec4 color;
-	mat4 model;
-};
-
-struct DirectionalLight
-{
-	vec4 direction;
-	vec4 color;
-	mat4 model;
-};
-
-struct Spotlight
-{
-	vec4 position;
-	vec4 direction;
-	vec4 color;
-	mat4 model;
-	float innerCutoff;
-	float outerCutoff;
 };
 
 struct PhongMaterial
@@ -153,8 +128,7 @@ enum
 	POINT_LIGHT,
 	DIRECTIONAL_LIGHT,
 	SPOTLIGHT,
-	ALL,
-	MAX_LIGHT_SOURCES
+	ALL
 };
 
 PointLight gPointLight;
@@ -243,7 +217,9 @@ float gNormalScale = 3.0f;
 struct RootConstants
 {
 	uint32_t currentMapping;
-	uint32_t currentLightSource;
+	uint32_t numPointLights;
+	uint32_t numDirectionalLights;
+	uint32_t numSpotlights;
 	float normalScale;
 };
 
@@ -251,7 +227,7 @@ RootConstants gConstants;
 
 float gRoughness = 0.25f;
 float gMetallic = 0.0f;
-float gAO = 0.25f;
+float gAO = 0.05f;
 
 float gAngle = 0.0f;
 
@@ -366,7 +342,7 @@ public:
 
 		vertexInputInfo.numVertexAttributes = 4;
 
-		RootParameterInfo rootParameterInfos[14]{};
+		RootParameterInfo rootParameterInfos[13]{};
 
 		//PerFrame
 		rootParameterInfos[0].binding = 0;
@@ -440,7 +416,7 @@ public:
 		rootParameterInfos[7].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[7].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Bricks displacement texture
+		//Bricks AO texture
 		rootParameterInfos[8].binding = 1;
 		rootParameterInfos[8].baseRegister = 1;
 		rootParameterInfos[8].registerSpace = 0;
@@ -449,7 +425,7 @@ public:
 		rootParameterInfos[8].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[8].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Bricks AO texture
+		//Bricks Roughness texture
 		rootParameterInfos[9].binding = 2;
 		rootParameterInfos[9].baseRegister = 2;
 		rootParameterInfos[9].registerSpace = 0;
@@ -458,7 +434,7 @@ public:
 		rootParameterInfos[9].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[9].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Bricks Roughness texture
+		//Bricks Normal texture
 		rootParameterInfos[10].binding = 3;
 		rootParameterInfos[10].baseRegister = 3;
 		rootParameterInfos[10].registerSpace = 0;
@@ -467,7 +443,7 @@ public:
 		rootParameterInfos[10].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[10].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Bricks Normal texture
+		//Cubemap
 		rootParameterInfos[11].binding = 4;
 		rootParameterInfos[11].baseRegister = 4;
 		rootParameterInfos[11].registerSpace = 0;
@@ -476,26 +452,17 @@ public:
 		rootParameterInfos[11].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[11].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Cubemap
+		//Sampler
 		rootParameterInfos[12].binding = 5;
-		rootParameterInfos[12].baseRegister = 5;
+		rootParameterInfos[12].baseRegister = 0;
 		rootParameterInfos[12].registerSpace = 0;
 		rootParameterInfos[12].numDescriptors = 1;
 		rootParameterInfos[12].stages = STAGE_PIXEL;
-		rootParameterInfos[12].type = DESCRIPTOR_TYPE_TEXTURE;
+		rootParameterInfos[12].type = DESCRIPTOR_TYPE_SAMPLER;
 		rootParameterInfos[12].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Sampler
-		rootParameterInfos[13].binding = 6;
-		rootParameterInfos[13].baseRegister = 0;
-		rootParameterInfos[13].registerSpace = 0;
-		rootParameterInfos[13].numDescriptors = 1;
-		rootParameterInfos[13].stages = STAGE_PIXEL;
-		rootParameterInfos[13].type = DESCRIPTOR_TYPE_SAMPLER;
-		rootParameterInfos[13].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
 		RootConstantsInfo rootConstantInfo{};
-		rootConstantInfo.numValues = 3;
+		rootConstantInfo.numValues = 5;
 		rootConstantInfo.baseRegister = 7;
 		rootConstantInfo.registerSpace = 0;
 		rootConstantInfo.stride = sizeof(RootConstants);
@@ -503,7 +470,7 @@ public:
 
 		RootSignatureInfo graphicsRootSignatureInfo{};
 		graphicsRootSignatureInfo.pRootParameterInfos = rootParameterInfos;
-		graphicsRootSignatureInfo.numRootParameterInfos = 14;
+		graphicsRootSignatureInfo.numRootParameterInfos = 13;
 		graphicsRootSignatureInfo.useRootConstants = true;
 		graphicsRootSignatureInfo.rootConstantsInfo = rootConstantInfo;
 		graphicsRootSignatureInfo.useInputLayout = true;
@@ -631,9 +598,6 @@ public:
 		texInfo.filename = "Textures/bricksColor.dds";
 		CreateTexture(&gRenderer, &texInfo, &gBricksColor);
 
-		texInfo.filename = "Textures/bricksDisplacement.dds";
-		CreateTexture(&gRenderer, &texInfo, &gBricksDisplacement);
-
 		texInfo.filename = "Textures/bricksAO.dds";
 		CreateTexture(&gRenderer, &texInfo, &gBricksAO);
 
@@ -644,9 +608,6 @@ public:
 		CreateTexture(&gRenderer, &texInfo, &gBricksNormal);
 
 		texInfo.filename = "Textures/yokohama.dds";
-		CreateTexture(&gRenderer, &texInfo, &gYokohamaTexture);
-
-		texInfo.filename = "Textures/skybox.dds";
 		CreateTexture(&gRenderer, &texInfo, &gSkyboxTexture);
 
 		SamplerInfo samplerInfo{};
@@ -718,38 +679,34 @@ public:
 			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + 2, 7, updatePerFrame);
 		}
 
-		UpdateDescriptorSetInfo updateImageSetInfo[7]{};
+		UpdateDescriptorSetInfo updateImageSetInfo[6]{};
 		updateImageSetInfo[0].binding = 0;
 		updateImageSetInfo[0].type = UPDATE_TYPE_TEXTURE;
 		updateImageSetInfo[0].pTexture = &gBricksColor;
 
 		updateImageSetInfo[1].binding = 1;
 		updateImageSetInfo[1].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[1].pTexture = &gBricksDisplacement;
+		updateImageSetInfo[1].pTexture = &gBricksAO;
 
 		updateImageSetInfo[2].binding = 2;
 		updateImageSetInfo[2].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[2].pTexture = &gBricksAO;
+		updateImageSetInfo[2].pTexture = &gBricksRoughness;
 
 		updateImageSetInfo[3].binding = 3;
 		updateImageSetInfo[3].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[3].pTexture = &gBricksRoughness;
+		updateImageSetInfo[3].pTexture = &gBricksNormal;
 
 		updateImageSetInfo[4].binding = 4;
 		updateImageSetInfo[4].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[4].pTexture = &gBricksNormal;
+		updateImageSetInfo[4].pTexture = &gSkyboxTexture;
 
 		updateImageSetInfo[5].binding = 5;
-		updateImageSetInfo[5].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[5].pTexture = &gYokohamaTexture;
-
-		updateImageSetInfo[6].binding = 6;
-		updateImageSetInfo[6].type = UPDATE_TYPE_SAMPLER;
-		updateImageSetInfo[6].pSampler = &gSampler;
-		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 7, updateImageSetInfo);
+		updateImageSetInfo[5].type = UPDATE_TYPE_SAMPLER;
+		updateImageSetInfo[5].pSampler = &gSampler;
+		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 6, updateImageSetInfo);
 
 		updateImageSetInfo[1].pTexture = &gSkyboxTexture;
-		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 1, 7, updateImageSetInfo);
+		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 1, 6, updateImageSetInfo);
 
 		gPhongMaterialUniformData[OBJECT_COLOR].diffuse = vec4(0.0f, 0.5f, 0.5f, 1.0f);
 		gPhongMaterialUniformData[OBJECT_COLOR].specular = vec4(0.5f, 0.5f, 0.5f, 1.0f);
@@ -845,7 +802,7 @@ public:
 		lightSource.type = SUB_COMPONENT_TYPE_DROPDOWN;
 		lightSource.dropDown.pLabel = "Light Source";
 		lightSource.dropDown.pData = &gCurrentLightSource;
-		lightSource.dropDown.numNames = MAX_LIGHT_SOURCES;
+		lightSource.dropDown.numNames = 4;
 		lightSource.dropDown.pNames = gLightSourceNames;
 		lightSource.dynamic = false;
 		AddSubComponent(&gGuiWindow, &lightSource);
@@ -909,7 +866,7 @@ public:
 		gAoSc.sliderFloat.pLabel = "AO";
 		gAoSc.sliderFloat.min = 0.0f;
 		gAoSc.sliderFloat.max = 1.0f;
-		gAoSc.sliderFloat.stepRate = 0.05f;
+		gAoSc.sliderFloat.stepRate = 0.025f;
 		gAoSc.sliderFloat.pData = &gAO;
 		gAoSc.sliderFloat.format = "%.3f";
 		gAoSc.dynamic = true;
@@ -956,11 +913,9 @@ public:
 
 		DestroySampler(&gRenderer, &gSampler);
 		DestroyTexture(&gRenderer, &gBricksColor);
-		DestroyTexture(&gRenderer, &gBricksDisplacement);
 		DestroyTexture(&gRenderer, &gBricksAO);
 		DestroyTexture(&gRenderer, &gBricksRoughness);
 		DestroyTexture(&gRenderer, &gBricksNormal);
-		DestroyTexture(&gRenderer, &gYokohamaTexture);
 		DestroyTexture(&gRenderer, &gSkyboxTexture);
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
@@ -1104,7 +1059,6 @@ public:
 		gPointLight.color = lightColor;
 		model = mat4::Scale(0.1f, 0.1f, 0.1f) * 
 			mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ());
-		gPointLight.model = Transpose(model);
 
 		//Directional light
 		gDirectionalLight.direction = vec4(0.0f, 0.0f, -1.0f, 0.0f);
@@ -1122,7 +1076,6 @@ public:
 		gSpotlight.outerCutoff = cos(gOuterCutoffAngle * PI / 180.0f);
 		model = mat4::Scale(0.1f, 0.1f, 0.1f) * 
 			mat4::Translate(gSpotlight.position.GetX(), gSpotlight.position.GetY(), gSpotlight.position.GetZ());
-		gSpotlight.model = Transpose(model);
 
 		for (uint32_t i = 0; i < MAX_MATERIALS; ++i)
 		{
@@ -1134,7 +1087,6 @@ public:
 		}
 
 		gConstants.currentMapping = gCurrentMapping;
-		gConstants.currentLightSource = gCurrentLightSource;
 		gConstants.normalScale = gNormalScale;
 
 		model = mat4::Scale(1000.0f, 1000.0f, 1000.0f);
@@ -1150,12 +1102,13 @@ public:
 			if (gCurrentMapping == TEXTURE)
 			{
 				gRoughnessSc.show = false;
+				gMetallicSc.show = false;
 			}
 			else
 			{
 				gRoughnessSc.show = true;
+				gMetallicSc.show = true;
 			}
-			gMetallicSc.show = true;
 		}
 		else
 		{
@@ -1167,6 +1120,7 @@ public:
 		{
 			gInnerCutoffSc.show = true;
 			gOuterCutoffSc.show = true;
+
 		}
 		else
 		{
@@ -1185,6 +1139,31 @@ public:
 			gMaterialSc.show = false;
 			gNormalScaleSC.show = true;
 			gAoSc.show = false;
+		}
+
+		if (gCurrentLightSource == POINT_LIGHT)
+		{
+			gConstants.numPointLights = 1;
+			gConstants.numDirectionalLights = 0;
+			gConstants.numSpotlights = 0;
+		}
+		else if (gCurrentLightSource == DIRECTIONAL_LIGHT)
+		{
+			gConstants.numPointLights = 0;
+			gConstants.numDirectionalLights = 1;
+			gConstants.numSpotlights = 0;
+		}
+		else if (gCurrentLightSource == SPOTLIGHT)
+		{
+			gConstants.numPointLights = 0;
+			gConstants.numDirectionalLights = 0;
+			gConstants.numSpotlights = 1;
+		}
+		else //ALL
+		{
+			gConstants.numPointLights = 1;
+			gConstants.numDirectionalLights = 1;
+			gConstants.numSpotlights = 1;
 		}
 	}
 
@@ -1288,7 +1267,7 @@ public:
 		}
 		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
 		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-		BindRootConstants(pCommandBuffer, 3, sizeof(RootConstants), &gConstants, 0);
+		BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
 		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[gCurrentShape], 1, gIndexOffsets[gCurrentShape], gVertexOffsets[gCurrentShape], 0);
 
 		if (gShowLightSources)

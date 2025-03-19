@@ -13,64 +13,66 @@ layout(location = 0) out vec4 finalColor;
 void main() 
 {
     float gamma = 2.2f;
-    vec4 sampledDiffuse = texture(sampler2D(gBricksColor, gSampler), outTexCoords);
-    sampledDiffuse.r = pow(sampledDiffuse.r, gamma);
-    sampledDiffuse.g = pow(sampledDiffuse.g, gamma);
-    sampledDiffuse.b = pow(sampledDiffuse.b, gamma);
-    vec4 sampledNormal = texture(sampler2D(gBricksNormal, gSampler), outTexCoords);
-    float sampledAmbient = texture(sampler2D(gBricksAO, gSampler), outTexCoords).r;
-    float sampledSpecular = texture(sampler2D(gBricksRoughness, gSampler), outTexCoords).r;
-    float displacement = texture(sampler2D(gBricksDisplacement, gSampler), outTexCoords).r;
+    vec4 normal;
+    PhongMaterial material;
 
-    //Change range from [0,1] -> [-1,1]
-    sampledNormal = sampledNormal * 2.0f - 1.0f;
-    sampledNormal.xy *= constants.normalScale;
-    sampledNormal = outTBN * normalize(sampledNormal);
+    if (constants.currentMapping == TEXTURE)
+    {
+        material.diffuse = texture(sampler2D(gBricksColor, gSampler), outTexCoords);
+        material.diffuse.r = pow(material.diffuse.r, gamma);
+        material.diffuse.g = pow(material.diffuse.g, gamma);
+        material.diffuse.b = pow(material.diffuse.b, gamma);
 
-    float ambientIntensity = phongMaterialBuffer.material.ambientIntensity * float(constants.currentMapping == MATERIAL) +
-    sampledAmbient * float(constants.currentMapping == TEXTURE);
+        material.ambientIntensity = texture(sampler2D(gBricksAO, gSampler), outTexCoords).r * 0.1f;;
+        
+        float roughness = texture(sampler2D(gBricksRoughness, gSampler), outTexCoords).r;
+        material.specular = vec4(roughness, roughness, roughness, 1.0f);
+        
+        material.shininess = 256.0f;
+        
+        normal = texture(sampler2D(gBricksNormal, gSampler), outTexCoords);
+        normal = normal * 2.0f - 1.0f;
+        normal.xy *= constants.normalScale;
+        normal = outTBN * normalize(normal);
+    }
+    else //MATERIAL
+    {
+        material.diffuse = phongMaterialBuffer.material.diffuse;
+        material.specular= phongMaterialBuffer.material.specular;
+        material.ambientIntensity = phongMaterialBuffer.material.ambientIntensity;
+        material.shininess = phongMaterialBuffer.material.shininess;
+        normal = outNormal;
+    }
     
-    vec4 diffuseColor = phongMaterialBuffer.material.diffuse * float(constants.currentMapping == MATERIAL) +
-    sampledDiffuse * float(constants.currentMapping == TEXTURE);
-    
-    vec4 specularColor = phongMaterialBuffer.material.specular * float(constants.currentMapping == MATERIAL) +
-    sampledSpecular * float(constants.currentMapping == TEXTURE);
-    
-    vec4 normal = outNormal * float(constants.currentMapping == MATERIAL) +
-    sampledNormal * float(constants.currentMapping == TEXTURE);
-    
-    float shininessValue = phongMaterialBuffer.material.shininess * float(constants.currentMapping == MATERIAL) +
-    256.0f * float(constants.currentMapping == TEXTURE);
-    
-    PhongPixelDesc desc;
-    desc.normal = normal;
-    desc.posW = outPosW;
-    desc.posC = perFrameBuffer.cameraPos;
-    desc.material.ambientIntensity = ambientIntensity;
-    desc.material.diffuse = diffuseColor;
-    desc.material.specular = specularColor;
-    desc.material.shininess = shininessValue;
+    PixelDesc desc;
+    desc.normal = normalize(normal.xyz);
+    desc.viewDir = normalize(perFrameBuffer.cameraPos.xyz -outPosW.xyz);
     
     vec3 color = vec3(0.0f, 0.0f, 0.0f);
-    for (uint pLight = 0; pLight < NUM_POINT_LIGHTS; ++pLight)
+    for (uint pLight = 0; pLight < constants.numPointLights; ++pLight)
     {
-        color += ComputePointLight(pointLightBuffer.pointLight, desc) * 
-        float(constants.currentLightSource == POINT || constants.currentLightSource == ALL);
+        desc.lightDir = normalize(pointLightBuffer.pointLight.position.xyz - outPosW.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        desc.distance = length(pointLightBuffer.pointLight.position.xyz - outPosW.xyz);
+        color += ComputePointLight(pointLightBuffer.pointLight, material, desc);
+    }
+  
+    for (uint dLight = 0; dLight < constants.numDirectionalLights; ++dLight)
+    {
+        desc.lightDir = normalize(-directionalLightBuffer.directionalLight.direction.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        color += ComputeDirectionalLight(directionalLightBuffer.directionalLight, material, desc);
     }
     
-    for (uint dLight = 0; dLight < NUM_DIRECTIONAL_LIGHTS; ++dLight)
+    for (uint sLight = 0; sLight < constants.numSpotlights; ++sLight)
     {
-        color += ComputeDirectionalLight(directionalLightBuffer.directionalLight, desc) * 
-        float(constants.currentLightSource == DIRECTIONAL || constants.currentLightSource == ALL);
-    }
-    
-    for (uint sLight = 0; sLight < NUM_SPOTLIGHTS; ++sLight)
-    {
-        color += ComputeSpotlight(spotlightBuffer.spotlight, desc) * 
-        float(constants.currentLightSource == SPOTLIGHT || constants.currentLightSource == ALL);
+        desc.lightDir = normalize(spotlightBuffer.spotlight.position.xyz - outPosW.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        desc.distance = length(spotlightBuffer.spotlight.position.xyz - outPosW.xyz);
+        color += ComputeSpotlight(spotlightBuffer.spotlight, material, desc);
     }
 
-    vec3 ambient = vec3(0.05f, 0.05f, 0.05f) * ambientIntensity * diffuseColor.rgb;
+    vec3 ambient = material.ambientIntensity * material.diffuse.rgb;
     color += ambient;
 
     //tonemapping
