@@ -1,5 +1,5 @@
-#include "phong.h.glsl"
-#include "pbr.h.glsl"
+#include "../ShaderLibrary/GLSL/phong.h.glsl"
+#include "../ShaderLibrary/GLSL/pbr.h.glsl"
 
 #define MATERIAL 0
 #define TEXTURE 1
@@ -45,14 +45,15 @@ layout(set = 1, binding = 6) uniform PBRMaterialUniformBuffer
 layout(push_constant) uniform RootConstants
 {
     uint currentMapping;
-    uint currentLightSource;
+    uint numPointLights;
+    uint numDirectionalLights;
+    uint numSpotlights;
     float normalScale;
 }constants;
 
 layout(set = 0, binding = 0) uniform texture2D gBricksColor;
-layout(set = 0, binding = 1) uniform texture2D gBricksDisplacement;
-layout(set = 0, binding = 2) uniform texture2D gBricksAO;
-layout(set = 0, binding = 3) uniform texture2D gBricksRoughness;
-layout(set = 0, binding = 4) uniform texture2D gBricksNormal;
-layout(set = 0, binding = 5) uniform textureCube gTextureCube;
-layout(set = 0, binding = 6) uniform sampler gSampler;
+layout(set = 0, binding = 1) uniform texture2D gBricksAO;
+layout(set = 0, binding = 2) uniform texture2D gBricksRoughness;
+layout(set = 0, binding = 3) uniform texture2D gBricksNormal;
+layout(set = 0, binding = 4) uniform textureCube gTextureCube;
+layout(set = 0, binding = 5) uniform sampler gSampler;

@@ -13,60 +13,62 @@ struct VertexOutput
 
 float4 psMain(VertexOutput vout) : SV_Target
 {
-    float sampledAmbient = gBricksAO.Sample(gSampler, vout.outTexCoords).r;
-    float4 sampledDiffuse = pow(gBricksColor.Sample(gSampler, vout.outTexCoords), 2.2f);
-    float roughness = gBricksRoughness.Sample(gSampler, vout.outTexCoords).r;
-    float4 sampledSpecular = float4(roughness, roughness, roughness, 1.0f);
-    float4 sampledNormal = gBricksNormal.Sample(gSampler, vout.outTexCoords);
-    float displacement = gBricksDisplacement.Sample(gSampler, vout.outTexCoords).r;
-
-    //Change range from [0,1] -> [-1,1]
-    sampledNormal = sampledNormal * 2.0f - 1.0f;
-    sampledNormal.xy *= constants.normalScale;
-    sampledNormal = mul(sampledNormal, vout.outTBN);
+    float4 normal;
+    PhongMaterial material;
     
-    float ambientIntensity = phongMaterial.ambientIntensity * (constants.currentMapping == MATERIAL) +
-    sampledAmbient * (constants.currentMapping == TEXTURE);
-    
-    float4 diffuseColor = phongMaterial.diffuse * (constants.currentMapping == MATERIAL) +
-    sampledDiffuse * (constants.currentMapping == TEXTURE);
-    
-    float4 specularColor = phongMaterial.specular * (constants.currentMapping == MATERIAL) +
-    sampledSpecular * (constants.currentMapping == TEXTURE);
-    
-    float4 normal = vout.outNormal * (constants.currentMapping == MATERIAL) +
-    sampledNormal * (constants.currentMapping == TEXTURE);
-    
-    float shininessValue = phongMaterial.shininess * (constants.currentMapping == MATERIAL) +
-    256.0f * (constants.currentMapping == TEXTURE);
+    if (constants.currentMapping == TEXTURE)
+    {
+        material.diffuse = pow(gBricksColor.Sample(gSampler, vout.outTexCoords), 2.2f);
+        material.ambientIntensity = gBricksAO.Sample(gSampler, vout.outTexCoords).r * 0.1f;
+        
+        float roughness = gBricksRoughness.Sample(gSampler, vout.outTexCoords).r;
+        material.specular = float4(roughness, roughness, roughness, 1.0f);
+        
+        material.shininess = 256.0f;
+        
+        normal = gBricksNormal.Sample(gSampler, vout.outTexCoords);
+        normal = normal * 2.0f - 1.0f;
+        normal.xy *= constants.normalScale;
+        normal = mul(normalize(normal), vout.outTBN);
+    }
+    else //MATERIAL
+    {
+        material.diffuse = phongMaterial.diffuse;
+        material.specular = phongMaterial.specular;
+        material.ambientIntensity = phongMaterial.ambientIntensity;
+        material.shininess = phongMaterial.shininess;
+        normal = vout.outNormal;
+    }
    
-    PhongPixelDesc desc;
-    desc.normal = normal;
-    desc.posW = vout.outPosW;
-    desc.posC = cameraPos;
-    desc.material.ambientIntensity = ambientIntensity;
-    desc.material.diffuse = diffuseColor;
-    desc.material.specular = specularColor;
-    desc.material.shininess = shininessValue;
+    PixelDesc desc;
+    desc.normal = normalize(normal.xyz);
+    desc.viewDir = normalize(cameraPos.xyz - vout.outPosW.xyz);
     
     float3 finalColor = float3(0.0f, 0.0f, 0.0f);
-    for (uint pLight = 0; pLight < NUM_POINT_LIGHTS; ++pLight)
+    for (uint pLight = 0; pLight < constants.numPointLights; ++pLight)
     {
-        finalColor += ComputePointLight(pointLight, desc) * (constants.currentLightSource == POINT || constants.currentLightSource == ALL);
+        desc.lightDir = normalize(pointLight.position.xyz - vout.outPosW.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        desc.distance = length(pointLight.position.xyz - vout.outPosW.xyz);
+        finalColor += ComputePointLight(pointLight, material, desc);
+    }
+  
+    for (uint dLight = 0; dLight < constants.numDirectionalLights; ++dLight)
+    {
+        desc.lightDir = normalize(-directionalLight.direction.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        finalColor += ComputeDirectionalLight(directionalLight, material, desc);
     }
     
-    for (uint dLight = 0; dLight < NUM_DIRECTIONAL_LIGHTS; ++dLight)
+    for (uint sLight = 0; sLight < constants.numSpotlights; ++sLight)
     {
-        finalColor += ComputeDirectionalLight(directionalLight, desc) * 
-        (constants.currentLightSource == DIRECTIONAL || constants.currentLightSource == ALL);
+        desc.lightDir = normalize(spotLight.position.xyz - vout.outPosW.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        desc.distance = length(spotLight.position.xyz - vout.outPosW.xyz);
+        finalColor += ComputeSpotlight(spotLight, material, desc);
     }
     
-    for (uint sLight = 0; sLight < NUM_SPOTLIGHTS; ++sLight)
-    {
-        finalColor += ComputeSpotlight(spotLight, desc) * (constants.currentLightSource == SPOTLIGHT || constants.currentLightSource == ALL);
-    }
-    
-    float3 ambient = float3(0.05f, 0.05f, 0.05f) * ambientIntensity * diffuseColor.rgb;
+    float3 ambient = material.ambientIntensity * material.diffuse.rgb;
     finalColor += ambient;
     
     //tonemapping
