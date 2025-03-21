@@ -161,6 +161,7 @@ Buffer gSkyboxUniformBuffer[gNumFrames];
 PerFrameUniformData gSkyboxPerFrameUniformData;
 Buffer gSkyboxPerFrameBuffer[gNumFrames];
 
+uint32_t gVertexCounts[MAX_SHAPES];
 uint32_t gVertexOffsets[MAX_SHAPES];
 uint32_t gIndexOffsets[MAX_SHAPES];
 uint32_t gIndexCounts[MAX_SHAPES];
@@ -521,35 +522,35 @@ public:
 
 		gVertexOffsets[BOX] = arrlenu(gVertices);
 		gIndexOffsets[BOX] = arrlenu(gIndices);
-		CreateBox(&gVertices, &gIndices, &gIndexCounts[BOX]);
+		CreateBox(&gVertices, &gIndices, &gVertexCounts[BOX], & gIndexCounts[BOX]);
 
 		gVertexOffsets[SQUARE_PYRAMID] = arrlenu(gVertices);
 		gIndexOffsets[SQUARE_PYRAMID] = arrlenu(gIndices);
-		CreateSquarePyramid(&gVertices, &gIndices, &gIndexCounts[SQUARE_PYRAMID]);
+		CreateSquarePyramid(&gVertices, &gIndices, &gVertexCounts[SQUARE_PYRAMID], &gIndexCounts[SQUARE_PYRAMID]);
 
 		gVertexOffsets[TRIANGULAR_PYRAMID] = arrlenu(gVertices);
 		gIndexOffsets[TRIANGULAR_PYRAMID] = arrlenu(gIndices);
-		CreateTriangularPyramid(&gVertices, &gIndices, &gIndexCounts[TRIANGULAR_PYRAMID]);
+		CreateTriangularPyramid(&gVertices, &gIndices, &gVertexCounts[TRIANGULAR_PYRAMID], &gIndexCounts[TRIANGULAR_PYRAMID]);
 
 		gVertexOffsets[SPHERE] = arrlenu(gVertices);
 		gIndexOffsets[SPHERE] = arrlenu(gIndices);
-		CreateSphere(&gVertices, &gIndices, &gIndexCounts[SPHERE]);
+		CreateSphere(&gVertices, &gIndices, &gVertexCounts[SPHERE], &gIndexCounts[SPHERE]);
 
 		gVertexOffsets[HEMI_SPHERE] = arrlenu(gVertices);
 		gIndexOffsets[HEMI_SPHERE] = arrlenu(gIndices);
-		CreateHemiSphere(&gVertices, &gIndices, &gIndexCounts[HEMI_SPHERE], false);
+		CreateHemiSphere(&gVertices, &gIndices, &gVertexCounts[HEMI_SPHERE], &gIndexCounts[HEMI_SPHERE], false);
 
 		gVertexOffsets[CYLINDER] = arrlenu(gVertices);
 		gIndexOffsets[CYLINDER] = arrlenu(gIndices);
-		CreateCylinder(&gVertices, &gIndices, &gIndexCounts[CYLINDER], false, false);
+		CreateCylinder(&gVertices, &gIndices, &gVertexCounts[CYLINDER], &gIndexCounts[CYLINDER], false, false);
 
 		gVertexOffsets[CONE] = arrlenu(gVertices);
 		gIndexOffsets[CONE] = arrlenu(gIndices);
-		CreateCone(&gVertices, &gIndices, &gIndexCounts[CONE], true);
+		CreateCone(&gVertices, &gIndices, &gVertexCounts[CONE], &gIndexCounts[CONE], true);
 
 		gVertexOffsets[TORUS] = arrlenu(gVertices);
 		gIndexOffsets[TORUS] = arrlenu(gIndices);
-		CreateTorus(&gVertices, &gIndices, &gIndexCounts[TORUS], 1.0f, 0.5f);
+		CreateTorus(&gVertices, &gIndices, &gVertexCounts[TORUS], &gIndexCounts[TORUS], 1.0f, 0.5f);
 
 		BufferInfo vbInfo{};
 		vbInfo.size = arrlen(gVertices) * sizeof(Vertex);

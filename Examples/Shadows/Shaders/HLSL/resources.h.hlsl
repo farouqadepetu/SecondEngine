@@ -1,7 +1,5 @@
-#include "phong.h.hlsl"
-#include "pbr.h.hlsl"
+#include "../ShaderLibrary/HLSL/pbr.h.hlsl"
 
-#define NUM_SHAPES 6
 
 cbuffer CameraUniformBuffer : register(b0)
 {
@@ -12,8 +10,9 @@ cbuffer CameraUniformBuffer : register(b0)
 
 cbuffer ObjectUniformBuffer : register(b1)
 {
-    float4x4 objectModel[NUM_SHAPES];
-    float4x4 objectInverseModel[NUM_SHAPES];
+    float4x4 objectModel;
+    float4x4 objectInverseModel;
+    uint materialIndex;
 };
 
 cbuffer LightSourceUniformBuffer : register(b2)
@@ -38,17 +37,20 @@ cbuffer SpotLightUniformBuffer : register(b5)
     Spotlight spotLight;
 };
 
+cbuffer PBRMaterialUniformBuffer : register(b6)
+{
+    PBRMaterial material[7];
+}
+
 struct RootConstants
 {
     uint currentLightSource;
-    uint shape;
+    float shadowBias;
 };
 
-ConstantBuffer<RootConstants> constants : register(b6);
+ConstantBuffer<RootConstants> constants : register(b7);
 
-Texture2D gWoodColor : register(t0);
-Texture2D gWoodRoughness : register(t1);
-Texture2D gWoodNormal : register(t2);
-Texture2D gShadowMap : register(t3);
-TextureCube gTextureCube : register(t4);
-SamplerState gSampler : register(s0);
+Texture2D gShadowMap : register(t0);
+Texture2D gShadowMapPL[6] : register(t1);
+//SamplerState gSampler : register(s0);
+SamplerComparisonState gSampler : register(s0);

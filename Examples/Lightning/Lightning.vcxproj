@@ -147,12 +147,10 @@
     <FxCompile Include="Shaders\HLSL\skybox.frag.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
     </FxCompile>
     <FxCompile Include="Shaders\HLSL\skybox.vert.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1464,6 +1464,39 @@ void DirectXCreateRasterizerDesc(const PipelineInfo* const pInfo, D3D12_RASTERIZ
 	pRasterDesc->ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 }
 
+D3D12_COMPARISON_FUNC GetDepthFunction(DepthFunction func)
+{
+	switch (func)
+	{
+	case DEPTH_FUNCTION_NONE:
+		return D3D12_COMPARISON_FUNC_NONE;
+
+	case DEPTH_FUNCTION_NEVER:
+		return D3D12_COMPARISON_FUNC_NEVER;
+
+	case DEPTH_FUNCTION_LESS:
+		return D3D12_COMPARISON_FUNC_LESS;
+
+	case DEPTH_FUNCTION_EQUAL:
+		return D3D12_COMPARISON_FUNC_EQUAL;
+
+	case DEPTH_FUNCTION_LESS_OR_EQUAL:
+		return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	case DEPTH_FUNCTION_GREATER:
+		return D3D12_COMPARISON_FUNC_GREATER;
+
+	case DEPTH_FUNCTION_NOT_EQUAL:
+		return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+
+	case DEPTH_FUNCTION_GREATER_OR_EQUAL:
+		return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+
+	case DEPTH_FUNCTION_ALWAYS:
+		return D3D12_COMPARISON_FUNC_ALWAYS;
+	}
+}
+
 void DirectXCreateDepthStencilDesc(const PipelineInfo* const pInfo, D3D12_DEPTH_STENCIL_DESC* pDesc)
 {
 	pDesc->DepthEnable = pInfo->depthInfo.depthTestEnable;
@@ -1473,42 +1506,7 @@ void DirectXCreateDepthStencilDesc(const PipelineInfo* const pInfo, D3D12_DEPTH_
 	else
 		pDesc->DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
-	switch (pInfo->depthInfo.depthFunction)
-	{
-	case DEPTH_FUNCTION_NEVER:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_NEVER;
-		break;
-
-	case DEPTH_FUNCTION_LESS:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-		break;
-
-	case DEPTH_FUNCTION_EQUAL:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
-		break;
-
-	case DEPTH_FUNCTION_LESS_OR_EQUAL:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		break;
-
-	case DEPTH_FUNCTION_GREATER:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
-		break;
-
-	case DEPTH_FUNCTION_NOT_EQUAL:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
-		break;
-
-	case DEPTH_FUNCTION_GREATER_OR_EQUAL:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-		break;
-
-	case DEPTH_FUNCTION_ALWAYS:
-		pDesc->DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		break;
-	}
-
-	pDesc->DepthFunc = (D3D12_COMPARISON_FUNC)(pInfo->depthInfo.depthFunction + 1);
+	pDesc->DepthFunc = GetDepthFunction(pInfo->depthInfo.depthFunction);
 
 	pDesc->StencilEnable = false;
 	pDesc->StencilReadMask = 0xff;
@@ -2481,36 +2479,70 @@ void DirectXDestroyTexture(const Renderer* const pRenderer, Texture* pTexture)
 	SAFE_RELEASE(pTexture->dx.allocation);
 }
 
-D3D12_FILTER  DirectXGetFilter(Filter min, Filter mag, MipMapMode mode, float anisotropy)
+D3D12_FILTER DirectXGetFilter(Filter min, Filter mag, MipMapMode mode, DepthFunction comparisonFunc, float anisotropy)
 {
-	if (anisotropy > 0.0f)
-		return D3D12_FILTER_ANISOTROPIC;
+	if (comparisonFunc == DEPTH_FUNCTION_NONE)
+	{
+		if (anisotropy > 0.0f)
+			return D3D12_FILTER_ANISOTROPIC;
 
-	if(min == FILTER_NEAREST && mag == FILTER_NEAREST && mode == MIPMAP_MODE_NEAREST)
+		if (min == FILTER_NEAREST && mag == FILTER_NEAREST && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_MIN_MAG_MIP_POINT;
+
+		if (min == FILTER_NEAREST && mag == FILTER_NEAREST && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+
+		if (min == FILTER_NEAREST && mag == FILTER_LINEAR && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+
+		if (min == FILTER_NEAREST && mag == FILTER_LINEAR && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+
+		if (min == FILTER_LINEAR && mag == FILTER_NEAREST && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+
+		if (min == FILTER_LINEAR && mag == FILTER_NEAREST && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+
+		if (min == FILTER_LINEAR && mag == FILTER_LINEAR && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+
+		if (min == FILTER_LINEAR && mag == FILTER_LINEAR && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+
 		return D3D12_FILTER_MIN_MAG_MIP_POINT;
+	}
+	else
+	{
+		if (anisotropy > 0.0f)
+			return D3D12_FILTER_COMPARISON_ANISOTROPIC;
 
-	if (min == FILTER_NEAREST && mag == FILTER_NEAREST && mode == MIPMAP_MODE_LINEAR)
-		return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		if (min == FILTER_NEAREST && mag == FILTER_NEAREST && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
 
-	if (min == FILTER_NEAREST && mag == FILTER_LINEAR && mode == MIPMAP_MODE_NEAREST)
-		return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		if (min == FILTER_NEAREST && mag == FILTER_NEAREST && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR;
 
-	if (min == FILTER_NEAREST && mag == FILTER_LINEAR && mode == MIPMAP_MODE_LINEAR)
-		return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+		if (min == FILTER_NEAREST && mag == FILTER_LINEAR && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT;
 
-	if (min == FILTER_LINEAR && mag == FILTER_NEAREST && mode == MIPMAP_MODE_NEAREST)
-		return D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+		if (min == FILTER_NEAREST && mag == FILTER_LINEAR && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR;
 
-	if (min == FILTER_LINEAR && mag == FILTER_NEAREST && mode == MIPMAP_MODE_LINEAR)
-		return D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+		if (min == FILTER_LINEAR && mag == FILTER_NEAREST && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT;
 
-	if (min == FILTER_LINEAR && mag == FILTER_LINEAR && mode == MIPMAP_MODE_NEAREST)
-		return D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		if (min == FILTER_LINEAR && mag == FILTER_NEAREST && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
 
-	if (min == FILTER_LINEAR && mag == FILTER_LINEAR && mode == MIPMAP_MODE_LINEAR)
-		return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		if (min == FILTER_LINEAR && mag == FILTER_LINEAR && mode == MIPMAP_MODE_NEAREST)
+			return D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
-	return D3D12_FILTER_MIN_MAG_MIP_POINT;
+		if (min == FILTER_LINEAR && mag == FILTER_LINEAR && mode == MIPMAP_MODE_LINEAR)
+			return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+
+		return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+	}
 }
 
 D3D12_TEXTURE_ADDRESS_MODE DirectXGetAddressMode(AddressMode addressMode)
@@ -2536,17 +2568,19 @@ D3D12_TEXTURE_ADDRESS_MODE DirectXGetAddressMode(AddressMode addressMode)
 void DirectXCreateSampler(const Renderer* const pRenderer, const SamplerInfo* const pInfo, Sampler* pSampler)
 {
 	D3D12_SAMPLER_DESC samplerDesc{};
-	samplerDesc.Filter = DirectXGetFilter(pInfo->minFilter, pInfo->magFilter, pInfo->mipMapMode, pInfo->maxAnisotropy);
+	samplerDesc.Filter = DirectXGetFilter(pInfo->minFilter, pInfo->magFilter, pInfo->mipMapMode, 
+		pInfo->comparisonFunction, pInfo->maxAnisotropy);
+
 	samplerDesc.AddressU = DirectXGetAddressMode(pInfo->u);
 	samplerDesc.AddressV = DirectXGetAddressMode(pInfo->v);
 	samplerDesc.AddressW = DirectXGetAddressMode(pInfo->w);
 	samplerDesc.MipLODBias = pInfo->mipLoadBias;
 	samplerDesc.MaxAnisotropy = pInfo->maxAnisotropy;
-	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	samplerDesc.BorderColor[0] = 0.0f;
-	samplerDesc.BorderColor[1] = 0.0f;
-	samplerDesc.BorderColor[2] = 0.0f;
-	samplerDesc.BorderColor[3] = 0.0f;
+	samplerDesc.ComparisonFunc = GetDepthFunction(pInfo->comparisonFunction);
+	samplerDesc.BorderColor[0] = pInfo->borderColor[0];
+	samplerDesc.BorderColor[1] = pInfo->borderColor[1];
+	samplerDesc.BorderColor[2] = pInfo->borderColor[2];
+	samplerDesc.BorderColor[3] = pInfo->borderColor[3];
 	samplerDesc.MinLOD = pInfo->minLod;
 	samplerDesc.MaxLOD = pInfo->maxLod;
 

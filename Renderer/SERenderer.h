@@ -281,6 +281,7 @@ enum BlendOp
 
 enum DepthFunction
 {
+	DEPTH_FUNCTION_NONE,
 	DEPTH_FUNCTION_NEVER,
 	DEPTH_FUNCTION_LESS,
 	DEPTH_FUNCTION_EQUAL,
@@ -294,7 +295,7 @@ enum DepthFunction
 enum Filter
 {
 	FILTER_NEAREST,
-	FILTER_LINEAR
+	FILTER_LINEAR,
 };
 
 enum AddressMode
@@ -650,10 +651,12 @@ struct SamplerInfo
 	AddressMode v;
 	AddressMode w;
 	MipMapMode mipMapMode;
+	DepthFunction comparisonFunction;
 	float maxAnisotropy;
 	float mipLoadBias;
 	float minLod;
 	float maxLod;
+	float borderColor[4];
 };
 
 struct Sampler

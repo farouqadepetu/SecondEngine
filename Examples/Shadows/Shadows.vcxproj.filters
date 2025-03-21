@@ -14,6 +14,15 @@
     <Filter Include="Shaders\HLSL">
       <UniqueIdentifier>{1fd31611-8837-410a-a7ec-5ef411d96b6b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\ShaderLibrary">
+      <UniqueIdentifier>{148d906d-00fa-4ac4-8a19-b886a217e9ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\ShaderLibrary\GLSL">
+      <UniqueIdentifier>{6737c975-d04f-419d-910c-f004d2c8b58d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\ShaderLibrary\HLSL">
+      <UniqueIdentifier>{d15f1e34-b849-401b-99d6-831b71a971d1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -63,6 +72,9 @@
     <None Include="Shaders\GLSL\shadowMap.vert.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
+    <None Include="..\..\Renderer\ShaderLibrary\GLSL\pbr.h.glsl">
+      <Filter>Shaders\ShaderLibrary\GLSL</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\HLSL\lightSource.vert.hlsl">
@@ -77,32 +89,22 @@
     <FxCompile Include="Shaders\HLSL\lightSource.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\lightSource.h.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\HLSL\pbr.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\HLSL\pbr.h.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\HLSL\phong.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\HLSL\phong.h.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\HLSL\resources.h.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\HLSL\shadowMap.vert.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\skybox.frag.hlsl">
+    <FxCompile Include="..\..\Renderer\ShaderLibrary\HLSL\pbr.h.hlsl">
+      <Filter>Shaders\ShaderLibrary\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\object.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\HLSL\skybox.vert.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Renderer\ShaderLibrary\lightSource.h">
+      <Filter>Shaders\ShaderLibrary</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -5,6 +5,7 @@
 #include "../../../SecondEngine/Time/SETimer.h"
 #include "../../../SecondEngine/Shapes/SEShapes.h"
 #include "../../../SecondEngine/UI/SEUI.h"
+#include "../../../SecondEngine/Renderer/ShaderLibrary/lightSource.h"
 
 Renderer gRenderer;
 
@@ -22,19 +23,14 @@ RootSignature gGraphicsRootSignature;
 Shader gObjectVS;
 Shader gLightSourceVS;
 Shader gShadowMapVS;
-Shader gSkyboxVS;
 
-Shader gPhongPS;
-Shader gPbrPS;
+Shader gObjectPS;
 Shader gLightSourcePS;
 Shader gShadowMapPS;
-Shader gSkyboxPS;
 
-Pipeline gPhongPipeline;
-Pipeline gPbrPipeline;
+Pipeline gObjectPipeline;
 Pipeline gLightSourcePipeline;
 Pipeline gShadowMapPipeline;
-Pipeline gSkyboxPipeline;
 
 const uint32_t gNumFrames = 2;
 const uint32_t gShadowWidth = 1024;
@@ -46,10 +42,6 @@ CommandBuffer gGraphicsCommandBuffers[gNumFrames];
 Buffer gVertexBuffer;
 Buffer gIndexBuffer;
 
-Texture gWoodColor;
-Texture gWoodRoughness;
-Texture gWoodNormal;
-Texture gSkyboxTexture;
 Sampler gSampler;
 
 uint32_t gCurrentFrame = 0;
@@ -78,35 +70,6 @@ struct LightSourceData
 	mat4 lightSourceProjection;
 };
 
-struct PointLight
-{
-	vec4 position;
-	vec4 color;
-};
-
-struct DirectionalLight
-{
-	vec4 direction;
-	vec4 color;
-};
-
-struct Spotlight
-{
-	vec4 position;
-	vec4 direction;
-	vec4 color;
-	float innerCutoff;
-	float outerCutoff;
-};
-
-struct PhongMaterial
-{
-	vec4 diffuse;
-	vec4 specular;
-	float ambientIntensity;
-	float shininess;
-};
-
 struct PBRMaterial
 {
 	vec4 albedo;
@@ -117,20 +80,10 @@ struct PBRMaterial
 
 enum
 {
-	PLANE,
-	BOX,
+	WALL,
 	SPHERE,
-	HEMI_SPHERE,
-	TORUS,
 	CYLINDER,
-	MAX_SHAPES
-};
-
-enum
-{
-	PBR,
-	PHONG,
-	MAX_SHADING
+	MAX_OBJECTS
 };
 
 enum
@@ -143,8 +96,9 @@ enum
 
 struct ObjectData
 {
-	mat4 objectModel[MAX_SHAPES];
-	mat4 objectInverseModel[MAX_SHAPES];
+	mat4 objectModel;
+	mat4 objectInverseModel;
+	uint32_t materialIndex;
 };
 
 PointLight gPointLight;
@@ -157,25 +111,25 @@ Spotlight gSpotlight;
 Buffer gSpotlightUniformBuffer[gNumFrames];
 
 LightSourceData gLightSourceData;
+Buffer gLightSourceUniformBuffer[gNumFrames];
+
 LightSourceData gLightSourceDataPL[6];
-Buffer gLightSourceUniformBuffer[gNumFrames * 7];
+Buffer gLightSourcePLUniformBuffer[gNumFrames * 6];
 
 CameraData gCameraData;
 Buffer gCameraUniformBuffer[gNumFrames];
 
-ObjectData gShapesData;
-Buffer gShapesUniformBuffers[gNumFrames];
+const uint32_t gNumObjects = 7;
+ObjectData gObjectData[gNumObjects];
+Buffer gObjectUniformBuffers[gNumFrames * gNumObjects];
 
-ObjectData gSkyBoxData;
-Buffer gSkyboxUniformBuffer[gNumFrames];
+PBRMaterial gMaterialData[gNumObjects];
+Buffer gMaterialBuffer;
 
-CameraData gSkyboxCameraData;
-Buffer gSkyboxCameraBuffer[gNumFrames];
-
-uint32_t gVertexCounts[MAX_SHAPES];
-uint32_t gVertexOffsets[MAX_SHAPES];
-uint32_t gIndexOffsets[MAX_SHAPES];
-uint32_t gIndexCounts[MAX_SHAPES];
+uint32_t gVertexCounts[MAX_OBJECTS];
+uint32_t gVertexOffsets[MAX_OBJECTS];
+uint32_t gIndexOffsets[MAX_OBJECTS];
+uint32_t gIndexCounts[MAX_OBJECTS];
 
 MainComponent gGuiWindow;
 
@@ -187,9 +141,6 @@ const char* gLightSourceNames[] =
 };
 uint32_t gCurrentLightSource = 0;
 
-const char* gShadingNames[] = { "PBR", "PHONG" };
-uint32_t gCurrentShading = 0;
-
 bool gShowLightSources = false;
 bool gRotate = false;
 
@@ -199,7 +150,7 @@ float gOuterCutoffAngle = 5.0f;
 struct RootConstants
 {
 	uint32_t currentLightSource;
-	uint32_t shape;
+	float shadowBias;
 };
 
 RootConstants gConstants;
@@ -207,18 +158,19 @@ RootConstants gConstants;
 float gAngle = 0.0f;
 
 vec3 gLightColor = vec3(1.0f, 1.0f, 1.0f);
+float gShadowBias = 0.01f;
 
 SubComponent gInnerCutoffSc{};
 SubComponent gOuterCutoffSc{};
 
-class Lightning : public App
+class Shadows : public App
 {
 public:
 	void Init() override
 	{
 		InitSE();
 
-		InitRenderer(&gRenderer, "Lightning");
+		InitRenderer(&gRenderer, "Shadows");
 
 		CreateQueue(&gRenderer, QUEUE_TYPE_GRAPHICS, &gGraphicsQueue);
 
@@ -271,17 +223,9 @@ public:
 		shaderInfo.type = SHADER_TYPE_VERTEX;
 		CreateShader(&gRenderer, &shaderInfo, &gShadowMapVS);
 
-		shaderInfo.filename = "skybox.vert";
-		shaderInfo.type = SHADER_TYPE_VERTEX;
-		CreateShader(&gRenderer, &shaderInfo, &gSkyboxVS);
-
-		shaderInfo.filename = "phong.frag";
+		shaderInfo.filename = "object.frag";
 		shaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &shaderInfo, &gPhongPS);
-
-		shaderInfo.filename = "pbr.frag";
-		shaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &shaderInfo, &gPbrPS);
+		CreateShader(&gRenderer, &shaderInfo, &gObjectPS);
 
 		shaderInfo.filename = "lightSource.frag";
 		shaderInfo.type = SHADER_TYPE_PIXEL;
@@ -291,9 +235,6 @@ public:
 		shaderInfo.type = SHADER_TYPE_PIXEL;
 		CreateShader(&gRenderer, &shaderInfo, &gShadowMapPS);
 
-		shaderInfo.filename = "skybox.frag";
-		shaderInfo.type = SHADER_TYPE_PIXEL;
-		CreateShader(&gRenderer, &shaderInfo, &gSkyboxPS);
 
 		VertexInputInfo vertexInputInfo{};
 		vertexInputInfo.vertexBinding.binding = 0;
@@ -330,9 +271,9 @@ public:
 
 		vertexInputInfo.numVertexAttributes = 4;
 
-		RootParameterInfo rootParameterInfos[12]{};
+		RootParameterInfo rootParameterInfos[10]{};
 
-		//PerFrame
+		//Camera
 		rootParameterInfos[0].binding = 0;
 		rootParameterInfos[0].baseRegister = 0;
 		rootParameterInfos[0].registerSpace = 0;
@@ -341,7 +282,7 @@ public:
 		rootParameterInfos[0].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		rootParameterInfos[0].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 
-		//PerObject
+		//Object
 		rootParameterInfos[1].binding = 1;
 		rootParameterInfos[1].baseRegister = 1;
 		rootParameterInfos[1].registerSpace = 0;
@@ -357,7 +298,7 @@ public:
 		rootParameterInfos[2].numDescriptors = 1;
 		rootParameterInfos[2].stages = STAGE_VERTEX | STAGE_PIXEL;
 		rootParameterInfos[2].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_DRAW;
+		rootParameterInfos[2].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 
 		//Point light
 		rootParameterInfos[3].binding = 3;
@@ -386,70 +327,52 @@ public:
 		rootParameterInfos[5].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		rootParameterInfos[5].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 
-		//Wood Color texture
-		rootParameterInfos[6].binding = 0;
-		rootParameterInfos[6].baseRegister = 0;
+		//PBR Material
+		rootParameterInfos[6].binding = 6;
+		rootParameterInfos[6].baseRegister = 6;
 		rootParameterInfos[6].registerSpace = 0;
 		rootParameterInfos[6].numDescriptors = 1;
-		rootParameterInfos[6].stages = STAGE_PIXEL;
-		rootParameterInfos[6].type = DESCRIPTOR_TYPE_TEXTURE;
+		rootParameterInfos[6].stages = STAGE_VERTEX | STAGE_PIXEL;
+		rootParameterInfos[6].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		rootParameterInfos[6].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Wood Roughness texture
-		rootParameterInfos[7].binding = 1;
-		rootParameterInfos[7].baseRegister = 1;
+		//Shadow map texture
+		rootParameterInfos[7].binding = 0;
+		rootParameterInfos[7].baseRegister = 0;
 		rootParameterInfos[7].registerSpace = 0;
 		rootParameterInfos[7].numDescriptors = 1;
 		rootParameterInfos[7].stages = STAGE_PIXEL;
 		rootParameterInfos[7].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[7].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Wood Normal texture
-		rootParameterInfos[8].binding = 2;
-		rootParameterInfos[8].baseRegister = 2;
+		//Shadow PL map texture
+		rootParameterInfos[8].binding = 1;
+		rootParameterInfos[8].baseRegister = 1;
 		rootParameterInfos[8].registerSpace = 0;
-		rootParameterInfos[8].numDescriptors = 1;
+		rootParameterInfos[8].numDescriptors = 6;
 		rootParameterInfos[8].stages = STAGE_PIXEL;
 		rootParameterInfos[8].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[8].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Shadow map texture
-		rootParameterInfos[9].binding = 3;
-		rootParameterInfos[9].baseRegister = 3;
+		//Sampler
+		rootParameterInfos[9].binding = 5;
+		rootParameterInfos[9].baseRegister = 0;
 		rootParameterInfos[9].registerSpace = 0;
 		rootParameterInfos[9].numDescriptors = 1;
 		rootParameterInfos[9].stages = STAGE_PIXEL;
-		rootParameterInfos[9].type = DESCRIPTOR_TYPE_TEXTURE;
+		rootParameterInfos[9].type = DESCRIPTOR_TYPE_SAMPLER;
 		rootParameterInfos[9].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
-		//Skybox texture
-		rootParameterInfos[10].binding = 4;
-		rootParameterInfos[10].baseRegister = 4;
-		rootParameterInfos[10].registerSpace = 0;
-		rootParameterInfos[10].numDescriptors = 1;
-		rootParameterInfos[10].stages = STAGE_PIXEL;
-		rootParameterInfos[10].type = DESCRIPTOR_TYPE_TEXTURE;
-		rootParameterInfos[10].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
-		//Sampler
-		rootParameterInfos[11].binding = 5;
-		rootParameterInfos[11].baseRegister = 0;
-		rootParameterInfos[11].registerSpace = 0;
-		rootParameterInfos[11].numDescriptors = 1;
-		rootParameterInfos[11].stages = STAGE_PIXEL;
-		rootParameterInfos[11].type = DESCRIPTOR_TYPE_SAMPLER;
-		rootParameterInfos[11].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
 		RootConstantsInfo rootConstantInfo{};
 		rootConstantInfo.numValues = 2;
-		rootConstantInfo.baseRegister = 6;
+		rootConstantInfo.baseRegister = 7;
 		rootConstantInfo.registerSpace = 0;
 		rootConstantInfo.stride = sizeof(RootConstants);
 		rootConstantInfo.stages = STAGE_VERTEX | STAGE_PIXEL;
 
 		RootSignatureInfo graphicsRootSignatureInfo{};
 		graphicsRootSignatureInfo.pRootParameterInfos = rootParameterInfos;
-		graphicsRootSignatureInfo.numRootParameterInfos = 12;
+		graphicsRootSignatureInfo.numRootParameterInfos = 10;
 		graphicsRootSignatureInfo.useRootConstants = true;
 		graphicsRootSignatureInfo.rootConstantsInfo = rootConstantInfo;
 		graphicsRootSignatureInfo.useInputLayout = true;
@@ -464,7 +387,7 @@ public:
 		graphicsPipelineInfo.rasInfo.lineWidth = 1.0f;
 		graphicsPipelineInfo.blendInfo.enableBlend = false;
 		graphicsPipelineInfo.pVertexShader = &gObjectVS;
-		graphicsPipelineInfo.pPixelShader = &gPhongPS;
+		graphicsPipelineInfo.pPixelShader = &gObjectPS;
 		graphicsPipelineInfo.numRenderTargets = 1;
 		graphicsPipelineInfo.renderTargetFormat[0] = gSwapChain.pRenderTargets[0].info.format;
 		graphicsPipelineInfo.depthInfo.depthTestEnable = true;
@@ -473,11 +396,7 @@ public:
 		graphicsPipelineInfo.depthFormat = gDepthBuffer.info.format;
 		graphicsPipelineInfo.pVertexInputInfo = &vertexInputInfo;
 		graphicsPipelineInfo.pRootSignature = &gGraphicsRootSignature;
-		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gPhongPipeline);
-
-		graphicsPipelineInfo.pVertexShader = &gObjectVS;
-		graphicsPipelineInfo.pPixelShader = &gPbrPS;
-		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gPbrPipeline);
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gObjectPipeline);
 
 		graphicsPipelineInfo.pVertexShader = &gLightSourceVS;
 		graphicsPipelineInfo.pPixelShader = &gLightSourcePS;
@@ -488,42 +407,23 @@ public:
 		graphicsPipelineInfo.numRenderTargets = 0;
 		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShadowMapPipeline);
 
-		graphicsPipelineInfo.rasInfo.cullMode = CULL_MODE_NONE;
-		graphicsPipelineInfo.pVertexShader = &gSkyboxVS;
-		graphicsPipelineInfo.pPixelShader = &gSkyboxPS;
-		graphicsPipelineInfo.numRenderTargets = 1;
-		graphicsPipelineInfo.depthInfo.depthFunction = DEPTH_FUNCTION_LESS_OR_EQUAL;
-		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gSkyboxPipeline);
-
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
 			CreateCommandBuffer(&gRenderer, QUEUE_TYPE_GRAPHICS, &gGraphicsCommandBuffers[i]);
 			CreateSemaphore(&gRenderer, &gImageAvailableSemaphores[i]);
 		}
 
-		gVertexOffsets[PLANE] = arrlenu(gVertices);
-		gIndexOffsets[PLANE] = arrlenu(gIndices);
-		CreateQuad(&gVertices, &gIndices, &gVertexCounts[PLANE], & gIndexCounts[PLANE]);
-
-		gVertexOffsets[BOX] = arrlenu(gVertices);
-		gIndexOffsets[BOX] = arrlenu(gIndices);
-		CreateBox(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[BOX]);
+		gVertexOffsets[WALL] = arrlenu(gVertices);
+		gIndexOffsets[WALL] = arrlenu(gIndices);
+		CreateQuad(&gVertices, &gIndices, &gVertexCounts[WALL], & gIndexCounts[WALL]);
 
 		gVertexOffsets[SPHERE] = arrlenu(gVertices);
 		gIndexOffsets[SPHERE] = arrlenu(gIndices);
-		CreateSphere(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[SPHERE]);
-
-		gVertexOffsets[HEMI_SPHERE] = arrlenu(gVertices);
-		gIndexOffsets[HEMI_SPHERE] = arrlenu(gIndices);
-		CreateHemiSphere(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[HEMI_SPHERE], true);
-
-		gVertexOffsets[TORUS] = arrlenu(gVertices);
-		gIndexOffsets[TORUS] = arrlenu(gIndices);
-		CreateTorus(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[TORUS], 2.0f, 1.0f);
+		CreateSphere(&gVertices, &gIndices, &gVertexCounts[SPHERE], &gIndexCounts[SPHERE]);
 
 		gVertexOffsets[CYLINDER] = arrlenu(gVertices);
 		gIndexOffsets[CYLINDER] = arrlenu(gIndices);
-		CreateCylinder(&gVertices, &gIndices, &gVertexCounts[PLANE], &gIndexCounts[CYLINDER], true, true);
+		CreateCylinder(&gVertices, &gIndices, &gVertexCounts[CYLINDER], &gIndexCounts[CYLINDER], true, true);
 
 		BufferInfo vbInfo{};
 		vbInfo.size = arrlen(gVertices) * sizeof(Vertex);
@@ -541,22 +441,32 @@ public:
 		ibInfo.initialState = RESOURCE_STATE_INDEX_BUFFER;
 		CreateBuffer(&gRenderer, &ibInfo, &gIndexBuffer);
 
-		for (uint32_t i = 0; i < gNumFrames; ++i)
+		for (uint32_t i = 0; i < gNumFrames * gNumObjects; ++i)
 		{
 			BufferInfo ubInfo{};
 			ubInfo.type = BUFFER_TYPE_UNIFORM;
 			ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
 			ubInfo.data = nullptr;
 
-			ubInfo.size = sizeof(ObjectData) * MAX_SHAPES;
-			CreateBuffer(&gRenderer, &ubInfo, &gShapesUniformBuffers[i]);
+			ubInfo.size = sizeof(ObjectData);
+			CreateBuffer(&gRenderer, &ubInfo, &gObjectUniformBuffers[i]);
+		}
 
+		BufferInfo ubInfo{};
+		ubInfo.type = BUFFER_TYPE_UNIFORM;
+		ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
+		ubInfo.data = nullptr;
+
+		for (uint32_t i = 0; i < gNumFrames * 6; ++i)
+		{
+			ubInfo.size = sizeof(LightSourceData);
+			CreateBuffer(&gRenderer, &ubInfo, &gLightSourcePLUniformBuffer[i]);
+		}
+
+		for (uint32_t i = 0; i < gNumFrames; ++i)
+		{
 			ubInfo.size = sizeof(CameraData);
 			CreateBuffer(&gRenderer, &ubInfo, &gCameraUniformBuffer[i]);
-			CreateBuffer(&gRenderer, &ubInfo, &gSkyboxCameraBuffer[i]);
-
-			ubInfo.size = sizeof(ObjectData);
-			CreateBuffer(&gRenderer, &ubInfo, &gSkyboxUniformBuffer[i]);
 
 			ubInfo.size = sizeof(PointLight);
 			CreateBuffer(&gRenderer, &ubInfo, &gPointLightUniformBuffer[i]);
@@ -571,35 +481,74 @@ public:
 			CreateBuffer(&gRenderer, &ubInfo, &gLightSourceUniformBuffer[i]);
 		}
 
-		TextureInfo texInfo{};
-		texInfo.filename = "Textures/woodColor.dds";
-		CreateTexture(&gRenderer, &texInfo, &gWoodColor);
+		//Right Wall
+		gMaterialData[0].albedo = vec4(0.0f, 0.0f, 0.5f, 1.0f);
+		gMaterialData[0].roughness = 1.0f;
+		gMaterialData[0].ao = 0.025f;
+		gMaterialData[0].metallic = 0.0f;
 
-		texInfo.filename = "Textures/woodRoughness.dds";
-		CreateTexture(&gRenderer, &texInfo, &gWoodRoughness);
+		//Left Wall
+		gMaterialData[1].albedo = vec4(0.5f, 0.0f, 0.0f, 1.0f);
+		gMaterialData[1].roughness = 1.0f;
+		gMaterialData[1].ao = 0.025f;
+		gMaterialData[1].metallic = 0.0f;
 
-		texInfo.filename = "Textures/woodNormal.dds";
-		CreateTexture(&gRenderer, &texInfo, &gWoodNormal);
+		//Top Wall
+		gMaterialData[2].albedo = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+		gMaterialData[2].roughness = 1.0f;
+		gMaterialData[2].ao = 0.025f;
+		gMaterialData[2].metallic = 0.0f;
 
-		texInfo.filename = "Textures/skybox.dds";
-		CreateTexture(&gRenderer, &texInfo, &gSkyboxTexture);
+		//Bottom Wall
+		gMaterialData[3].albedo = vec4(0.2f, 0.2f, 0.2f, 1.0f);
+		gMaterialData[3].roughness = 1.0f;
+		gMaterialData[3].ao = 0.025f;
+		gMaterialData[3].metallic = 0.0f;
+
+		//Back Wall
+		gMaterialData[4].albedo = vec4(0.2f, 0.2f, 0.2f, 1.0f);
+		gMaterialData[4].roughness = 1.0f;
+		gMaterialData[4].ao = 0.025f;
+		gMaterialData[4].metallic = 0.0f;
+
+		//Sphere
+		gMaterialData[5].albedo = vec4(0.5f, 0.5f, 0.0f, 0.0f);
+		gMaterialData[5].roughness = 1.0f;
+		gMaterialData[5].ao = 0.025f;
+		gMaterialData[5].metallic = 0.0f;
+
+		//Cylinder
+		gMaterialData[6].albedo = vec4(0.0f, 0.5f, 0.5f, 0.0f);
+		gMaterialData[6].roughness = 1.0f;
+		gMaterialData[6].ao = 0.025f;
+		gMaterialData[6].metallic = 0.0f;
+
+		ubInfo.usage = MEMORY_USAGE_GPU_ONLY;
+		ubInfo.size = sizeof(PBRMaterial) * gNumObjects;
+		ubInfo.data = gMaterialData;
+		CreateBuffer(&gRenderer, &ubInfo, &gMaterialBuffer);
 
 		SamplerInfo samplerInfo{};
 		samplerInfo.magFilter = FILTER_LINEAR;
 		samplerInfo.minFilter = FILTER_LINEAR;
-		samplerInfo.u = ADDRESS_MODE_CLAMP_TO_EDGE;
-		samplerInfo.v = ADDRESS_MODE_CLAMP_TO_EDGE;
-		samplerInfo.w = ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.u = ADDRESS_MODE_CLAMP_TO_BORDER;
+		samplerInfo.v = ADDRESS_MODE_CLAMP_TO_BORDER;
+		samplerInfo.w = ADDRESS_MODE_CLAMP_TO_BORDER;
 		samplerInfo.mipMapMode = MIPMAP_MODE_LINEAR;
+		samplerInfo.comparisonFunction = DEPTH_FUNCTION_LESS_OR_EQUAL;
 		samplerInfo.maxAnisotropy = 0.0f;
 		samplerInfo.mipLoadBias = 0.0f;
 		samplerInfo.minLod = 0.0f;
 		samplerInfo.maxLod = 0.0f;
+		samplerInfo.borderColor[0] = 1.0f;
+		samplerInfo.borderColor[1] = 1.0f;
+		samplerInfo.borderColor[2] = 1.0f;
+		samplerInfo.borderColor[3] = 1.0f;
 		CreateSampler(&gRenderer, &samplerInfo, &gSampler);
 
 		DescriptorSetInfo setInfo{};
 		setInfo.pRootSignature = &gGraphicsRootSignature;
-		setInfo.numSets = gNumFrames + 2;
+		setInfo.numSets = 28;
 		setInfo.updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 		CreateDescriptorSet(&gRenderer, &setInfo, &gDescriptorSetPerFrame);
 
@@ -608,81 +557,104 @@ public:
 		setInfo.updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 		CreateDescriptorSet(&gRenderer, &setInfo, &gDescriptorSetPerNone);
 
-		for (uint32_t i = 0; i < gNumFrames; ++i)
+		//Objects with Directional Shadow Map
+		for (uint32_t i = 0; i < gNumFrames * gNumObjects; ++i)
 		{
+			uint32_t index = i / gNumObjects;
+
 			UpdateDescriptorSetInfo updatePerFrame[6]{};
 			updatePerFrame[0].binding = 0;
 			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[i];
+			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[index];
 
 			updatePerFrame[1].binding = 1;
 			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[1].pBuffer = &gShapesUniformBuffers[i];
+			updatePerFrame[1].pBuffer = &gObjectUniformBuffers[i];
 
 			updatePerFrame[2].binding = 2;
 			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[2].pBuffer = &gLightSourceUniformBuffer[i];
+			updatePerFrame[2].pBuffer = &gLightSourceUniformBuffer[index];
 
 			updatePerFrame[3].binding = 3;
 			updatePerFrame[3].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[i];
+			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[index];
 
 			updatePerFrame[4].binding = 4;
 			updatePerFrame[4].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[i];
+			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[index];
 
 			updatePerFrame[5].binding = 5;
 			updatePerFrame[5].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[i];
+			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[index];
 
 			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 6, updatePerFrame);
+		}
 
+		//Objects with Point Light Shadow Map
+		for (uint32_t i = 0; i < gNumFrames * 6; ++i)
+		{
+			uint32_t index = i / 6;
+
+			UpdateDescriptorSetInfo updatePerFrame[6]{};
 			updatePerFrame[0].binding = 0;
 			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gSkyboxCameraBuffer[i];
+			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[index];
 
 			updatePerFrame[1].binding = 1;
 			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[1].pBuffer = &gSkyboxUniformBuffer[i];
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, gNumFrames + i, 6, updatePerFrame);
+			updatePerFrame[1].pBuffer = &gObjectUniformBuffers[index];
+
+			updatePerFrame[2].binding = 2;
+			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[2].pBuffer = &gLightSourcePLUniformBuffer[i];
+
+			updatePerFrame[3].binding = 3;
+			updatePerFrame[3].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[index];
+
+			updatePerFrame[4].binding = 4;
+			updatePerFrame[4].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[index];
+
+			updatePerFrame[5].binding = 5;
+			updatePerFrame[5].type = UPDATE_TYPE_UNIFORM_BUFFER;
+			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[index];
+
+			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + 16, 6, updatePerFrame);
 		}
 
-		UpdateDescriptorSetInfo updateImageSetInfo[6]{};
-		updateImageSetInfo[0].binding = 0;
-		updateImageSetInfo[0].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[0].pTexture = &gWoodColor;
+		UpdateDescriptorSetInfo updatePerNone[9]{};
+		updatePerNone[0].binding = 6;
+		updatePerNone[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
+		updatePerNone[0].pBuffer = &gMaterialBuffer;
 
-		updateImageSetInfo[1].binding = 1;
-		updateImageSetInfo[1].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[1].pTexture = &gWoodRoughness;
+		updatePerNone[1].binding = 0;
+		updatePerNone[1].type = UPDATE_TYPE_TEXTURE;
+		updatePerNone[1].pTexture = &gShadowMap.texture;
 
-		updateImageSetInfo[2].binding = 2;
-		updateImageSetInfo[2].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[2].pTexture = &gWoodNormal;
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			updatePerNone[i + 2].binding = i + 2;
+			updatePerNone[i + 2].type = UPDATE_TYPE_TEXTURE;
+			updatePerNone[i + 2].pTexture = &gShadowMapPL[i].texture;
+		}
 
-		updateImageSetInfo[3].binding = 3;
-		updateImageSetInfo[3].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[3].pTexture = &gShadowMap.texture;
-
-		updateImageSetInfo[4].binding = 4;
-		updateImageSetInfo[4].type = UPDATE_TYPE_TEXTURE;
-		updateImageSetInfo[4].pTexture = &gSkyboxTexture;
-
-		updateImageSetInfo[5].binding = 5;
-		updateImageSetInfo[5].type = UPDATE_TYPE_SAMPLER;
-		updateImageSetInfo[5].pSampler = &gSampler;
-		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 6, updateImageSetInfo);
+		updatePerNone[8].binding = 8;
+		updatePerNone[8].type = UPDATE_TYPE_SAMPLER;
+		updatePerNone[8].pSampler = &gSampler;
+		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 9, updatePerNone);
 	
-		LookAt(&gCamera, vec3(3.0f, 6.0f, -18.0f), vec3(3.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
+		LookAt(&gCamera, vec3(0.0f, -3.0f, -6.0f), vec3(0.0f, -3.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 		gCamera.vFov = 45.0f;
 		gCamera.nearP = 1.0f;
 		gCamera.farP = 100.0f;
 
-		LookAt(&gDLCamera, vec3(0.0f, 5.0f, -10.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
-		gDLCamera.width = 25.0f;
-		gDLCamera.height = 20.0f;
+		//LookAt(&gDLCamera, vec3(0.0f, -4.0f, -6.0f), vec3(0.0f, -4.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+		LookAt(&gDLCamera, vec3(0.0f, 4.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
+		gDLCamera.width = 15.0f;
+		gDLCamera.height = 15.0f;
 		gDLCamera.nearP = 1.0f;
-		gDLCamera.farP = 25.0f;
+		gDLCamera.farP = 15.0f;
 
 		for (uint32_t i = 0; i < 6; ++i)
 		{
@@ -691,7 +663,6 @@ public:
 			gPLCamera[i].farP = 100.0f;
 		}
 
-		
 		UIDesc uiInfo{};
 		uiInfo.pWindow = pWindow;
 		uiInfo.pQueue = &gGraphicsQueue;
@@ -707,15 +678,6 @@ public:
 		mcInfo.size = vec2(200.0f, 325.0f);
 		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE;
 		CreateMainComponent(&mcInfo, &gGuiWindow);
-
-		SubComponent shading{};
-		shading.type = SUB_COMPONENT_TYPE_DROPDOWN;
-		shading.dropDown.pLabel = "Shading";
-		shading.dropDown.pData = &gCurrentShading;
-		shading.dropDown.numNames = MAX_SHADING;
-		shading.dropDown.pNames = gShadingNames;
-		shading.dynamic = false;
-		AddSubComponent(&gGuiWindow, &shading);
 
 		SubComponent lightSource{};
 		lightSource.type = SUB_COMPONENT_TYPE_DROPDOWN;
@@ -736,6 +698,17 @@ public:
 		lightColor.sliderFloat3.format = "%.3f";
 		lightColor.dynamic = false;
 		AddSubComponent(&gGuiWindow, &lightColor);
+
+		SubComponent bias{};
+		bias.type = SUB_COMPONENT_TYPE_SLIDER_FLOAT;
+		bias.sliderFloat.pLabel = "Shadow Bias";
+		bias.sliderFloat.min = 0.0f;
+		bias.sliderFloat.max = 1.0f;
+		bias.sliderFloat.stepRate = 0.01f;
+		bias.sliderFloat.pData = &gShadowBias;
+		bias.sliderFloat.format = "%.3f";
+		bias.dynamic = false;
+		AddSubComponent(&gGuiWindow, &bias);
 
 		gInnerCutoffSc.type = SUB_COMPONENT_TYPE_SLIDER_FLOAT;
 		gInnerCutoffSc.sliderFloat.pLabel = "Inner Cutoff";
@@ -785,31 +758,34 @@ public:
 		DestroyUI(&gRenderer);
 		DestroyDescriptorSet(&gDescriptorSetPerNone);
 		DestroyDescriptorSet(&gDescriptorSetPerFrame);
-		DestroyDescriptorSet(&gDescriptorSetPerDraw);
 
 		DestroySampler(&gRenderer, &gSampler);
-		DestroyTexture(&gRenderer, &gWoodColor);
-		DestroyTexture(&gRenderer, &gWoodRoughness);
-		DestroyTexture(&gRenderer, &gWoodNormal);
-		DestroyTexture(&gRenderer, &gSkyboxTexture);
+
+		for (uint32_t i = 0; i < gNumFrames * gNumObjects; ++i)
+		{
+			DestroyBuffer(&gRenderer, &gObjectUniformBuffers[i]);
+		}
+
+		DestroyBuffer(&gRenderer, &gMaterialBuffer);
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
-			DestroyBuffer(&gRenderer, &gShapesUniformBuffers[i]);
 			DestroyBuffer(&gRenderer, &gCameraUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gLightSourceUniformBuffer[i]);
-			DestroyBuffer(&gRenderer, &gSkyboxCameraBuffer[i]);
-			DestroyBuffer(&gRenderer, &gSkyboxUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gPointLightUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gDirectionalLightUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gSpotlightUniformBuffer[i]);
+
 			DestroySemaphore(&gRenderer, &gImageAvailableSemaphores[i]);
 			DestroyCommandBuffer(&gRenderer, &gGraphicsCommandBuffers[i]);
 		}
 
-		DestroyPipeline(&gRenderer, &gSkyboxPipeline);
-		DestroyPipeline(&gRenderer, &gPbrPipeline);
-		DestroyPipeline(&gRenderer, &gPhongPipeline);
+		for (uint32_t i = 0; i < gNumFrames * 6; ++i)
+		{
+			DestroyBuffer(&gRenderer, &gLightSourcePLUniformBuffer[i]);
+		}
+
+		DestroyPipeline(&gRenderer, &gObjectPipeline);
 		DestroyPipeline(&gRenderer, &gShadowMapPipeline);
 		DestroyPipeline(&gRenderer, &gLightSourcePipeline);
 
@@ -818,14 +794,11 @@ public:
 		DestroyBuffer(&gRenderer, &gIndexBuffer);
 		DestroyBuffer(&gRenderer, &gVertexBuffer);
 
-		DestroyShader(&gRenderer, &gSkyboxVS);
 		DestroyShader(&gRenderer, &gObjectVS);
 		DestroyShader(&gRenderer, &gLightSourceVS);
 		DestroyShader(&gRenderer, &gShadowMapVS);
 
-		DestroyShader(&gRenderer, &gSkyboxPS);
-		DestroyShader(&gRenderer, &gPbrPS);
-		DestroyShader(&gRenderer, &gPhongPS);
+		DestroyShader(&gRenderer, &gObjectPS);
 		DestroyShader(&gRenderer, &gShadowMapPS);
 		DestroyShader(&gRenderer, &gLightSourcePS);
 
@@ -865,7 +838,7 @@ public:
 		if (CheckKeyDown('E'))
 			MoveDown(&gCamera, moveSpeed * deltaTime);
 		if (CheckKeyDown(VK_SPACE))
-			LookAt(&gCamera, vec3(3.0f, 6.0f, -18.0f), vec3(3.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
+			LookAt(&gCamera, vec3(0.0f, -3.0f, -6.0f), vec3(0.0f, -3.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 		if (CheckKeyDown('L'))
 			RotateCamera(&gCamera, quat::MakeRotation(turnSpeed2 * deltaTime, vec3(0.0f, 1.0f, 0.0f)));
 		if (CheckKeyDown('J'))
@@ -929,28 +902,56 @@ public:
 				gAngle = 0.0f;
 		}
 
-		mat4 model[MAX_SHAPES];
-		model[PLANE] = mat4::Scale(50.0f, 50.0f, 50.0f) * mat4::RotX(90.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
-		model[BOX] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(-10.0f, 0.5f, 0.0f);
-		model[SPHERE] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(-5.0f, 1.0f, 0.0f);
-		model[HEMI_SPHERE] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 1.0f, 0.0f);
-		model[TORUS] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(5.0f, 4.0f, 0.0f);
-		model[CYLINDER] = mat4::Scale(1.0f, 5.0f, 1.0f) * mat4::RotX(gAngle) * mat4::Translate(10.0f, 4.0f, 0.0f);
+		mat4 model[gNumObjects];
+		
+		//Right wall
+		gObjectData[0].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotY(90.0f) * mat4::Translate(5.0f, 0.0f, 0.0f);
+		gObjectData[0].objectInverseModel = Inverse(gObjectData[0].objectModel);
+		gObjectData[0].materialIndex = 0;
 
-		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
+		//Left wall
+		gObjectData[1].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotY(-90.0f) * mat4::Translate(-5.0f, 0.0f, 0.0f);
+		gObjectData[1].objectInverseModel = Inverse(gObjectData[1].objectModel);
+		gObjectData[1].materialIndex = 1;
+
+		//Top wall
+		gObjectData[2].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotX(-90.0f) * mat4::Translate(0.0f, 5.0f, 0.0f);
+		gObjectData[2].objectInverseModel = Inverse(gObjectData[2].objectModel);
+		gObjectData[2].materialIndex = 2;
+
+		//Bottom wall
+		gObjectData[3].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotX(90.0f) * mat4::Translate(0.0f, -5.0f, 0.0f);
+		gObjectData[3].objectInverseModel = Inverse(gObjectData[3].objectModel);
+		gObjectData[3].materialIndex = 3;
+
+		//Back wall
+		gObjectData[4].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 5.0f);
+		gObjectData[4].objectInverseModel = Inverse(gObjectData[4].objectModel);
+		gObjectData[4].materialIndex = 4;
+
+		//Sphere
+		gObjectData[5].objectModel = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(-3.0f, -4.0f, 0.0f);
+		gObjectData[5].objectInverseModel = Inverse(gObjectData[5].objectModel);
+		gObjectData[5].materialIndex = 5;
+
+		//Cylinder
+		gObjectData[6].objectModel = mat4::Scale(1.0f, 3.0f, 1.0f) * mat4::Translate(3.0f, -3.2f, 2.0f);
+		gObjectData[6].objectInverseModel = Inverse(gObjectData[6].objectModel);
+		gObjectData[6].materialIndex = 6;
+
+		for (uint32_t i = 0; i < gNumObjects; ++i)
 		{
-			gShapesData.objectModel[i] = Transpose(model[i]);
-			gShapesData.objectInverseModel[i] = Inverse(model[i]);
+			gObjectData[i].objectModel = Transpose(gObjectData[i].objectModel);
 		}
 
 		vec4 lightColor = vec4(gLightColor.GetX(), gLightColor.GetY(), gLightColor.GetZ(), 1.0f);
 
 		//Point light
-		gPointLight.position = vec4(0.0f, 0.0f, -1.5f, 1.0f);
+		gPointLight.position = vec4(0.0f, 2.0f, -1.5f, 1.0f);
 		gPointLight.color = lightColor;
 
 		//Directional light
-		gDirectionalLight.direction = vec4(0.0f, -5.0f, 10.0f, 0.0f);
+		gDirectionalLight.direction = vec4(0.0f, -1.0f, 0.0f, 0.0f);
 		gDirectionalLight.color = lightColor;
 
 		//Spotlight
@@ -975,39 +976,30 @@ public:
 
 			for (uint32_t i = 0; i < 6; ++i)
 			{
-				gLightSourceDataPL[i].lightSourceModel = mat4::Scale(0.1f, 0.1f, 0.1f) *
-					mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ());
+				gLightSourceDataPL[i].lightSourceModel = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
+					mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ()));
 
+				gPLCamera[i].aspectRatio = (float)GetWidth(pWindow) / GetHeight(pWindow);
 				UpdateViewMatrix(&gPLCamera[i]);
 				UpdatePerspectiveProjectionMatrix(&gPLCamera[i]);
 
 				gLightSourceDataPL[i].lightSourceView = Transpose(gPLCamera[i].viewMat);
 				gLightSourceDataPL[i].lightSourceProjection = Transpose(gPLCamera[i].perspectiveProjMat);
 			}
-
 		}
 		else if (gCurrentLightSource == DIRECTIONAL_LIGHT)
 		{
-			gLightSourceData.lightSourceModel = mat4::Scale(0.1f, 0.1f, 0.1f) *
-				mat4::Translate(gDLCamera.position.GetX(), gDLCamera.position.GetY(), gDLCamera.position.GetZ());
+			gLightSourceData.lightSourceModel = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
+				mat4::Translate(gDLCamera.position.GetX(), gDLCamera.position.GetY(), gDLCamera.position.GetZ()));
 		}
 		else //SPOTLIGHT
 		{
-			gLightSourceData.lightSourceModel = mat4::Scale(0.1f, 0.1f, 0.1f) *
-				mat4::Translate(gSpotlight.position.GetX(), gSpotlight.position.GetY(), gSpotlight.position.GetZ());
+			gLightSourceData.lightSourceModel = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
+				mat4::Translate(gSpotlight.position.GetX(), gSpotlight.position.GetY(), gSpotlight.position.GetZ()));
 		}
 
 		gLightSourceData.lightSourceView = Transpose(gDLCamera.viewMat);
 		gLightSourceData.lightSourceProjection = Transpose(gDLCamera.orthographicProjMat);
-
-		model[0] = mat4::Scale(1000.0f, 1000.0f, 1000.0f);
-		gSkyBoxData.objectModel[0] = Transpose(model[0]);
-
-		mat4 viewMat = gCamera.viewMat;
-		viewMat.SetRow(3, 0.0f, 0.0f, 0.0f, 1.0f);
-		gSkyboxCameraData.cameraView = Transpose(viewMat);
-		gSkyboxCameraData.cameraProjection = Transpose(gCamera.perspectiveProjMat);
-		gSkyboxCameraData.cameraPos = vec4(gCamera.position.GetX(), gCamera.position.GetY(), gCamera.position.GetZ(), 1.0f);
 
 		gConstants.currentLightSource = gCurrentLightSource;
 
@@ -1021,6 +1013,8 @@ public:
 			gInnerCutoffSc.show = false;
 			gOuterCutoffSc.show = false;
 		}
+
+		gConstants.shadowBias = gShadowBias;
 	}
 
 	void Draw() override
@@ -1046,21 +1040,23 @@ public:
 		memcpy(data, &gSpotlight, sizeof(Spotlight));
 		UnmapMemory(&gRenderer, &gSpotlightUniformBuffer[gCurrentFrame]);
 
-		MapMemory(&gRenderer, &gSkyboxUniformBuffer[gCurrentFrame], &data);
-		memcpy(data, &gSkyBoxData, sizeof(ObjectData));
-		UnmapMemory(&gRenderer, &gSkyboxUniformBuffer[gCurrentFrame]);
-
-		MapMemory(&gRenderer, &gSkyboxCameraBuffer[gCurrentFrame], &data);
-		memcpy(data, &gSkyboxCameraData, sizeof(CameraData));
-		UnmapMemory(&gRenderer, &gSkyboxCameraBuffer[gCurrentFrame]);
-
-		MapMemory(&gRenderer, &gShapesUniformBuffers[gCurrentFrame], &data);
-		memcpy(data, &gShapesData, sizeof(ObjectData));
-		UnmapMemory(&gRenderer, &gShapesUniformBuffers[gCurrentFrame]);
-
 		MapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame], &data);
 		memcpy(data, &gLightSourceData, sizeof(LightSourceData));
 		UnmapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame]);
+
+		for (uint32_t i = 0; i < gNumObjects; ++i)
+		{
+			MapMemory(&gRenderer, &gObjectUniformBuffers[gCurrentFrame * gNumObjects + i], &data);
+			memcpy(data, &gObjectData[i], sizeof(ObjectData));
+			UnmapMemory(&gRenderer, &gObjectUniformBuffers[gCurrentFrame * gNumObjects + i]);
+		}
+
+		for (uint32_t i = 0; i < 6; ++i)
+		{
+			MapMemory(&gRenderer, &gLightSourcePLUniformBuffer[gCurrentFrame * 6 + i], &data);
+			memcpy(data, &gLightSourceDataPL[i], sizeof(LightSourceData));
+			UnmapMemory(&gRenderer, &gLightSourcePLUniformBuffer[gCurrentFrame * 6 + i]);
+		}
 
 		uint32_t imageIndex = 0;
 		AcquireNextImage(&gRenderer, &gSwapChain, &gImageAvailableSemaphores[gCurrentFrame], &imageIndex);
@@ -1074,167 +1070,193 @@ public:
 		BindVertexBuffer(pCommandBuffer, sizeof(Vertex), 0, 0, &gVertexBuffer);
 		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
-		//Draw to shadow map
-		BarrierInfo barrierInfo[8]{};
-		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo[0].pRenderTarget = &gShadowMap;
-		barrierInfo[0].currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
-		barrierInfo[0].newState = RESOURCE_STATE_DEPTH_WRITE;
-
-		for (uint32_t i = 0; i < 6; ++i)
+		//DL Shadow Map
 		{
-			barrierInfo[i + 1].type = BARRIER_TYPE_RENDER_TARGET;
-			barrierInfo[i + 1].pRenderTarget = &gShadowMapPL[i];
-			barrierInfo[i + 1].currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
-			barrierInfo[i + 1].newState = RESOURCE_STATE_DEPTH_WRITE;
-		}
-		ResourceBarrier(pCommandBuffer, 7, barrierInfo);
+			BarrierInfo barrierInfo[1]{};
+			barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+			barrierInfo[0].pRenderTarget = &gShadowMap;
+			barrierInfo[0].currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+			barrierInfo[0].newState = RESOURCE_STATE_DEPTH_WRITE;
+			ResourceBarrier(pCommandBuffer, 1, barrierInfo);
 
-		ViewportInfo viewportInfo{};
-		viewportInfo.x = 0.0f;
-		viewportInfo.y = 0.0f;
-		viewportInfo.width = gShadowWidth;
-		viewportInfo.height = gShadowHeight;
-		viewportInfo.minDepth = 0.0f;
-		viewportInfo.maxDepth = 1.0f;
-		SetViewport(pCommandBuffer, &viewportInfo);
+			ViewportInfo viewportInfo{};
+			viewportInfo.x = 0.0f;
+			viewportInfo.y = 0.0f;
+			viewportInfo.width = gShadowWidth;
+			viewportInfo.height = gShadowHeight;
+			viewportInfo.minDepth = 0.0f;
+			viewportInfo.maxDepth = 1.0f;
+			SetViewport(pCommandBuffer, &viewportInfo);
 
-		ScissorInfo scissorInfo{};
-		scissorInfo.x = 0.0f;
-		scissorInfo.y = 0.0f;
-		scissorInfo.width = gShadowWidth;
-		scissorInfo.height = gShadowHeight;
-		SetScissor(pCommandBuffer, &scissorInfo);
+			ScissorInfo scissorInfo{};
+			scissorInfo.x = 0.0f;
+			scissorInfo.y = 0.0f;
+			scissorInfo.width = gShadowWidth;
+			scissorInfo.height = gShadowHeight;
+			SetScissor(pCommandBuffer, &scissorInfo);
 
-		//SHAPES
-		BindPipeline(pCommandBuffer, &gShadowMapPipeline);
-		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 2, &gDescriptorSetPerDraw);
-
-		BindRenderTargetInfo renderTargetInfo{};
-		renderTargetInfo.pRenderTarget = nullptr;
-		renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
-		renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
-		renderTargetInfo.pDepthTarget = &gShadowMap;
-		renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
-		renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
-		BindRenderTarget(pCommandBuffer, &renderTargetInfo);
-
-		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
-		{
-			gConstants.shape = i;
-			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
-			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
-		}
-
-		//Point light shadow maps
-		for (uint32_t i = 0; i < 6; ++i)
-		{
 			BindRenderTargetInfo renderTargetInfo{};
 			renderTargetInfo.pRenderTarget = nullptr;
 			renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
 			renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
-			renderTargetInfo.pDepthTarget = &gShadowMapPL[i];
+			renderTargetInfo.pDepthTarget = &gShadowMap;
 			renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
 			renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
 			BindRenderTarget(pCommandBuffer, &renderTargetInfo);
 
-			for (uint32_t j = 0; j < MAX_SHAPES; ++j)
+			BindPipeline(pCommandBuffer, &gShadowMapPipeline);
+			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
+
+			/*for (uint32_t i = 0; i < 5; ++i)
 			{
-				gConstants.shape = j;
-				BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
-				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[j], 1, gIndexOffsets[j], gVertexOffsets[j], 0);
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + i, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[WALL], 1, gIndexOffsets[WALL], gVertexOffsets[WALL], 0);
+			}*/
+
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 5, 1, &gDescriptorSetPerFrame);
+			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
+
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 6, 1, &gDescriptorSetPerFrame);
+			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CYLINDER], 1, gIndexOffsets[CYLINDER], gVertexOffsets[CYLINDER], 0);
+
+			BindRenderTarget(pCommandBuffer, nullptr);
+
+			barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+			barrierInfo[0].pRenderTarget = &gShadowMap;
+			barrierInfo[0].currentState = RESOURCE_STATE_DEPTH_WRITE;
+			barrierInfo[0].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+			ResourceBarrier(pCommandBuffer, 1, barrierInfo);
+
+		}
+
+		//Point light shadow maps
+		/**{
+			BarrierInfo barrierInfo[6]{};
+			for (uint32_t i = 0; i < 6; ++i)
+			{
+				barrierInfo[i].type = BARRIER_TYPE_RENDER_TARGET;
+				barrierInfo[i].pRenderTarget = &gShadowMapPL[i];
+				barrierInfo[i].currentState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+				barrierInfo[i].newState = RESOURCE_STATE_DEPTH_WRITE;
 			}
-		}
+			ResourceBarrier(pCommandBuffer, 6, barrierInfo);
 
-		BindRenderTarget(pCommandBuffer, nullptr);
+			ViewportInfo viewportInfo{};
+			viewportInfo.x = 0.0f;
+			viewportInfo.y = 0.0f;
+			viewportInfo.width = gShadowWidth;
+			viewportInfo.height = gShadowHeight;
+			viewportInfo.minDepth = 0.0f;
+			viewportInfo.maxDepth = 1.0f;
+			SetViewport(pCommandBuffer, &viewportInfo);
 
-		//Draw to render target with shadow map
-		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo[0].pRenderTarget = &gShadowMap;
-		barrierInfo[0].currentState = RESOURCE_STATE_DEPTH_WRITE;
-		barrierInfo[0].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+			ScissorInfo scissorInfo{};
+			scissorInfo.x = 0.0f;
+			scissorInfo.y = 0.0f;
+			scissorInfo.width = gShadowWidth;
+			scissorInfo.height = gShadowHeight;
+			SetScissor(pCommandBuffer, &scissorInfo);
 
-		for (uint32_t i = 0; i < 6; ++i)
-		{
-			barrierInfo[i + 1].type = BARRIER_TYPE_RENDER_TARGET;
-			barrierInfo[i + 1].pRenderTarget = &gShadowMapPL[i];
-			barrierInfo[i + 1].currentState = RESOURCE_STATE_DEPTH_WRITE;
-			barrierInfo[i + 1].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
-		}
+			for (uint32_t i = 0; i < 6; ++i)
+			{
+				BindRenderTargetInfo renderTargetInfo{};
+				renderTargetInfo.pRenderTarget = nullptr;
+				renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
+				renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
+				renderTargetInfo.pDepthTarget = &gShadowMapPL[i];
+				renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
+				renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
+				BindRenderTarget(pCommandBuffer, &renderTargetInfo);
 
-		barrierInfo[7].type = BARRIER_TYPE_RENDER_TARGET;
-		barrierInfo[7].pRenderTarget = pRenderTarget;
-		barrierInfo[7].currentState = RESOURCE_STATE_PRESENT;
-		barrierInfo[7].newState = RESOURCE_STATE_RENDER_TARGET;
+				BindPipeline(pCommandBuffer, &gShadowMapPipeline);
+				BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * 8, 1, &gDescriptorSetPerFrame);
 
-		ResourceBarrier(pCommandBuffer, 8, barrierInfo);
+				BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
+				for (uint32_t j = 0; j < gNumObjects; ++j)
+				{
+					DrawIndexedInstanced(pCommandBuffer, gIndexCounts[j], 1, gIndexOffsets[j], gVertexOffsets[j], 0);
+				}
 
-		renderTargetInfo.pRenderTarget = pRenderTarget;
-		renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
-		renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
-		renderTargetInfo.pDepthTarget = &gDepthBuffer;
-		renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
-		renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
-		BindRenderTarget(pCommandBuffer, &renderTargetInfo);
+				BindRenderTarget(pCommandBuffer, nullptr);
 
-		viewportInfo.x = 0.0f;
-		viewportInfo.y = 0.0f;
-		viewportInfo.width = pRenderTarget->info.width;
-		viewportInfo.height = pRenderTarget->info.height;
-		viewportInfo.minDepth = 0.0f;
-		viewportInfo.maxDepth = 1.0f;
-		SetViewport(pCommandBuffer, &viewportInfo);
-
-		scissorInfo.x = 0.0f;
-		scissorInfo.y = 0.0f;
-		scissorInfo.width = pRenderTarget->info.width;
-		scissorInfo.height = pRenderTarget->info.height;
-		SetScissor(pCommandBuffer, &scissorInfo);
+				for (uint32_t i = 0; i < 6; ++i)
+				{
+					barrierInfo[i].type = BARRIER_TYPE_RENDER_TARGET;
+					barrierInfo[i].pRenderTarget = &gShadowMapPL[i];
+					barrierInfo[i].currentState = RESOURCE_STATE_DEPTH_WRITE;
+					barrierInfo[i].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+				}
+				ResourceBarrier(pCommandBuffer, 6, barrierInfo);
+			}
+		}*/
 
 		//Draw Objects
-		switch (gCurrentShading)
 		{
-		case PHONG:
-			BindPipeline(pCommandBuffer, &gPhongPipeline);
-			break;
+			BarrierInfo barrierInfo[1];
+			barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+			barrierInfo[0].pRenderTarget = pRenderTarget;
+			barrierInfo[0].currentState = RESOURCE_STATE_PRESENT;
+			barrierInfo[0].newState = RESOURCE_STATE_RENDER_TARGET;
 
-		case PBR:
-			BindPipeline(pCommandBuffer, &gPbrPipeline);
-			break;
-		}
+			ResourceBarrier(pCommandBuffer, 1, barrierInfo);
 
-		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 2, &gDescriptorSetPerDraw);
+			BindRenderTargetInfo renderTargetInfo{};
+			renderTargetInfo.pRenderTarget = pRenderTarget;
+			renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
+			renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
+			renderTargetInfo.pDepthTarget = &gDepthBuffer;
+			renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
+			renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
+			BindRenderTarget(pCommandBuffer, &renderTargetInfo);
 
-		for (uint32_t i = 0; i < MAX_SHAPES; ++i)
-		{
-			gConstants.shape = i;
+			ViewportInfo viewportInfo{};
+			viewportInfo.x = 0.0f;
+			viewportInfo.y = 0.0f;
+			viewportInfo.width = pRenderTarget->info.width;
+			viewportInfo.height = pRenderTarget->info.height;
+			viewportInfo.minDepth = 0.0f;
+			viewportInfo.maxDepth = 1.0f;
+			SetViewport(pCommandBuffer, &viewportInfo);
+
+			ScissorInfo scissorInfo{};
+			scissorInfo.x = 0.0f;
+			scissorInfo.y = 0.0f;
+			scissorInfo.width = pRenderTarget->info.width;
+			scissorInfo.height = pRenderTarget->info.height;
+			SetScissor(pCommandBuffer, &scissorInfo);
+
+			BindPipeline(pCommandBuffer, &gObjectPipeline);
+			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
 			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
-			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
-		}
 
-		if (gShowLightSources)
-		{
-			//Draw Light Source
-			BindPipeline(pCommandBuffer, &gLightSourcePipeline);
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+			for (uint32_t i = 0; i < 5; ++i)
+			{
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + i, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[WALL], 1, gIndexOffsets[WALL], gVertexOffsets[WALL], 0);
+			}
+
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 5, 1, &gDescriptorSetPerFrame);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
-		}
 
-		//Draw Skybox
-		BindPipeline(pCommandBuffer, &gSkyboxPipeline);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame + 2, 1, &gDescriptorSetPerFrame);
-		gConstants.shape = 0;
-		BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
-		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1, gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 6, 1, &gDescriptorSetPerFrame);
+			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CYLINDER], 1, gIndexOffsets[CYLINDER], gVertexOffsets[CYLINDER], 0);
+
+			if (gShowLightSources)
+			{
+				//Draw Light Source
+				BindPipeline(pCommandBuffer, &gLightSourcePipeline);
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame * 8, 1, &gDescriptorSetPerFrame);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
+			}
+		}
 
 		RenderUI(pCommandBuffer);
 
 		BindRenderTarget(pCommandBuffer, nullptr);
 
+		BarrierInfo barrierInfo[1];
 		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
 		barrierInfo[0].pRenderTarget = pRenderTarget;
 		barrierInfo[0].currentState = RESOURCE_STATE_RENDER_TARGET;
@@ -1273,7 +1295,7 @@ public:
 
 int main()
 {
-	Lightning lightning;
-	lightning.appName = "Lightning";
-	return WindowsMain(&lightning);
+	Shadows shadows;
+	shadows.appName = "Shadows";
+	return WindowsMain(&shadows);
 };
