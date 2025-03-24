@@ -6,7 +6,7 @@ layout(row_major, set = 1, binding = 0) uniform PerFrameUniformBuffer
 
 layout(row_major, set = 1, binding = 1) uniform PerObjectUniformBuffer
 {
-    mat4 model;
+    mat4 model[2];
 } perObjectBuffer;
 
 layout(set = 0, binding = 0) uniform texture2D gTexture2D;

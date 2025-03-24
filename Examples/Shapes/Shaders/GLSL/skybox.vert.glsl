@@ -11,7 +11,7 @@ layout(location = 1) out vec3 outTexCoords;
 
 void main() 
 {
-    vec4 posH = perFrameBuffer.projection * perFrameBuffer.view * perObjectBuffer.model * inputPosition;
+    vec4 posH = perFrameBuffer.projection * perFrameBuffer.view * perObjectBuffer.model[1] * inputPosition;
     gl_Position = posH.xyww; //make z = w so that when perspective divide happens z/w = 1 which makes the skybox always on the far plane.
     gl_Position.y = -gl_Position.y;
     outNormal = inputNormal;

@@ -534,15 +534,11 @@ struct RenderTarget
 	Texture texture;
 	struct
 	{
-		//VkImage image;
 		VkImageView imageView;
-		//VmaAllocation allocation;
 	}vk;
 
 	struct
 	{
-		//ID3D12Resource* resource;
-		//D3D12MA::Allocation* allocation;
 		uint32_t descriptorId;
 	}dx;
 

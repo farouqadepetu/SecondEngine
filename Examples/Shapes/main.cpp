@@ -82,9 +82,31 @@ enum
 	MAX_SHAPES
 };
 
+const char* gShapeNames[] =
+{
+	"EQUILATERAL_TRIANGLE",
+	"RIGHT_TRIANGLE",
+	"QUAD",
+	"CIRCLE",
+	"BOX",
+	"SQUARE_PYRAMID",
+	"TRIANGULAR_PYRAMID",
+	"SPHERE",
+	"HEMI_SPHERE",
+	"HEMI_SPHERE_BASE",
+	"CYLINDER",
+	"CYLINDER_TOP_BASE",
+	"CYLINDER_BOTTOM_BASE",
+	"CYLINDER_BASE",
+	"CONE",
+	"CONE_BASE",
+	"TORUS"
+};
+uint32_t gCurrentShape = 0;
+
 struct PerObjectUniformData
 {
-	mat4 model[MAX_SHAPES + 1];
+	mat4 model[2];
 };
 
 PerObjectUniformData gShapesUniformData;
@@ -98,16 +120,10 @@ uint32_t gVertexOffsets[MAX_SHAPES];
 uint32_t gIndexOffsets[MAX_SHAPES];
 uint32_t gIndexCounts[MAX_SHAPES];
 
-mat4 gCubeRotation;
-float gAngle = 0.0f;
+MainComponent gFillWindow;
+MainComponent gShapeWindow;
 
-MainComponent gGuiWindow;
 int32_t gFillMode;
-
-struct RootConstants
-{
-	uint32_t index;
-}gConstants;
 
 class Shapes : public App
 {
@@ -243,18 +259,10 @@ public:
 		rootParameterInfos[4].type = DESCRIPTOR_TYPE_SAMPLER;
 		rootParameterInfos[4].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		RootConstantsInfo rootConstantInfo{};
-		rootConstantInfo.numValues = 1;
-		rootConstantInfo.baseRegister = 2;
-		rootConstantInfo.registerSpace = 0;
-		rootConstantInfo.stride = sizeof(RootConstants);
-		rootConstantInfo.stages = STAGE_VERTEX | STAGE_PIXEL;
-
 		RootSignatureInfo graphicsRootSignatureInfo{};
 		graphicsRootSignatureInfo.pRootParameterInfos = rootParameterInfos;
 		graphicsRootSignatureInfo.numRootParameterInfos = 5;
-		graphicsRootSignatureInfo.useRootConstants = true;
-		graphicsRootSignatureInfo.rootConstantsInfo = rootConstantInfo;
+		graphicsRootSignatureInfo.useRootConstants = false;
 		graphicsRootSignatureInfo.useInputLayout = true;
 		CreateRootSignature(&gRenderer, &graphicsRootSignatureInfo, &gGraphicsRootSignature);
 
@@ -467,7 +475,7 @@ public:
 		updateImageSetInfo[1].pTexture = &gSkyboxTexture;
 		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 1, 3, updateImageSetInfo);
 
-		LookAt(&gCamera, vec3(4.0f, 0.0f, -12.5f), vec3(4.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+		LookAt(&gCamera, vec3(0.0f, 0.0f, -6.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
 
 		gCamera.vFov = 45.0f;
 		gCamera.nearP = 1.0f;
@@ -487,29 +495,43 @@ public:
 		mcInfo.position = vec2(GetWidth(pWindow) - 125.0f, 100.0f);
 		mcInfo.size = vec2(125.0f, 90.0f);
 		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
-		CreateMainComponent(&mcInfo, &gGuiWindow);
+		CreateMainComponent(&mcInfo, &gFillWindow);
+
+		mcInfo.pLabel = "##";
+		mcInfo.position = vec2(GetWidth(pWindow) - 300.0f, 200.0f);
+		mcInfo.size = vec2(300.0f, 90.0f);
+		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS;
+		CreateMainComponent(&mcInfo, &gShapeWindow);
 
 		SubComponent radio0{};
 		radio0.type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
 		radio0.radio.pLabel = "SOLID";
 		radio0.radio.id = 0;
 		radio0.radio.pData = &gFillMode;
-		AddSubComponent(&gGuiWindow, &radio0);
+		AddSubComponent(&gFillWindow, &radio0);
 
 		SubComponent radio1{};
 		radio1.type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
 		radio1.radio.pLabel = "WIREFRAME";
 		radio1.radio.id = 1;
 		radio1.radio.pData = &gFillMode;
-		AddSubComponent(&gGuiWindow, &radio1);
+		AddSubComponent(&gFillWindow, &radio1);
 
+		SubComponent shapes{};
+		shapes.type = SUB_COMPONENT_TYPE_DROPDOWN;
+		shapes.dropDown.pLabel = "SHAPES";
+		shapes.dropDown.numNames = MAX_SHAPES;
+		shapes.dropDown.pData = &gCurrentShape;
+		shapes.dropDown.pNames = gShapeNames;
+		AddSubComponent(&gShapeWindow, &shapes);
 	}
 
 	void Exit() override
 	{
 		WaitQueueIdle(&gRenderer, &gGraphicsQueue);
 
-		DestroyMainComponent(&gGuiWindow);
+		DestroyMainComponent(&gFillWindow);
+		DestroyMainComponent(&gShapeWindow);
 		DestroyShape(&gVertices, &gIndices);
 		
 		DestroyUI(&gRenderer);
@@ -578,7 +600,7 @@ public:
 		if (CheckKeyDown('E'))
 			MoveDown(&gCamera, moveSpeed * deltaTime);
 		if (CheckKeyDown(VK_SPACE))
-			LookAt(&gCamera, vec3(4.0f, 0.0f, -12.5f), vec3(4.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
+			LookAt(&gCamera, vec3(0.0f, 0.0f, -6.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
 		if (CheckKeyDown('L'))
 			RotateCamera(&gCamera, quat::MakeRotation(turnSpeed2 * deltaTime, vec3(0.0f, 1.0f, 0.0f)));
 		if (CheckKeyDown('J'))
@@ -599,7 +621,6 @@ public:
 		}
 
 		lastMousePosition = currentMousePosition;
-
 	}
 
 	void Resize() override
@@ -629,62 +650,14 @@ public:
 		UpdateViewMatrix(&gCamera);
 		UpdatePerspectiveProjectionMatrix(&gCamera);
 
-		mat4 model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 6.0f, 0.0f);
-		gShapesUniformData.model[EQUILATERAL_TRIANGLE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 6.0f, 0.0f);
-		gShapesUniformData.model[RIGHT_TRIANGLE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(4.0f, 6.0f, 0.0f);
-		gShapesUniformData.model[QUAD] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 6.0f, 0.0f);
-		gShapesUniformData.model[CIRCLE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 4.0f, 0.0f);
-		gShapesUniformData.model[BOX] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(2.0f, 4.0f, 0.0f);
-		gShapesUniformData.model[SQUARE_PYRAMID] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(4.0f, 4.0f, 0.0f);
-		gShapesUniformData.model[TRIANGULAR_PYRAMID] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 2.0f, 0.0f);
-		gShapesUniformData.model[SPHERE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, 2.0f, 0.0f);
-		gShapesUniformData.model[HEMI_SPHERE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 2.0f, 0.0f);
-		gShapesUniformData.model[HEMI_SPHERE_BASE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
-		gShapesUniformData.model[CYLINDER] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, 0.0f, 0.0f);
-		gShapesUniformData.model[CYLINDER_TOP_BASE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(6.0f, 0.0f, 0.0f);
-		gShapesUniformData.model[CYLINDER_BOTTOM_BASE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(9.0f, 0.0f, 0.0f);
-		gShapesUniformData.model[CYLINDER_BASE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, -2.0f, 0.0f);
-		gShapesUniformData.model[CONE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(3.0f, -2.0f, 0.0f);
-		gShapesUniformData.model[CONE_BASE] = Transpose(model);
-
-		model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(5.0f, -4.0f, 0.0f);
-		gShapesUniformData.model[TORUS] = Transpose(model);
-
 		gPerFrameUniformData.view = Transpose(gCamera.viewMat);
 		gPerFrameUniformData.projection = Transpose(gCamera.perspectiveProjMat);
 
+		mat4 model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 0.0f);
+		gShapesUniformData.model[0] = Transpose(model);
+
 		model = mat4::Scale(1000.0f, 1000.0f, 1000.0f);
-		gShapesUniformData.model[MAX_SHAPES] = Transpose(model);
+		gShapesUniformData.model[1] = Transpose(model);
 
 		mat4 viewMat = gCamera.viewMat;
 		viewMat.SetRow(3, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -758,45 +731,28 @@ public:
 		//Draw Shapes
 		if (gFillMode == FILL_MODE_SOLID)
 		{
-			BindPipeline(pCommandBuffer, &gShapes2DPipeline);
-			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-
-			for (uint32_t i = 0; i < 4; ++i)
+			if (gCurrentShape < 4)
 			{
-				gConstants.index = i;
-				BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
-				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+				BindPipeline(pCommandBuffer, &gShapes2DPipeline);
 			}
-
-			BindPipeline(pCommandBuffer, &gShapes3DPipeline);
-			for (uint32_t i = 4; i < MAX_SHAPES; ++i)
+			else
 			{
-				gConstants.index = i;
-				BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
-				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
+				BindPipeline(pCommandBuffer, &gShapes3DPipeline);
 			}
 		}
 		else //gFillMode == FILL_MODE_WIREFRAME
 		{
 			BindPipeline(pCommandBuffer, &gShapesWirePipeline);
-			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-
-			for (uint32_t i = 0; i < MAX_SHAPES; ++i)
-			{
-				gConstants.index = i;
-				BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
-				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[i], 1, gIndexOffsets[i], gVertexOffsets[i], 0);
-			}
 		}
+
+		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[gCurrentShape], 1, gIndexOffsets[gCurrentShape], gVertexOffsets[gCurrentShape], 0);
 
 		//Draw Skybox
 		BindPipeline(pCommandBuffer, &gSkyboxPipeline);
 		BindDescriptorSet(pCommandBuffer, 1, 0, &gDescriptorSetPerNone);
-		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-		gConstants.index = MAX_SHAPES;
-		BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
+		BindDescriptorSet(pCommandBuffer, gCurrentFrame + 2, 1, &gDescriptorSetPerFrame);
 		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[BOX], 1, gIndexOffsets[BOX], gVertexOffsets[BOX], 0);
 
 		RenderUI(pCommandBuffer);

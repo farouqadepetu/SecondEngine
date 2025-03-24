@@ -12,7 +12,7 @@ layout(location = 2) out vec3 outTexCoords3D;
 
 void main() 
 {
-    gl_Position = perFrameBuffer.projection * perFrameBuffer.view * perObjectBuffer.model * inputPosition;
+    gl_Position = perFrameBuffer.projection * perFrameBuffer.view * perObjectBuffer.model[0] * inputPosition;
     gl_Position.y = -gl_Position.y;
     outNormal = inputNormal;
     outTexCoords = inputTexCoords;

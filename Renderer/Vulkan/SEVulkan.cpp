@@ -14,7 +14,7 @@
 	if (result != VK_SUCCESS)																								\
 	{																														\
 		char errMsg[2048]{};																								\
-		snprintf(errMsg, 2048, "%s\nFailed in %s\nLine %d\nError = %s", #x, __FILE__, __LINE__, string_VkResult(result));		\
+		snprintf(errMsg, 2048, "%s\nFailed in %s\nLine %d\nError = %s", #x, __FILE__, __LINE__, string_VkResult(result));	\
 		MessageBoxA(nullptr, errMsg, "Vulkan Function Failed", MB_OK);														\
 		exit(2);																											\
 	}																														\
@@ -547,7 +547,6 @@ void VulkanResourceBarrier(const CommandBuffer* const pCommandBuffer, const uint
 				imageBarrier[imageBarrierCount].oldLayout = VulkanResourceStateToImageLayout(pBarrierInfos[i].currentState);
 				imageBarrier[imageBarrierCount].newLayout = VulkanResourceStateToImageLayout(pBarrierInfos[i].newState);
 			}
-
 			imageBarrier[imageBarrierCount].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 			imageBarrier[imageBarrierCount].pNext = nullptr;
 			imageBarrier[imageBarrierCount].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -634,40 +633,6 @@ void VulkanCreateRenderTarget(const Renderer* const pRenderer, const RenderTarge
 {
 	bool isDepth = TinyImageFormat_IsDepthOnly(pInfo->format) || TinyImageFormat_IsDepthAndStencil(pInfo->format);
 
-	/*VkImageCreateInfo createImageInfo{};
-	createImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	createImageInfo.pNext = nullptr;
-	createImageInfo.flags = 0;
-	createImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	createImageInfo.format = (VkFormat)TinyImageFormat_ToVkFormat(pInfo->format);
-	createImageInfo.extent.width = pInfo->width;
-	createImageInfo.extent.height = pInfo->height;
-	createImageInfo.extent.depth = 1;
-	createImageInfo.mipLevels = 1;
-	createImageInfo.arrayLayers = 1;
-	createImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	createImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	createImageInfo.usage = (isDepth) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	
-	if (pInfo->type & TEXTURE_TYPE_TEXTURE)
-		createImageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-	if (pInfo->type & TEXTURE_TYPE_RW_TEXTURE)
-		createImageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
-
-	createImageInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
-	createImageInfo.queueFamilyIndexCount = 3;
-	createImageInfo.pQueueFamilyIndices = pRenderer->vk.familyIndices;
-
-	createImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-	VmaAllocationCreateInfo allocCreateInfo = {};
-	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-	allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-	allocCreateInfo.priority = 1.0f;
-
-	VULKAN_ERROR_CHECK(vmaCreateImage(pRenderer->vk.allocator, &createImageInfo,
-		&allocCreateInfo, &pRenderTarget->vk.image, &pRenderTarget->vk.allocation, nullptr));*/
-
 	TextureInfo texInfo{};
 	texInfo.filename = nullptr;
 	texInfo.width = pInfo->width;
@@ -717,6 +682,7 @@ void VulkanCreateRenderTarget(const Renderer* const pRenderer, const RenderTarge
 void VulkanDestroyRenderTarget(const Renderer* const pRenderer, RenderTarget* attachment)
 {
 	vkDestroyImageView(pRenderer->vk.logicalDevice, attachment->vk.imageView, nullptr);
+	vkDestroyImageView(pRenderer->vk.logicalDevice, attachment->texture.vk.imageView, nullptr);
 	vmaDestroyImage(pRenderer->vk.allocator, attachment->texture.vk.image, attachment->texture.vk.allocation);
 }
 
@@ -1815,6 +1781,66 @@ void VulkanCreateBlendInfo(const PipelineInfo* const pInfo, VkPipelineColorBlend
 	pBlendStateCreateInfo->blendConstants[3] = 1.0f;
 }
 
+VkCompareOp VulkanGetCompareOp(DepthFunction depthFunc)
+{
+	switch (depthFunc)
+	{
+	case DEPTH_FUNCTION_NONE:
+		return VK_COMPARE_OP_NEVER;
+		break;
+
+	case DEPTH_FUNCTION_NEVER:
+		return VK_COMPARE_OP_NEVER;
+		break;
+
+	case DEPTH_FUNCTION_LESS:
+		return VK_COMPARE_OP_LESS;
+		break;
+
+	case DEPTH_FUNCTION_EQUAL:
+		return VK_COMPARE_OP_EQUAL;
+		break;
+
+	case DEPTH_FUNCTION_LESS_OR_EQUAL:
+		return VK_COMPARE_OP_LESS_OR_EQUAL;
+		break;
+
+	case DEPTH_FUNCTION_GREATER:
+		return VK_COMPARE_OP_GREATER;
+		break;
+
+	case DEPTH_FUNCTION_NOT_EQUAL:
+		return VK_COMPARE_OP_NOT_EQUAL;
+		break;
+
+	case DEPTH_FUNCTION_GREATER_OR_EQUAL:
+		return VK_COMPARE_OP_GREATER_OR_EQUAL;
+		break;
+
+	case DEPTH_FUNCTION_ALWAYS:
+		return VK_COMPARE_OP_ALWAYS;
+		break;
+	}
+
+	return VK_COMPARE_OP_NEVER;
+}
+
+void VulkanCreateDepthStencilInfo(const PipelineInfo* const pInfo, VkPipelineDepthStencilStateCreateInfo* pDepthStencil)
+{
+	pDepthStencil->sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	pDepthStencil->pNext = nullptr;
+	pDepthStencil->flags = 0;
+	pDepthStencil->depthTestEnable = pInfo->depthInfo.depthTestEnable;
+	pDepthStencil->depthWriteEnable = pInfo->depthInfo.depthWriteEnable;
+	pDepthStencil->depthCompareOp = VulkanGetCompareOp(pInfo->depthInfo.depthFunction);
+	pDepthStencil->depthBoundsTestEnable = false;
+	pDepthStencil->stencilTestEnable = false;
+	pDepthStencil->front = {};
+	pDepthStencil->back = {};
+	pDepthStencil->minDepthBounds = 0.0f;
+	pDepthStencil->maxDepthBounds = 1.0f;
+}
+
 void VulkanCreateGraphicsPipeline(const Renderer* const pRenderer, const PipelineInfo* const pInfo, Pipeline* pPipeline)
 {
 	VkVertexInputBindingDescription bindingDesc{};
@@ -1855,18 +1881,7 @@ void VulkanCreateGraphicsPipeline(const Renderer* const pRenderer, const Pipelin
 	VulkanCreateBlendInfo(pInfo, &blendState, &blendStateCreateInfo);
 
 	VkPipelineDepthStencilStateCreateInfo depthStencil{};
-	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depthStencil.pNext = nullptr;
-	depthStencil.flags = 0;
-	depthStencil.depthTestEnable = pInfo->depthInfo.depthTestEnable;
-	depthStencil.depthWriteEnable = pInfo->depthInfo.depthWriteEnable;
-	depthStencil.depthCompareOp = (VkCompareOp)pInfo->depthInfo.depthFunction;
-	depthStencil.depthBoundsTestEnable = false;
-	depthStencil.stencilTestEnable = false;
-	depthStencil.front = {};
-	depthStencil.back = {};
-	depthStencil.minDepthBounds = 0.0f;
-	depthStencil.maxDepthBounds = 1.0f;
+	VulkanCreateDepthStencilInfo(pInfo, &depthStencil);
 
 	VkPipelineShaderStageCreateInfo shaders[] = { pInfo->pVertexShader->vk.shaderCreateInfo, pInfo->pPixelShader->vk.shaderCreateInfo };
 
@@ -2470,6 +2485,7 @@ void VulkanCreateTexture(const Renderer* const pRenderer, const TextureInfo* pIn
 {
 	TextureDesc texInfo{};
 	VkImageCreateInfo createImageInfo{};
+	bool isDepth = TinyImageFormat_IsDepthOnly(pInfo->format) || TinyImageFormat_IsDepthAndStencil(pInfo->format);
 	if (pInfo->filename != nullptr)
 	{
 		uint8_t* bitData = nullptr;
@@ -2575,11 +2591,22 @@ void VulkanCreateTexture(const Renderer* const pRenderer, const TextureInfo* pIn
 		createImageInfo.arrayLayers = pInfo->arraySize;
 		createImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		createImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		createImageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 		createImageInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
 		createImageInfo.queueFamilyIndexCount = 3;
 		createImageInfo.pQueueFamilyIndices = pRenderer->vk.familyIndices;
 		createImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		createImageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+		if (pInfo->type & TEXTURE_TYPE_RW_TEXTURE)
+			createImageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+
+		if (pInfo->isRenderTarget)
+		{
+			if (isDepth)
+				createImageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+			else
+				createImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		}
 
 		VmaAllocationCreateInfo allocationInfo{};
 		allocationInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -2588,13 +2615,16 @@ void VulkanCreateTexture(const Renderer* const pRenderer, const TextureInfo* pIn
 		VULKAN_ERROR_CHECK(vmaAllocateMemoryForImage(pRenderer->vk.allocator, pTexture->vk.image, &allocationInfo, &pTexture->vk.allocation, nullptr));
 		VULKAN_ERROR_CHECK(vmaBindImageMemory2(pRenderer->vk.allocator, pTexture->vk.allocation, 0, pTexture->vk.image, nullptr));
 
-		//TRANSITION TO INITIAL STATE
-		BarrierInfo barrier{};
-		barrier.type = BARRIER_TYPE_TEXTURE;
-		barrier.pTexture = pTexture;
-		barrier.currentState = RESOURCE_STATE_UNDEFINED;
-		barrier.newState = pInfo->initialState;
-		VulkanInitialTransition(pRenderer, &barrier);
+		if (pInfo->isRenderTarget == false)
+		{
+			//TRANSITION TO INITIAL STATE
+			BarrierInfo barrier{};
+			barrier.type = BARRIER_TYPE_TEXTURE;
+			barrier.pTexture = pTexture;
+			barrier.currentState = RESOURCE_STATE_UNDEFINED;
+			barrier.newState = pInfo->initialState;
+			VulkanInitialTransition(pRenderer, &barrier);
+		}
 	}
 
 	VkImageViewCreateInfo createImageViewInfo{};
@@ -2637,13 +2667,14 @@ void VulkanCreateTexture(const Renderer* const pRenderer, const TextureInfo* pIn
 	createImageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 	createImageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
 	createImageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-	createImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	createImageViewInfo.subresourceRange.aspectMask = (isDepth == true) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	createImageViewInfo.subresourceRange.baseMipLevel = 0;
 	createImageViewInfo.subresourceRange.levelCount = createImageInfo.mipLevels;
 	createImageViewInfo.subresourceRange.baseArrayLayer = 0;
 	createImageViewInfo.subresourceRange.layerCount = createImageInfo.arrayLayers;
 
 	VULKAN_ERROR_CHECK(vkCreateImageView(pRenderer->vk.logicalDevice, &createImageViewInfo, nullptr, &pTexture->vk.imageView));
+	
 }
 
 void VulkanDestroyTexture(const Renderer* const pRenderer, Texture* pTexture)
@@ -2663,6 +2694,8 @@ VkFilter VulkanGetFilter(const Filter filter)
 	case FILTER_LINEAR:
 		return VK_FILTER_LINEAR;
 	}
+
+	return VK_FILTER_NEAREST;
 }
 
 VkSamplerAddressMode VulkanGetAddressMode(AddressMode addressMode)
@@ -2681,6 +2714,8 @@ VkSamplerAddressMode VulkanGetAddressMode(AddressMode addressMode)
 	case ADDRESS_MODE_CLAMP_TO_BORDER:
 		return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 	}
+
+	return VK_SAMPLER_ADDRESS_MODE_REPEAT;
 }
 
 VkSamplerMipmapMode VulkanGetMipmapMode(MipMapMode mode)
@@ -2693,6 +2728,8 @@ VkSamplerMipmapMode VulkanGetMipmapMode(MipMapMode mode)
 	case MIPMAP_MODE_LINEAR:
 		return VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	}
+
+	return VK_SAMPLER_MIPMAP_MODE_NEAREST;
 }
 
 void VulkanCreateSampler(const Renderer* const pRenderer, const SamplerInfo* const pInfo, Sampler* pSampler)

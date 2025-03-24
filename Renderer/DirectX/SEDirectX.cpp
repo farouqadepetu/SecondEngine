@@ -972,42 +972,6 @@ void DirectXCreateRenderTarget(const Renderer* const pRenderer, const RenderTarg
 {
 	bool const isDepth = TinyImageFormat_IsDepthOnly(pInfo->format) || TinyImageFormat_IsDepthAndStencil(pInfo->format);
 
-	/*D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resourceDesc.Alignment = 0;
-	resourceDesc.Width = pInfo->width;
-	resourceDesc.Height = pInfo->height;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->format);
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.SampleDesc.Quality = 0;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resourceDesc.Flags = (isDepth) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-	D3D12MA::ALLOCATION_DESC allocationDesc{};
-	allocationDesc.Flags = D3D12MA::ALLOCATION_FLAG_COMMITTED;
-	allocationDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-	allocationDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_NONE;
-	allocationDesc.pPrivateData = nullptr;
-
-	D3D12_RESOURCE_STATES initialState = DirectXGetResourecState(pInfo->initialState);
-
-	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = resourceDesc.Format;
-	if (isDepth)
-	{
-		clearValue.DepthStencil.Depth = pInfo->clearValue.depth;
-		clearValue.DepthStencil.Stencil = pInfo->clearValue.stencil;
-	}
-	else
-	{
-		clearValue.Color[0] = pInfo->clearValue.r;
-		clearValue.Color[1] = pInfo->clearValue.g;
-		clearValue.Color[2] = pInfo->clearValue.b;
-		clearValue.Color[3] = pInfo->clearValue.a;
-	}*/
-
 	TextureInfo texInfo{};
 	texInfo.filename = nullptr;
 	texInfo.width = pInfo->width;
@@ -1024,9 +988,6 @@ void DirectXCreateRenderTarget(const Renderer* const pRenderer, const RenderTarg
 	texInfo.clearValue = pInfo->clearValue;
 
 	CreateTexture(pRenderer, &texInfo, &pRenderTarget->texture);
-
-	//DIRECTX_ERROR_CHECK(pRenderer->dx.allocator->CreateResource(&allocationDesc, &resourceDesc,
-		//initialState, &clearValue, &pRenderTarget->dx.allocation, IID_PPV_ARGS(&pRenderTarget->dx.resource)));
 
 	if (isDepth)
 	{
@@ -1495,6 +1456,8 @@ D3D12_COMPARISON_FUNC GetDepthFunction(DepthFunction func)
 	case DEPTH_FUNCTION_ALWAYS:
 		return D3D12_COMPARISON_FUNC_ALWAYS;
 	}
+
+	return D3D12_COMPARISON_FUNC_NONE;
 }
 
 void DirectXCreateDepthStencilDesc(const PipelineInfo* const pInfo, D3D12_DEPTH_STENCIL_DESC* pDesc)
@@ -2287,10 +2250,13 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		if (pInfo->type & TEXTURE_TYPE_RW_TEXTURE)
 			resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-		if (isDepth)
-			resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		else if(pInfo->isRenderTarget)
-			resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		if (pInfo->isRenderTarget == true)
+		{
+			if (isDepth)
+				resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+			else
+				resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		}
 
 		D3D12_CLEAR_VALUE clearValue{};
 		clearValue.Format = resourceDesc.Format;
@@ -2309,7 +2275,7 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		}
 
 		D3D12_CLEAR_VALUE* pClearValue = nullptr;
-		if (isDepth || pInfo->isRenderTarget)
+		if (pInfo->isRenderTarget)
 			pClearValue = &clearValue;
 		
 
@@ -2319,7 +2285,7 @@ void DirectXCreateTexture(const Renderer* const pRenderer, const TextureInfo* co
 		allocationDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_NONE;
 		allocationDesc.pPrivateData = nullptr;
 
-		if (isDepth || pInfo->isRenderTarget)
+		if (pInfo->isRenderTarget)
 		{
 			pClearValue = &clearValue;
 			allocationDesc.Flags = D3D12MA::ALLOCATION_FLAG_COMMITTED;
