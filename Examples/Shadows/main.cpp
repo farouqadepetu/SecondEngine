@@ -23,18 +23,21 @@ RootSignature gGraphicsRootSignature;
 Shader gObjectVS;
 Shader gLightSourceVS;
 Shader gShadowMapVS;
+Shader gShadowDebugVS;
 
 Shader gObjectPS;
 Shader gLightSourcePS;
 Shader gShadowMapPS;
+Shader gShadowDebugPS;
 
 Pipeline gObjectPipeline;
 Pipeline gLightSourcePipeline;
 Pipeline gShadowMapPipeline;
+Pipeline gShadowDebugPipeline;
 
 const uint32_t gNumFrames = 2;
-const uint32_t gShadowWidth = 1024;
-const uint32_t gShadowHeight = 1024;
+const uint32_t gShadowWidth = 4096;
+const uint32_t gShadowHeight = 4096;
 
 Semaphore gImageAvailableSemaphores[gNumFrames];
 CommandBuffer gGraphicsCommandBuffers[gNumFrames];
@@ -43,6 +46,7 @@ Buffer gVertexBuffer;
 Buffer gIndexBuffer;
 
 Sampler gSampler;
+Sampler gSamplerComparison;
 
 uint32_t gCurrentFrame = 0;
 
@@ -63,11 +67,13 @@ struct CameraData
 	vec4 cameraPos;
 };
 
+#define NUM_LIGHT_DATA 8
 struct LightSourceData
 {
-	mat4 lightSourceModel;
-	mat4 lightSourceView;
-	mat4 lightSourceProjection;
+	mat4 lightSourceModel[NUM_LIGHT_DATA];
+	mat4 lightSourceView[NUM_LIGHT_DATA];
+	mat4 lightSourceProjection[NUM_LIGHT_DATA];
+	vec4 lightPosition[NUM_LIGHT_DATA];
 };
 
 struct PBRMaterial
@@ -94,11 +100,12 @@ enum
 	MAX_LIGHT_SOURCES
 };
 
+#define NUM_OBJECTS 7
 struct ObjectData
 {
-	mat4 objectModel;
-	mat4 objectInverseModel;
-	uint32_t materialIndex;
+	mat4 objectModel[NUM_OBJECTS];
+	mat4 objectInverseModel[NUM_OBJECTS];
+	PBRMaterial material[NUM_OBJECTS];
 };
 
 PointLight gPointLight;
@@ -113,18 +120,11 @@ Buffer gSpotlightUniformBuffer[gNumFrames];
 LightSourceData gLightSourceData;
 Buffer gLightSourceUniformBuffer[gNumFrames];
 
-LightSourceData gLightSourceDataPL[6];
-Buffer gLightSourcePLUniformBuffer[gNumFrames * 6];
-
 CameraData gCameraData;
 Buffer gCameraUniformBuffer[gNumFrames];
 
-const uint32_t gNumObjects = 7;
-ObjectData gObjectData[gNumObjects];
-Buffer gObjectUniformBuffers[gNumFrames * gNumObjects];
-
-PBRMaterial gMaterialData[gNumObjects];
-Buffer gMaterialBuffer;
+ObjectData gObjectData;
+Buffer gObjectUniformBuffers[gNumFrames];
 
 uint32_t gVertexCounts[MAX_OBJECTS];
 uint32_t gVertexOffsets[MAX_OBJECTS];
@@ -147,10 +147,15 @@ bool gRotate = false;
 float gInnerCutoffAngle = 2.0f;
 float gOuterCutoffAngle = 5.0f;
 
+bool gShowShadowDebug = false;
+
 struct RootConstants
 {
 	uint32_t currentLightSource;
 	float shadowBias;
+	uint32_t objectIndex;
+	uint32_t lightIndex;
+	uint32_t debugIndex;
 };
 
 RootConstants gConstants;
@@ -159,6 +164,7 @@ float gAngle = 0.0f;
 
 vec3 gLightColor = vec3(1.0f, 1.0f, 1.0f);
 float gShadowBias = 0.01f;
+int32_t gDebugIndex;
 
 SubComponent gInnerCutoffSc{};
 SubComponent gOuterCutoffSc{};
@@ -223,6 +229,10 @@ public:
 		shaderInfo.type = SHADER_TYPE_VERTEX;
 		CreateShader(&gRenderer, &shaderInfo, &gShadowMapVS);
 
+		shaderInfo.filename = "shadowDebug.vert";
+		shaderInfo.type = SHADER_TYPE_VERTEX;
+		CreateShader(&gRenderer, &shaderInfo, &gShadowDebugVS);
+
 		shaderInfo.filename = "object.frag";
 		shaderInfo.type = SHADER_TYPE_PIXEL;
 		CreateShader(&gRenderer, &shaderInfo, &gObjectPS);
@@ -235,6 +245,9 @@ public:
 		shaderInfo.type = SHADER_TYPE_PIXEL;
 		CreateShader(&gRenderer, &shaderInfo, &gShadowMapPS);
 
+		shaderInfo.filename = "shadowDebug.frag";
+		shaderInfo.type = SHADER_TYPE_PIXEL;
+		CreateShader(&gRenderer, &shaderInfo, &gShadowDebugPS);
 
 		VertexInputInfo vertexInputInfo{};
 		vertexInputInfo.vertexBinding.binding = 0;
@@ -327,36 +340,36 @@ public:
 		rootParameterInfos[5].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		rootParameterInfos[5].updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 
-		//PBR Material
-		rootParameterInfos[6].binding = 6;
-		rootParameterInfos[6].baseRegister = 6;
+		//Shadow map texture
+		rootParameterInfos[6].binding = 0;
+		rootParameterInfos[6].baseRegister = 0;
 		rootParameterInfos[6].registerSpace = 0;
 		rootParameterInfos[6].numDescriptors = 1;
-		rootParameterInfos[6].stages = STAGE_VERTEX | STAGE_PIXEL;
-		rootParameterInfos[6].type = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		rootParameterInfos[6].stages = STAGE_PIXEL;
+		rootParameterInfos[6].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[6].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Shadow map texture
-		rootParameterInfos[7].binding = 0;
-		rootParameterInfos[7].baseRegister = 0;
+		//Shadow PL map texture
+		rootParameterInfos[7].binding = 1;
+		rootParameterInfos[7].baseRegister = 1;
 		rootParameterInfos[7].registerSpace = 0;
-		rootParameterInfos[7].numDescriptors = 1;
+		rootParameterInfos[7].numDescriptors = 6;
 		rootParameterInfos[7].stages = STAGE_PIXEL;
 		rootParameterInfos[7].type = DESCRIPTOR_TYPE_TEXTURE;
 		rootParameterInfos[7].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Shadow PL map texture
-		rootParameterInfos[8].binding = 1;
-		rootParameterInfos[8].baseRegister = 1;
+		//Sampler
+		rootParameterInfos[8].binding = 5;
+		rootParameterInfos[8].baseRegister = 0;
 		rootParameterInfos[8].registerSpace = 0;
-		rootParameterInfos[8].numDescriptors = 6;
+		rootParameterInfos[8].numDescriptors = 1;
 		rootParameterInfos[8].stages = STAGE_PIXEL;
-		rootParameterInfos[8].type = DESCRIPTOR_TYPE_TEXTURE;
+		rootParameterInfos[8].type = DESCRIPTOR_TYPE_SAMPLER;
 		rootParameterInfos[8].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
-		//Sampler
-		rootParameterInfos[9].binding = 5;
-		rootParameterInfos[9].baseRegister = 0;
+		//Sampler Comparison
+		rootParameterInfos[9].binding = 6;
+		rootParameterInfos[9].baseRegister = 1;
 		rootParameterInfos[9].registerSpace = 0;
 		rootParameterInfos[9].numDescriptors = 1;
 		rootParameterInfos[9].stages = STAGE_PIXEL;
@@ -364,8 +377,8 @@ public:
 		rootParameterInfos[9].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
 		RootConstantsInfo rootConstantInfo{};
-		rootConstantInfo.numValues = 2;
-		rootConstantInfo.baseRegister = 7;
+		rootConstantInfo.numValues = 5;
+		rootConstantInfo.baseRegister = 6;
 		rootConstantInfo.registerSpace = 0;
 		rootConstantInfo.stride = sizeof(RootConstants);
 		rootConstantInfo.stages = STAGE_VERTEX | STAGE_PIXEL;
@@ -407,6 +420,11 @@ public:
 		graphicsPipelineInfo.numRenderTargets = 0;
 		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShadowMapPipeline);
 
+		graphicsPipelineInfo.pVertexShader = &gShadowDebugVS;
+		graphicsPipelineInfo.pPixelShader = &gShadowDebugPS;
+		graphicsPipelineInfo.numRenderTargets = 1;
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShadowDebugPipeline);
+
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
 			CreateCommandBuffer(&gRenderer, QUEUE_TYPE_GRAPHICS, &gGraphicsCommandBuffers[i]);
@@ -441,30 +459,16 @@ public:
 		ibInfo.initialState = RESOURCE_STATE_INDEX_BUFFER;
 		CreateBuffer(&gRenderer, &ibInfo, &gIndexBuffer);
 
-		for (uint32_t i = 0; i < gNumFrames * gNumObjects; ++i)
-		{
-			BufferInfo ubInfo{};
-			ubInfo.type = BUFFER_TYPE_UNIFORM;
-			ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
-			ubInfo.data = nullptr;
-
-			ubInfo.size = sizeof(ObjectData);
-			CreateBuffer(&gRenderer, &ubInfo, &gObjectUniformBuffers[i]);
-		}
-
 		BufferInfo ubInfo{};
 		ubInfo.type = BUFFER_TYPE_UNIFORM;
 		ubInfo.usage = MEMORY_USAGE_CPU_TO_GPU;
 		ubInfo.data = nullptr;
 
-		for (uint32_t i = 0; i < gNumFrames * 6; ++i)
-		{
-			ubInfo.size = sizeof(LightSourceData);
-			CreateBuffer(&gRenderer, &ubInfo, &gLightSourcePLUniformBuffer[i]);
-		}
-
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
+			ubInfo.size = sizeof(ObjectData);
+			CreateBuffer(&gRenderer, &ubInfo, &gObjectUniformBuffers[i]);
+
 			ubInfo.size = sizeof(CameraData);
 			CreateBuffer(&gRenderer, &ubInfo, &gCameraUniformBuffer[i]);
 
@@ -482,51 +486,46 @@ public:
 		}
 
 		//Right Wall
-		gMaterialData[0].albedo = vec4(0.0f, 0.0f, 0.5f, 1.0f);
-		gMaterialData[0].roughness = 1.0f;
-		gMaterialData[0].ao = 0.025f;
-		gMaterialData[0].metallic = 0.0f;
+		gObjectData.material[0].albedo = vec4(0.0f, 0.0f, 0.5f, 1.0f);
+		gObjectData.material[0].roughness = 0.5f;
+		gObjectData.material[0].ao = 0.05f;
+		gObjectData.material[0].metallic = 0.0f;
 
 		//Left Wall
-		gMaterialData[1].albedo = vec4(0.5f, 0.0f, 0.0f, 1.0f);
-		gMaterialData[1].roughness = 1.0f;
-		gMaterialData[1].ao = 0.025f;
-		gMaterialData[1].metallic = 0.0f;
+		gObjectData.material[1].albedo = vec4(0.5f, 0.0f, 0.0f, 1.0f);
+		gObjectData.material[1].roughness = 0.5f;
+		gObjectData.material[1].ao = 0.05f;
+		gObjectData.material[1].metallic = 0.0f;
 
 		//Top Wall
-		gMaterialData[2].albedo = vec4(0.0f, 0.0f, 0.0f, 1.0f);
-		gMaterialData[2].roughness = 1.0f;
-		gMaterialData[2].ao = 0.025f;
-		gMaterialData[2].metallic = 0.0f;
+		gObjectData.material[2].albedo = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+		gObjectData.material[2].roughness = 0.5f;
+		gObjectData.material[2].ao = 0.05f;
+		gObjectData.material[2].metallic = 0.0f;
 
 		//Bottom Wall
-		gMaterialData[3].albedo = vec4(0.2f, 0.2f, 0.2f, 1.0f);
-		gMaterialData[3].roughness = 1.0f;
-		gMaterialData[3].ao = 0.025f;
-		gMaterialData[3].metallic = 0.0f;
+		gObjectData.material[3].albedo = vec4(0.2f, 0.2f, 0.2f, 1.0f);
+		gObjectData.material[3].roughness = 0.5f;
+		gObjectData.material[3].ao = 0.05f;
+		gObjectData.material[3].metallic = 0.0f;
 
 		//Back Wall
-		gMaterialData[4].albedo = vec4(0.2f, 0.2f, 0.2f, 1.0f);
-		gMaterialData[4].roughness = 1.0f;
-		gMaterialData[4].ao = 0.025f;
-		gMaterialData[4].metallic = 0.0f;
+		gObjectData.material[4].albedo = vec4(0.2f, 0.2f, 0.2f, 1.0f);
+		gObjectData.material[4].roughness = 0.5f;
+		gObjectData.material[4].ao = 0.05f;
+		gObjectData.material[4].metallic = 0.0f;
 
 		//Sphere
-		gMaterialData[5].albedo = vec4(0.5f, 0.5f, 0.0f, 0.0f);
-		gMaterialData[5].roughness = 1.0f;
-		gMaterialData[5].ao = 0.025f;
-		gMaterialData[5].metallic = 0.0f;
+		gObjectData.material[5].albedo = vec4(0.5f, 0.5f, 0.0f, 1.0f);
+		gObjectData.material[5].roughness = 0.5f;
+		gObjectData.material[5].ao = 0.05f;
+		gObjectData.material[5].metallic = 0.0f;
 
 		//Cylinder
-		gMaterialData[6].albedo = vec4(0.0f, 0.5f, 0.5f, 0.0f);
-		gMaterialData[6].roughness = 1.0f;
-		gMaterialData[6].ao = 0.025f;
-		gMaterialData[6].metallic = 0.0f;
-
-		ubInfo.usage = MEMORY_USAGE_GPU_ONLY;
-		ubInfo.size = sizeof(PBRMaterial) * gNumObjects;
-		ubInfo.data = gMaterialData;
-		CreateBuffer(&gRenderer, &ubInfo, &gMaterialBuffer);
+		gObjectData.material[6].albedo = vec4(0.0f, 0.5f, 0.5f, 1.0f);
+		gObjectData.material[6].roughness = 0.5f;
+		gObjectData.material[6].ao = 0.05f;
+		gObjectData.material[6].metallic = 0.0f;
 
 		SamplerInfo samplerInfo{};
 		samplerInfo.magFilter = FILTER_LINEAR;
@@ -535,7 +534,7 @@ public:
 		samplerInfo.v = ADDRESS_MODE_CLAMP_TO_BORDER;
 		samplerInfo.w = ADDRESS_MODE_CLAMP_TO_BORDER;
 		samplerInfo.mipMapMode = MIPMAP_MODE_LINEAR;
-		samplerInfo.comparisonFunction = DEPTH_FUNCTION_LESS_OR_EQUAL;
+		samplerInfo.comparisonFunction = DEPTH_FUNCTION_NONE;
 		samplerInfo.maxAnisotropy = 0.0f;
 		samplerInfo.mipLoadBias = 0.0f;
 		samplerInfo.minLod = 0.0f;
@@ -546,9 +545,12 @@ public:
 		samplerInfo.borderColor[3] = 1.0f;
 		CreateSampler(&gRenderer, &samplerInfo, &gSampler);
 
+		samplerInfo.comparisonFunction = DEPTH_FUNCTION_LESS_OR_EQUAL;
+		CreateSampler(&gRenderer, &samplerInfo, &gSamplerComparison);
+
 		DescriptorSetInfo setInfo{};
 		setInfo.pRootSignature = &gGraphicsRootSignature;
-		setInfo.numSets = 28;
+		setInfo.numSets = 2;
 		setInfo.updateFrequency = UPDATE_FREQUENCY_PER_FRAME;
 		CreateDescriptorSet(&gRenderer, &setInfo, &gDescriptorSetPerFrame);
 
@@ -558,14 +560,12 @@ public:
 		CreateDescriptorSet(&gRenderer, &setInfo, &gDescriptorSetPerNone);
 
 		//Objects with Directional Shadow Map
-		for (uint32_t i = 0; i < gNumFrames * gNumObjects; ++i)
+		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
-			uint32_t index = i / gNumObjects;
-
 			UpdateDescriptorSetInfo updatePerFrame[6]{};
 			updatePerFrame[0].binding = 0;
 			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[index];
+			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[i];
 
 			updatePerFrame[1].binding = 1;
 			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
@@ -573,75 +573,42 @@ public:
 
 			updatePerFrame[2].binding = 2;
 			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[2].pBuffer = &gLightSourceUniformBuffer[index];
+			updatePerFrame[2].pBuffer = &gLightSourceUniformBuffer[i];
 
 			updatePerFrame[3].binding = 3;
 			updatePerFrame[3].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[index];
+			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[i];
 
 			updatePerFrame[4].binding = 4;
 			updatePerFrame[4].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[index];
+			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[i];
 
 			updatePerFrame[5].binding = 5;
 			updatePerFrame[5].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[index];
+			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[i];
 
 			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 6, updatePerFrame);
 		}
 
-		//Objects with Point Light Shadow Map
-		for (uint32_t i = 0; i < gNumFrames * 6; ++i)
-		{
-			uint32_t index = i / 6;
-
-			UpdateDescriptorSetInfo updatePerFrame[6]{};
-			updatePerFrame[0].binding = 0;
-			updatePerFrame[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[0].pBuffer = &gCameraUniformBuffer[index];
-
-			updatePerFrame[1].binding = 1;
-			updatePerFrame[1].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[1].pBuffer = &gObjectUniformBuffers[index];
-
-			updatePerFrame[2].binding = 2;
-			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[2].pBuffer = &gLightSourcePLUniformBuffer[i];
-
-			updatePerFrame[3].binding = 3;
-			updatePerFrame[3].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[3].pBuffer = &gPointLightUniformBuffer[index];
-
-			updatePerFrame[4].binding = 4;
-			updatePerFrame[4].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[4].pBuffer = &gDirectionalLightUniformBuffer[index];
-
-			updatePerFrame[5].binding = 5;
-			updatePerFrame[5].type = UPDATE_TYPE_UNIFORM_BUFFER;
-			updatePerFrame[5].pBuffer = &gSpotlightUniformBuffer[index];
-
-			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i + 16, 6, updatePerFrame);
-		}
-
 		UpdateDescriptorSetInfo updatePerNone[9]{};
-		updatePerNone[0].binding = 6;
-		updatePerNone[0].type = UPDATE_TYPE_UNIFORM_BUFFER;
-		updatePerNone[0].pBuffer = &gMaterialBuffer;
-
-		updatePerNone[1].binding = 0;
-		updatePerNone[1].type = UPDATE_TYPE_TEXTURE;
-		updatePerNone[1].pTexture = &gShadowMap.texture;
+		updatePerNone[0].binding = 0;
+		updatePerNone[0].type = UPDATE_TYPE_TEXTURE;
+		updatePerNone[0].pTexture = &gShadowMap.texture;
 
 		for (uint32_t i = 0; i < 6; ++i)
 		{
-			updatePerNone[i + 2].binding = i + 2;
-			updatePerNone[i + 2].type = UPDATE_TYPE_TEXTURE;
-			updatePerNone[i + 2].pTexture = &gShadowMapPL[i].texture;
+			updatePerNone[i + 1].binding = i + 1;
+			updatePerNone[i + 1].type = UPDATE_TYPE_TEXTURE;
+			updatePerNone[i + 1].pTexture = &gShadowMapPL[i].texture;
 		}
 
-		updatePerNone[8].binding = 8;
+		updatePerNone[7].binding = 8;
+		updatePerNone[7].type = UPDATE_TYPE_SAMPLER;
+		updatePerNone[7].pSampler = &gSampler;
+
+		updatePerNone[8].binding = 9;
 		updatePerNone[8].type = UPDATE_TYPE_SAMPLER;
-		updatePerNone[8].pSampler = &gSampler;
+		updatePerNone[8].pSampler = &gSamplerComparison;
 		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 9, updatePerNone);
 	
 		LookAt(&gCamera, vec3(0.0f, -3.0f, -6.0f), vec3(0.0f, -3.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
@@ -649,18 +616,17 @@ public:
 		gCamera.nearP = 1.0f;
 		gCamera.farP = 100.0f;
 
-		//LookAt(&gDLCamera, vec3(0.0f, -4.0f, -6.0f), vec3(0.0f, -4.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 		LookAt(&gDLCamera, vec3(0.0f, 4.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
 		gDLCamera.width = 15.0f;
 		gDLCamera.height = 15.0f;
 		gDLCamera.nearP = 1.0f;
-		gDLCamera.farP = 15.0f;
+		gDLCamera.farP = 10.0f;
 
 		for (uint32_t i = 0; i < 6; ++i)
 		{
 			gPLCamera[i].vFov = 90.0f;
 			gPLCamera[i].nearP = 1.0f;
-			gPLCamera[i].farP = 100.0f;
+			gPLCamera[i].farP = 10.0f;
 		}
 
 		UIDesc uiInfo{};
@@ -675,7 +641,7 @@ public:
 		MainComponentInfo mcInfo{};
 		mcInfo.pLabel = "##";
 		mcInfo.position = vec2(GetWidth(pWindow) - 200.0f, 100.0f);
-		mcInfo.size = vec2(200.0f, 325.0f);
+		mcInfo.size = vec2(200.0f, 500.0f);
 		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE;
 		CreateMainComponent(&mcInfo, &gGuiWindow);
 
@@ -709,6 +675,17 @@ public:
 		bias.sliderFloat.format = "%.3f";
 		bias.dynamic = false;
 		AddSubComponent(&gGuiWindow, &bias);
+
+		SubComponent pLPosition{};
+		pLPosition.type = SUB_COMPONENT_TYPE_SLIDER_FLOAT4;
+		pLPosition.sliderFloat4.pLabel = "Point Light Position";
+		pLPosition.sliderFloat4.min = vec4(-5.0f, -5.0f, -5.0f, 1.0f);
+		pLPosition.sliderFloat4.max = vec4(5.0f, 5.0f, 5.0f, 1.0f);
+		pLPosition.sliderFloat4.stepRate = vec4(0.1f, 0.1f, 0.1f, 0.0f);
+		pLPosition.sliderFloat4.pData = &gPointLight.position;
+		pLPosition.sliderFloat4.format = "%.3f";
+		pLPosition.dynamic = false;
+		AddSubComponent(&gGuiWindow, &pLPosition);
 
 		gInnerCutoffSc.type = SUB_COMPONENT_TYPE_SLIDER_FLOAT;
 		gInnerCutoffSc.sliderFloat.pLabel = "Inner Cutoff";
@@ -745,6 +722,24 @@ public:
 		rotate.checkBox.pData = &gRotate;
 		rotate.dynamic = false;
 		AddSubComponent(&gGuiWindow, &rotate);
+
+		SubComponent shadowDebug{};
+		shadowDebug.type = SUB_COMPONENT_TYPE_CHECKBOX;
+		shadowDebug.checkBox.pLabel = "Show Shadow Debug";
+		shadowDebug.checkBox.pData = &gShowShadowDebug;
+		shadowDebug.dynamic = false;
+		AddSubComponent(&gGuiWindow, &shadowDebug);
+
+		SubComponent debugIndex{};
+		debugIndex.type = SUB_COMPONENT_TYPE_SLIDER_INT;
+		debugIndex.sliderInt.pLabel = "Point Light Debug Index";
+		debugIndex.sliderInt.min = 0;
+		debugIndex.sliderInt.max = 5;
+		debugIndex.sliderInt.stepRate = 1;
+		debugIndex.sliderInt.pData = &gDebugIndex;
+		debugIndex.sliderInt.format = "%d";
+		debugIndex.dynamic = false;
+		AddSubComponent(&gGuiWindow, &debugIndex);
 	}
 
 	void Exit() override
@@ -761,15 +756,9 @@ public:
 
 		DestroySampler(&gRenderer, &gSampler);
 
-		for (uint32_t i = 0; i < gNumFrames * gNumObjects; ++i)
-		{
-			DestroyBuffer(&gRenderer, &gObjectUniformBuffers[i]);
-		}
-
-		DestroyBuffer(&gRenderer, &gMaterialBuffer);
-
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
+			DestroyBuffer(&gRenderer, &gObjectUniformBuffers[i]);
 			DestroyBuffer(&gRenderer, &gCameraUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gLightSourceUniformBuffer[i]);
 			DestroyBuffer(&gRenderer, &gPointLightUniformBuffer[i]);
@@ -780,14 +769,10 @@ public:
 			DestroyCommandBuffer(&gRenderer, &gGraphicsCommandBuffers[i]);
 		}
 
-		for (uint32_t i = 0; i < gNumFrames * 6; ++i)
-		{
-			DestroyBuffer(&gRenderer, &gLightSourcePLUniformBuffer[i]);
-		}
-
 		DestroyPipeline(&gRenderer, &gObjectPipeline);
 		DestroyPipeline(&gRenderer, &gShadowMapPipeline);
 		DestroyPipeline(&gRenderer, &gLightSourcePipeline);
+		DestroyPipeline(&gRenderer, &gShadowDebugPipeline);
 
 		DestroyRootSignature(&gRenderer, &gGraphicsRootSignature);
 
@@ -797,10 +782,13 @@ public:
 		DestroyShader(&gRenderer, &gObjectVS);
 		DestroyShader(&gRenderer, &gLightSourceVS);
 		DestroyShader(&gRenderer, &gShadowMapVS);
+		DestroyShader(&gRenderer, &gShadowDebugVS);
 
 		DestroyShader(&gRenderer, &gObjectPS);
 		DestroyShader(&gRenderer, &gShadowMapPS);
 		DestroyShader(&gRenderer, &gLightSourcePS);
+		DestroyShader(&gRenderer, &gShadowDebugPS);
+
 
 		for (uint32_t i = 0; i < 6; ++i)
 		{
@@ -901,53 +889,44 @@ public:
 			if (gAngle >= 360.0f)
 				gAngle = 0.0f;
 		}
-
-		mat4 model[gNumObjects];
 		
 		//Right wall
-		gObjectData[0].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotY(90.0f) * mat4::Translate(5.0f, 0.0f, 0.0f);
-		gObjectData[0].objectInverseModel = Inverse(gObjectData[0].objectModel);
-		gObjectData[0].materialIndex = 0;
+		gObjectData.objectModel[0] = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotY(90.0f) * mat4::Translate(5.0f, 0.0f, 0.0f);
+		gObjectData.objectInverseModel[0] = Inverse(gObjectData.objectModel[0]);
 
 		//Left wall
-		gObjectData[1].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotY(-90.0f) * mat4::Translate(-5.0f, 0.0f, 0.0f);
-		gObjectData[1].objectInverseModel = Inverse(gObjectData[1].objectModel);
-		gObjectData[1].materialIndex = 1;
+		gObjectData.objectModel[1] = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotY(-90.0f) * mat4::Translate(-5.0f, 0.0f, 0.0f);
+		gObjectData.objectInverseModel[1] = Inverse(gObjectData.objectModel[1]);
 
 		//Top wall
-		gObjectData[2].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotX(-90.0f) * mat4::Translate(0.0f, 5.0f, 0.0f);
-		gObjectData[2].objectInverseModel = Inverse(gObjectData[2].objectModel);
-		gObjectData[2].materialIndex = 2;
+		gObjectData.objectModel[2] = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotX(-90.0f) * mat4::Translate(0.0f, 5.0f, 0.0f);
+		gObjectData.objectInverseModel[2] = Inverse(gObjectData.objectModel[2]);
 
 		//Bottom wall
-		gObjectData[3].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotX(90.0f) * mat4::Translate(0.0f, -5.0f, 0.0f);
-		gObjectData[3].objectInverseModel = Inverse(gObjectData[3].objectModel);
-		gObjectData[3].materialIndex = 3;
+		gObjectData.objectModel[3] = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::RotX(90.0f) * mat4::Translate(0.0f, -5.0f, 0.0f);
+		gObjectData.objectInverseModel[3] = Inverse(gObjectData.objectModel[3]);
 
 		//Back wall
-		gObjectData[4].objectModel = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 5.0f);
-		gObjectData[4].objectInverseModel = Inverse(gObjectData[4].objectModel);
-		gObjectData[4].materialIndex = 4;
+		gObjectData.objectModel[4] = mat4::Scale(10.0f, 10.0f, 1.0f) * mat4::Translate(0.0f, 0.0f, 5.0f);
+		gObjectData.objectInverseModel[4] = Inverse(gObjectData.objectModel[4]);
 
 		//Sphere
-		gObjectData[5].objectModel = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(-3.0f, -4.0f, 0.0f);
-		gObjectData[5].objectInverseModel = Inverse(gObjectData[5].objectModel);
-		gObjectData[5].materialIndex = 5;
+		gObjectData.objectModel[5] = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::Translate(-3.0f, -4.0f, 0.0f);
+		gObjectData.objectInverseModel[5] = Inverse(gObjectData.objectModel[5]);
 
 		//Cylinder
-		gObjectData[6].objectModel = mat4::Scale(1.0f, 3.0f, 1.0f) * mat4::Translate(3.0f, -3.2f, 2.0f);
-		gObjectData[6].objectInverseModel = Inverse(gObjectData[6].objectModel);
-		gObjectData[6].materialIndex = 6;
+		gObjectData.objectModel[6] = mat4::Scale(1.0f, 3.0f, 1.0f) * mat4::Translate(3.0f, -3.2f, 2.0f);
+		gObjectData.objectInverseModel[6] = Inverse(gObjectData.objectModel[6]);
 
-		for (uint32_t i = 0; i < gNumObjects; ++i)
+		for (uint32_t i = 0; i < NUM_OBJECTS; ++i)
 		{
-			gObjectData[i].objectModel = Transpose(gObjectData[i].objectModel);
+			gObjectData.objectModel[i] = Transpose(gObjectData.objectModel[i]);
 		}
 
 		vec4 lightColor = vec4(gLightColor.GetX(), gLightColor.GetY(), gLightColor.GetZ(), 1.0f);
 
 		//Point light
-		gPointLight.position = vec4(0.0f, 2.0f, -1.5f, 1.0f);
+		//gPointLight.position = vec4(-1.0f, -4.0f, 0.0f, 1.0f);
 		gPointLight.color = lightColor;
 
 		//Directional light
@@ -971,37 +950,41 @@ public:
 			LookAt(&gPLCamera[2], position, position + vec3(0.0f, 1.0f, 0.0f), vec3(0.0f, 0.0f, -1.0f)); //top
 			LookAt(&gPLCamera[3], position, position + vec3(0.0f, -1.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f)); //bottom
 
-			LookAt(&gPLCamera[4], position, position + vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f)); //back
-			LookAt(&gPLCamera[5], position, position + vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f)); //front
+			LookAt(&gPLCamera[4], position, position + vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f)); //front
+			LookAt(&gPLCamera[5], position, position + vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f)); //back
 
 			for (uint32_t i = 0; i < 6; ++i)
 			{
-				gLightSourceDataPL[i].lightSourceModel = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
+				gLightSourceData.lightSourceModel[i + 1] = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
 					mat4::Translate(gPointLight.position.GetX(), gPointLight.position.GetY(), gPointLight.position.GetZ()));
 
-				gPLCamera[i].aspectRatio = (float)GetWidth(pWindow) / GetHeight(pWindow);
+				gPLCamera[i].position = position;
+				gPLCamera[i].aspectRatio = (float)gShadowWidth / gShadowHeight;
 				UpdateViewMatrix(&gPLCamera[i]);
 				UpdatePerspectiveProjectionMatrix(&gPLCamera[i]);
 
-				gLightSourceDataPL[i].lightSourceView = Transpose(gPLCamera[i].viewMat);
-				gLightSourceDataPL[i].lightSourceProjection = Transpose(gPLCamera[i].perspectiveProjMat);
+				gLightSourceData.lightSourceView[i + 1] = Transpose(gPLCamera[i].viewMat);
+				gLightSourceData.lightSourceProjection[i + 1] = Transpose(gPLCamera[i].perspectiveProjMat);
+				gLightSourceData.lightPosition[i + 1] = gPointLight.position;
 			}
 		}
 		else if (gCurrentLightSource == DIRECTIONAL_LIGHT)
 		{
-			gLightSourceData.lightSourceModel = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
+			gLightSourceData.lightSourceModel[0] = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
 				mat4::Translate(gDLCamera.position.GetX(), gDLCamera.position.GetY(), gDLCamera.position.GetZ()));
+
+			gLightSourceData.lightSourceView[0] = Transpose(gDLCamera.viewMat);
+			gLightSourceData.lightSourceProjection[0] = Transpose(gDLCamera.orthographicProjMat);
+			gLightSourceData.lightPosition[0] = vec4(gDLCamera.position.GetX(), gDLCamera.position.GetY(), gDLCamera.position.GetZ(), 1.0f);
 		}
 		else //SPOTLIGHT
 		{
-			gLightSourceData.lightSourceModel = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
+			gLightSourceData.lightSourceModel[7] = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
 				mat4::Translate(gSpotlight.position.GetX(), gSpotlight.position.GetY(), gSpotlight.position.GetZ()));
 		}
 
-		gLightSourceData.lightSourceView = Transpose(gDLCamera.viewMat);
-		gLightSourceData.lightSourceProjection = Transpose(gDLCamera.orthographicProjMat);
-
 		gConstants.currentLightSource = gCurrentLightSource;
+		gConstants.shadowBias = gShadowBias;
 
 		if (gCurrentLightSource == SPOTLIGHT)
 		{
@@ -1013,8 +996,6 @@ public:
 			gInnerCutoffSc.show = false;
 			gOuterCutoffSc.show = false;
 		}
-
-		gConstants.shadowBias = gShadowBias;
 	}
 
 	void Draw() override
@@ -1044,19 +1025,9 @@ public:
 		memcpy(data, &gLightSourceData, sizeof(LightSourceData));
 		UnmapMemory(&gRenderer, &gLightSourceUniformBuffer[gCurrentFrame]);
 
-		for (uint32_t i = 0; i < gNumObjects; ++i)
-		{
-			MapMemory(&gRenderer, &gObjectUniformBuffers[gCurrentFrame * gNumObjects + i], &data);
-			memcpy(data, &gObjectData[i], sizeof(ObjectData));
-			UnmapMemory(&gRenderer, &gObjectUniformBuffers[gCurrentFrame * gNumObjects + i]);
-		}
-
-		for (uint32_t i = 0; i < 6; ++i)
-		{
-			MapMemory(&gRenderer, &gLightSourcePLUniformBuffer[gCurrentFrame * 6 + i], &data);
-			memcpy(data, &gLightSourceDataPL[i], sizeof(LightSourceData));
-			UnmapMemory(&gRenderer, &gLightSourcePLUniformBuffer[gCurrentFrame * 6 + i]);
-		}
+		MapMemory(&gRenderer, &gObjectUniformBuffers[gCurrentFrame], &data);
+		memcpy(data, &gObjectData, sizeof(ObjectData));
+		UnmapMemory(&gRenderer, &gObjectUniformBuffers[gCurrentFrame]);
 
 		uint32_t imageIndex = 0;
 		AcquireNextImage(&gRenderer, &gSwapChain, &gImageAvailableSemaphores[gCurrentFrame], &imageIndex);
@@ -1071,6 +1042,7 @@ public:
 		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
 		//DL Shadow Map
+		if (gCurrentLightSource == DIRECTIONAL_LIGHT)
 		{
 			BarrierInfo barrierInfo[1]{};
 			barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
@@ -1106,18 +1078,16 @@ public:
 
 			BindPipeline(pCommandBuffer, &gShadowMapPipeline);
 			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+			gConstants.lightIndex = 0;
 
-			/*for (uint32_t i = 0; i < 5; ++i)
-			{
-				BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + i, 1, &gDescriptorSetPerFrame);
-				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[WALL], 1, gIndexOffsets[WALL], gVertexOffsets[WALL], 0);
-			}*/
-
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 5, 1, &gDescriptorSetPerFrame);
+			gConstants.objectIndex = 5;
+			BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
 
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 6, 1, &gDescriptorSetPerFrame);
+			gConstants.objectIndex = 6;
+			BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CYLINDER], 1, gIndexOffsets[CYLINDER], gVertexOffsets[CYLINDER], 0);
 
 			BindRenderTarget(pCommandBuffer, nullptr);
@@ -1129,9 +1099,8 @@ public:
 			ResourceBarrier(pCommandBuffer, 1, barrierInfo);
 
 		}
-
-		//Point light shadow maps
-		/**{
+		else if(gCurrentLightSource == POINT_LIGHT) //Point light shadow maps
+		{
 			BarrierInfo barrierInfo[6]{};
 			for (uint32_t i = 0; i < 6; ++i)
 			{
@@ -1171,92 +1140,116 @@ public:
 
 				BindPipeline(pCommandBuffer, &gShadowMapPipeline);
 				BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-				BindDescriptorSet(pCommandBuffer, gCurrentFrame * 8, 1, &gDescriptorSetPerFrame);
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+				gConstants.lightIndex = i + 1;
 
-				BindRootConstants(pCommandBuffer, 1, sizeof(RootConstants), &gConstants, 0);
-				for (uint32_t j = 0; j < gNumObjects; ++j)
+				for (uint32_t i = 0; i < 5; ++i)
 				{
-					DrawIndexedInstanced(pCommandBuffer, gIndexCounts[j], 1, gIndexOffsets[j], gVertexOffsets[j], 0);
+					gConstants.objectIndex = i;
+					BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
+					DrawIndexedInstanced(pCommandBuffer, gIndexCounts[WALL], 1, gIndexOffsets[WALL], gVertexOffsets[WALL], 0);
 				}
 
-				BindRenderTarget(pCommandBuffer, nullptr);
+				gConstants.objectIndex = 5;
+				BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
 
-				for (uint32_t i = 0; i < 6; ++i)
-				{
-					barrierInfo[i].type = BARRIER_TYPE_RENDER_TARGET;
-					barrierInfo[i].pRenderTarget = &gShadowMapPL[i];
-					barrierInfo[i].currentState = RESOURCE_STATE_DEPTH_WRITE;
-					barrierInfo[i].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
-				}
-				ResourceBarrier(pCommandBuffer, 6, barrierInfo);
+				gConstants.objectIndex = 6;
+				BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
+				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CYLINDER], 1, gIndexOffsets[CYLINDER], gVertexOffsets[CYLINDER], 0);
 			}
-		}*/
+
+			BindRenderTarget(pCommandBuffer, nullptr);
+
+			for (uint32_t i = 0; i < 6; ++i)
+			{
+				barrierInfo[i].type = BARRIER_TYPE_RENDER_TARGET;
+				barrierInfo[i].pRenderTarget = &gShadowMapPL[i];
+				barrierInfo[i].currentState = RESOURCE_STATE_DEPTH_WRITE;
+				barrierInfo[i].newState = RESOURCE_STATE_ALL_SHADER_RESOURCE;
+			}
+			ResourceBarrier(pCommandBuffer, 6, barrierInfo);
+		}
+
+		BarrierInfo barrierInfo[1];
+		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
+		barrierInfo[0].pRenderTarget = pRenderTarget;
+		barrierInfo[0].currentState = RESOURCE_STATE_PRESENT;
+		barrierInfo[0].newState = RESOURCE_STATE_RENDER_TARGET;
+
+		ResourceBarrier(pCommandBuffer, 1, barrierInfo);
+
+		BindRenderTargetInfo renderTargetInfo{};
+		renderTargetInfo.pRenderTarget = pRenderTarget;
+		renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
+		renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
+		renderTargetInfo.pDepthTarget = &gDepthBuffer;
+		renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
+		renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
+		BindRenderTarget(pCommandBuffer, &renderTargetInfo);
+
+		ViewportInfo viewportInfo{};
+		viewportInfo.x = 0.0f;
+		viewportInfo.y = 0.0f;
+		viewportInfo.width = pRenderTarget->info.width;
+		viewportInfo.height = pRenderTarget->info.height;
+		viewportInfo.minDepth = 0.0f;
+		viewportInfo.maxDepth = 1.0f;
+		SetViewport(pCommandBuffer, &viewportInfo);
+
+		ScissorInfo scissorInfo{};
+		scissorInfo.x = 0.0f;
+		scissorInfo.y = 0.0f;
+		scissorInfo.width = pRenderTarget->info.width;
+		scissorInfo.height = pRenderTarget->info.height;
+		SetScissor(pCommandBuffer, &scissorInfo);
 
 		//Draw Objects
+		if(gShowShadowDebug == false)
 		{
-			BarrierInfo barrierInfo[1];
-			barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
-			barrierInfo[0].pRenderTarget = pRenderTarget;
-			barrierInfo[0].currentState = RESOURCE_STATE_PRESENT;
-			barrierInfo[0].newState = RESOURCE_STATE_RENDER_TARGET;
-
-			ResourceBarrier(pCommandBuffer, 1, barrierInfo);
-
-			BindRenderTargetInfo renderTargetInfo{};
-			renderTargetInfo.pRenderTarget = pRenderTarget;
-			renderTargetInfo.renderTargetLoadOp = LOAD_OP_CLEAR;
-			renderTargetInfo.renderTargetStoreOp = STORE_OP_STORE;
-			renderTargetInfo.pDepthTarget = &gDepthBuffer;
-			renderTargetInfo.depthTargetLoadOp = LOAD_OP_CLEAR;
-			renderTargetInfo.depthTargetStoreOp = STORE_OP_DONT_CARE;
-			BindRenderTarget(pCommandBuffer, &renderTargetInfo);
-
-			ViewportInfo viewportInfo{};
-			viewportInfo.x = 0.0f;
-			viewportInfo.y = 0.0f;
-			viewportInfo.width = pRenderTarget->info.width;
-			viewportInfo.height = pRenderTarget->info.height;
-			viewportInfo.minDepth = 0.0f;
-			viewportInfo.maxDepth = 1.0f;
-			SetViewport(pCommandBuffer, &viewportInfo);
-
-			ScissorInfo scissorInfo{};
-			scissorInfo.x = 0.0f;
-			scissorInfo.y = 0.0f;
-			scissorInfo.width = pRenderTarget->info.width;
-			scissorInfo.height = pRenderTarget->info.height;
-			SetScissor(pCommandBuffer, &scissorInfo);
-
 			BindPipeline(pCommandBuffer, &gObjectPipeline);
 			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
-			BindRootConstants(pCommandBuffer, 2, sizeof(RootConstants), &gConstants, 0);
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
 
 			for (uint32_t i = 0; i < 5; ++i)
 			{
-				BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + i, 1, &gDescriptorSetPerFrame);
+				gConstants.objectIndex = i;
+				BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
 				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[WALL], 1, gIndexOffsets[WALL], gVertexOffsets[WALL], 0);
 			}
 
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 5, 1, &gDescriptorSetPerFrame);
+			gConstants.objectIndex = 5;
+			BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
 
-			BindDescriptorSet(pCommandBuffer, gCurrentFrame * gNumObjects + 6, 1, &gDescriptorSetPerFrame);
+			gConstants.objectIndex = 6;
+			BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
 			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CYLINDER], 1, gIndexOffsets[CYLINDER], gVertexOffsets[CYLINDER], 0);
 
 			if (gShowLightSources)
 			{
 				//Draw Light Source
 				BindPipeline(pCommandBuffer, &gLightSourcePipeline);
-				BindDescriptorSet(pCommandBuffer, gCurrentFrame * 8, 1, &gDescriptorSetPerFrame);
+				BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
 				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[SPHERE], 1, gIndexOffsets[SPHERE], gVertexOffsets[SPHERE], 0);
 			}
+		}
+		else
+		{
+
+			BindPipeline(pCommandBuffer, &gShadowDebugPipeline);
+			BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
+			BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
+
+			gConstants.debugIndex = gDebugIndex;
+			BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
+			DrawInstanced(pCommandBuffer, 3, 1, 0, 0);
 		}
 
 		RenderUI(pCommandBuffer);
 
 		BindRenderTarget(pCommandBuffer, nullptr);
 
-		BarrierInfo barrierInfo[1];
 		barrierInfo[0].type = BARRIER_TYPE_RENDER_TARGET;
 		barrierInfo[0].pRenderTarget = pRenderTarget;
 		barrierInfo[0].currentState = RESOURCE_STATE_RENDER_TARGET;

@@ -15,7 +15,7 @@ struct Camera
 	float farP;
 
 	float aspectRatio;
-	float vFov;
+	float vFov; //in degrees
 	mat4 perspectiveProjMat;
 
 	float width;

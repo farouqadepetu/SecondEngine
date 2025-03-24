@@ -6,8 +6,13 @@ cbuffer PerFrameUniformBuffer : register(b0)
 
 cbuffer PerObjectUniformBuffer : register(b1)
 {
-    float4x4 model;
+    float4x4 model[18];
 };
+
+cbuffer RootConstants : register(b2)
+{
+    uint index;
+}
 
 Texture2D gTexture2D : register(t0);
 TextureCube gTextureCube : register(t1);

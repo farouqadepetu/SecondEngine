@@ -19,11 +19,12 @@ void UpdateViewMatrix(Camera* cam)
 		vec4(-DotProduct(cam->position, cam->right), -DotProduct(cam->position, cam->up), -DotProduct(cam->position, cam->forward), 1.0f));
 }
 
-//FOR VULKAN, NEED TO NEGATE THE Y VALUE (1, 1) SO THE OBJECT WON'T BE RENDERERD UPSIDE DOWN.
 void UpdatePerspectiveProjectionMatrix(Camera* cam)
 {
+	float vFov = (cam->vFov / 2.0f) * PI / 180.0f;
+
 	float inverseAR = 1.0f / cam->aspectRatio;
-	float d = 1.0f / tan(cam->vFov / 2.0f);
+	float d = 1.0f / tan(vFov);
 	float fMinusN = cam->farP - cam->nearP;
 	cam->perspectiveProjMat.SetRow(0, inverseAR * d, 0.0f, 0.0f, 0.0f);
 	cam->perspectiveProjMat.SetRow(1, 0.0f, d, 0.0f, 0.0f);

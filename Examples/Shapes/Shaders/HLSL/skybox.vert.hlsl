@@ -18,7 +18,7 @@ struct VertexOutput
 VertexOutput vsMain(VertexInput vin)
 {
     VertexOutput vout;
-    float4x4 mvp = mul(model, mul(view, projection));
+    float4x4 mvp = mul(model[index], mul(view, projection));
     float4 posH = mul(vin.inputPosition, mvp);
     vout.outputPosition = posH.xyww; //make z = w so that when perspective divide happens z/w = 1 which makes the skybox always on the far plane.
     vout.outputNormal = vin.inputNormal;

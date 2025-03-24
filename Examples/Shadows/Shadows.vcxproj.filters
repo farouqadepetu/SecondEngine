@@ -101,6 +101,12 @@
     <FxCompile Include="Shaders\HLSL\object.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shadowDebug.frag.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HLSL\shadowDebug.vert.hlsl">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Renderer\ShaderLibrary\lightSource.h">

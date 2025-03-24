@@ -37,10 +37,10 @@ struct VertexOutput
     return shadow;
 }*/
 
-float ComputeShadow2(float4 lightSpacePos, float3 color)
+float ComputeShadow2(float4 posL)
 {
     //perspective divide
-    float3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+    float3 projCoords = posL.xyz / posL.w;
     
     //transform from [-1, 1] -> [0, 1]
     projCoords.x = projCoords.x * 0.5f + 0.5f;
@@ -49,52 +49,92 @@ float ComputeShadow2(float4 lightSpacePos, float3 color)
     //get the closest depth value from light perspective compared with the current depth - bias
     //if sampled depth <= current depth then 1 is returned (pixel is in shadow)
     //else 0 is returned (pixel is not in shadow)
-    float closestDepth = gShadowMap.SampleCmp(gSampler, projCoords.xy, projCoords.z - constants.shadowBias);
+    float closestDepth = gShadowMap.SampleCmp(gSamplerComparison, projCoords.xy, projCoords.z - constants.shadowBias).r;
     
     return closestDepth;
 }
 
+float2 SampleCube(const float3 v, out uint faceIndex)
+{
+    float3 vAbs = abs(v);
+    float ma;
+    float2 uv;
+    if (vAbs.z >= vAbs.x && vAbs.z >= vAbs.y)
+    {
+        faceIndex = v.z < 0.0 ? 5 : 4;
+        ma = 0.5 / vAbs.z;
+        uv = float2(v.z < 0.0 ? -v.x : v.x, -v.y);
+    }
+    else if (vAbs.y >= vAbs.x)
+    {
+        faceIndex = v.y < 0.0 ? 3 : 2;
+        ma = 0.5 / vAbs.y;
+        uv = float2(v.x, v.y < 0.0 ? -v.z : v.z);
+    }
+    else
+    {
+        faceIndex = v.x < 0.0 ? 1 : 0;
+        ma = 0.5 / vAbs.x;
+        uv = float2(v.x < 0.0 ? v.z : -v.z, -v.y);
+    }
+    
+    return uv * ma + 0.5;
+}
+
+float ComputeShadowPointLight(float3 posW, float3 lightPosition, float nDotL, float farPlane)
+{
+    float3 lightToFrag = posW - lightPosition;
+    
+    uint faceIndex;
+    float2 texCoords;
+    float closestDepth;
+    float currentDepth;
+    
+    texCoords = SampleCube(lightToFrag, faceIndex);
+    
+    closestDepth = gShadowMapPL[faceIndex].Sample(gSampler, texCoords).r;
+    
+    currentDepth = length(lightToFrag) / farPlane;
+    
+    float bias = constants.shadowBias;
+    
+    float shadow = currentDepth - bias > closestDepth ? 1.0f : 0.0f;
+    
+    return shadow;
+}
+
 float4 psMain(VertexOutput vout) : SV_Target
 {
+    uint objectIndex = constants.objectIndex;
+    
     PixelDesc desc;
     desc.normal = normalize(vout.outNormal.xyz);
     desc.viewDir = normalize(cameraPos.xyz - vout.outPosW.xyz);
     
     float3 finalColor = float3(0.0f, 0.0f, 0.0f);
     
-    desc.lightDir = normalize(-directionalLight.direction.xyz);
-    desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
-    finalColor += ComputeDirectionalLight(directionalLight, material[materialIndex], desc);
-    
-    /*for (uint pLight = 0; pLight < 0; ++pLight)
+    if(constants.currentLightSource == DIRECTIONAL_LIGHT)
+    {
+        desc.lightDir = normalize(-directionalLight.direction.xyz);
+        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
+        finalColor += ComputeDirectionalLight(directionalLight, material[objectIndex], desc);
+        finalColor *= ComputeShadow2(vout.outPosL);
+    }
+    else if (constants.currentLightSource == POINT_LIGHT)
     {
         desc.lightDir = normalize(pointLight.position.xyz - vout.outPosW.xyz);
         desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
         desc.distance = length(pointLight.position.xyz - vout.outPosW.xyz);
-        finalColor += ComputePointLight(pointLight, pbrMaterial, desc);
+        finalColor += ComputePointLight(pointLight, material[objectIndex], desc);
+        float shadow = ComputeShadowPointLight(vout.outPosW.xyz, pointLight.position.xyz, dot(desc.normal, desc.lightDir), 10.0f);
+        finalColor = finalColor * (1.0f - shadow);
     }
-  
-    for (uint dLight = 0; dLight < 1; ++dLight)
+    else //SPOTLIGHT
     {
-        desc.lightDir = normalize(-directionalLight.direction.xyz);
-        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
-        finalColor += ComputeDirectionalLight(directionalLight, pbrMaterial, desc);
+        
     }
     
-    for (uint sLight = 0; sLight < 0; ++sLight)
-    {
-        desc.lightDir = normalize(spotLight.position.xyz - vout.outPosW.xyz);
-        desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
-        desc.distance = length(spotLight.position.xyz - vout.outPosW.xyz);
-        finalColor += ComputeSpotlight(spotLight, pbrMaterial, desc);
-    }*/
-    
-    //float shadow = ComputeShadow(vout.outPosL);
-    //finalColor = finalColor * (1.0f - shadow);
-    
-    finalColor *= ComputeShadow2(vout.outPosL, finalColor);
-    
-    float3 ambient = material[materialIndex].albedo.rgb * material[materialIndex].ao;
+    float3 ambient = material[objectIndex].albedo.rgb * material[objectIndex].ao;
     finalColor += ambient;
     
     //tonemapping

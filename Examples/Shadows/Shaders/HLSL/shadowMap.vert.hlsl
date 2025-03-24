@@ -11,16 +11,22 @@ struct VertexInput
 struct VertexOutput
 {
     float4 outPosH : SV_Position;
+    float4 outPosW : POSITION;
 };
 
 VertexOutput vsMain(VertexInput vin)
 {
     VertexOutput vout;
     
-    float4x4 mvp = mul(objectModel, mul(lightSourceView, lightSourceProjection));
-    float4 posH = mul(vin.inPos, mvp);
+    uint objectIndex = constants.objectIndex;
+    uint lightIndex = constants.lightIndex;
+    
+    float4x4 shadowMatrix = mul(objectModel[objectIndex], mul(lightSourceView[lightIndex], lightSourceProjection[lightIndex]));
+    float4 posH = mul(vin.inPos, shadowMatrix);
+    float4 posW = mul(vin.inPos, objectModel[objectIndex]);
     
     vout.outPosH = posH;
+    vout.outPosW = posW;
     
     return vout;
 }

@@ -19,7 +19,7 @@ struct VertexOutput
 VertexOutput vsMain(VertexInput vin)
 {
     VertexOutput vout;
-    float4x4 mvp = mul(model, mul(view, projection));
+    float4x4 mvp = mul(model[index], mul(view, projection));
     vout.outputPosition = mul(vin.inputPosition, mvp);
     vout.outputNormal = vin.inputNormal;
     vout.outputTexCoords = vin.inputTexCoords;
