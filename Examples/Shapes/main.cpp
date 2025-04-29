@@ -21,6 +21,7 @@ Shader gShapes2DPixelShader;
 Shader gShapes3DPixelShader;
 Pipeline gShapes2DPipeline;
 Pipeline gShapes3DPipeline;
+Pipeline gLinePipeline;
 
 Shader gShapesWirePixelShader;
 Pipeline gShapesWirePipeline;
@@ -62,12 +63,14 @@ Buffer gPerFrameBuffer[gNumFrames];
 
 enum
 {
+	LINE,
 	EQUILATERAL_TRIANGLE,
 	RIGHT_TRIANGLE,
 	QUAD,
 	CIRCLE,
 	BOX,
 	SQUARE_PYRAMID,
+	FRUSTRUM,
 	TRIANGULAR_PYRAMID,
 	SPHERE,
 	HEMI_SPHERE,
@@ -84,12 +87,14 @@ enum
 
 const char* gShapeNames[] =
 {
+	"LINE",
 	"EQUILATERAL_TRIANGLE",
 	"RIGHT_TRIANGLE",
 	"QUAD",
 	"CIRCLE",
 	"BOX",
 	"SQUARE_PYRAMID",
+	"FRUSTRUM",
 	"TRIANGULAR_PYRAMID",
 	"SPHERE",
 	"HEMI_SPHERE",
@@ -268,14 +273,14 @@ public:
 
 		PipelineInfo graphicsPipelineInfo{};
 		graphicsPipelineInfo.type = PIPELINE_TYPE_GRAPHICS;
-		graphicsPipelineInfo.topology = TOPOLOGY_TRIANGLE_LIST;
+		graphicsPipelineInfo.topology = TOPOLOGY_LINE_LIST;
 		graphicsPipelineInfo.rasInfo.cullMode = CULL_MODE_BACK;
 		graphicsPipelineInfo.rasInfo.faceMode = FACE_CLOCKWISE;
 		graphicsPipelineInfo.rasInfo.fillMode = FILL_MODE_SOLID;
 		graphicsPipelineInfo.rasInfo.lineWidth = 1.0f;
 		graphicsPipelineInfo.blendInfo.enableBlend = false;
 		graphicsPipelineInfo.pVertexShader = &gShapesVertexShader;
-		graphicsPipelineInfo.pPixelShader = &gShapes2DPixelShader;
+		graphicsPipelineInfo.pPixelShader = &gShapesWirePixelShader;
 		graphicsPipelineInfo.numRenderTargets = 1;
 		graphicsPipelineInfo.renderTargetFormat[0] = gSwapChain.pRenderTargets[0].info.format;
 		graphicsPipelineInfo.depthInfo.depthTestEnable = true;
@@ -284,6 +289,10 @@ public:
 		graphicsPipelineInfo.depthFormat = gDepthBuffer.info.format;
 		graphicsPipelineInfo.pVertexInputInfo = &vertexInputInfo;
 		graphicsPipelineInfo.pRootSignature = &gGraphicsRootSignature;
+		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gLinePipeline);
+
+		graphicsPipelineInfo.topology = TOPOLOGY_TRIANGLE_LIST;
+		graphicsPipelineInfo.pPixelShader = &gShapes2DPixelShader;
 		CreatePipeline(&gRenderer, &graphicsPipelineInfo, &gShapes2DPipeline);
 
 		graphicsPipelineInfo.pPixelShader = &gShapes3DPixelShader;
@@ -305,6 +314,9 @@ public:
 			CreateCommandBuffer(&gRenderer, QUEUE_TYPE_GRAPHICS, &gGraphicsCommandBuffers[i]);
 			CreateSemaphore(&gRenderer, &gImageAvailableSemaphores[i]);
 		}
+
+		gVertexOffsets[LINE] = arrlenu(gVertices);
+		CreateLine(&gVertices);
 
 		gVertexOffsets[EQUILATERAL_TRIANGLE] = arrlenu(gVertices);
 		gIndexOffsets[EQUILATERAL_TRIANGLE] = arrlenu(gIndices);
@@ -329,6 +341,10 @@ public:
 		gVertexOffsets[SQUARE_PYRAMID] = arrlenu(gVertices);
 		gIndexOffsets[SQUARE_PYRAMID] = arrlenu(gIndices);
 		CreateSquarePyramid(&gVertices, &gIndices, &gVertexCounts[SQUARE_PYRAMID], &gIndexCounts[SQUARE_PYRAMID]);
+
+		gVertexOffsets[FRUSTRUM] = arrlenu(gVertices);
+		gIndexOffsets[FRUSTRUM] = arrlenu(gIndices);
+		CreateFrustrum(&gVertices, &gIndices, &gVertexCounts[FRUSTRUM], &gIndexCounts[FRUSTRUM]);
 
 		gVertexOffsets[TRIANGULAR_PYRAMID] = arrlenu(gVertices);
 		gIndexOffsets[TRIANGULAR_PYRAMID] = arrlenu(gIndices);
@@ -405,7 +421,6 @@ public:
 			CreateBuffer(&gRenderer, &ubInfo, &gShapesUniformBuffers[i]);
 		}
 
-
 		TextureInfo texInfo{};
 		texInfo.filename = "Textures/statue.dds";
 		CreateTexture(&gRenderer, &texInfo, &gStatueTexture);
@@ -475,7 +490,7 @@ public:
 		updateImageSetInfo[1].pTexture = &gSkyboxTexture;
 		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 1, 3, updateImageSetInfo);
 
-		LookAt(&gCamera, vec3(0.0f, 0.0f, -6.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
+		LookAt(&gCamera, vec3(0.0f, 3.0f, -7.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
 
 		gCamera.vFov = 45.0f;
 		gCamera.nearP = 1.0f;
@@ -600,7 +615,7 @@ public:
 		if (CheckKeyDown('E'))
 			MoveDown(&gCamera, moveSpeed * deltaTime);
 		if (CheckKeyDown(VK_SPACE))
-			LookAt(&gCamera, vec3(0.0f, 0.0f, -6.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
+			LookAt(&gCamera, vec3(0.0f, 3.0f, -7.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
 		if (CheckKeyDown('L'))
 			RotateCamera(&gCamera, quat::MakeRotation(turnSpeed2 * deltaTime, vec3(0.0f, 1.0f, 0.0f)));
 		if (CheckKeyDown('J'))
@@ -728,26 +743,39 @@ public:
 		BindVertexBuffer(pCommandBuffer, sizeof(Vertex), 0, 0, &gVertexBuffer);
 		BindIndexBuffer(pCommandBuffer, 0, INDEX_TYPE_UINT32, &gIndexBuffer);
 
-		//Draw Shapes
-		if (gFillMode == FILL_MODE_SOLID)
+		if (gCurrentShape == LINE)
 		{
-			if (gCurrentShape < 4)
-			{
-				BindPipeline(pCommandBuffer, &gShapes2DPipeline);
-			}
-			else
-			{
-				BindPipeline(pCommandBuffer, &gShapes3DPipeline);
-			}
+			BindPipeline(pCommandBuffer, &gLinePipeline);
 		}
-		else //gFillMode == FILL_MODE_WIREFRAME
+		else
 		{
-			BindPipeline(pCommandBuffer, &gShapesWirePipeline);
+			if (gFillMode == FILL_MODE_SOLID)
+			{
+				if (gCurrentShape < BOX)
+				{
+					BindPipeline(pCommandBuffer, &gShapes2DPipeline);
+				}
+				else
+				{
+					BindPipeline(pCommandBuffer, &gShapes3DPipeline);
+				}
+			}
+			else //gFillMode == FILL_MODE_WIREFRAME
+			{
+				BindPipeline(pCommandBuffer, &gShapesWirePipeline);
+			}
 		}
 
 		BindDescriptorSet(pCommandBuffer, 0, 0, &gDescriptorSetPerNone);
 		BindDescriptorSet(pCommandBuffer, gCurrentFrame, 1, &gDescriptorSetPerFrame);
-		DrawIndexedInstanced(pCommandBuffer, gIndexCounts[gCurrentShape], 1, gIndexOffsets[gCurrentShape], gVertexOffsets[gCurrentShape], 0);
+		if (gCurrentShape == LINE)
+		{
+			DrawInstanced(pCommandBuffer, 2, 1, 0, 0);
+		}
+		else
+		{
+			DrawIndexedInstanced(pCommandBuffer, gIndexCounts[gCurrentShape], 1, gIndexOffsets[gCurrentShape], gVertexOffsets[gCurrentShape], 0);
+		}
 
 		//Draw Skybox
 		BindPipeline(pCommandBuffer, &gSkyboxPipeline);

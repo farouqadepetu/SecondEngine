@@ -90,6 +90,17 @@ void Reorthogonalize_GramSchmidt(vec4* x, vec4* y, vec4* z)
 	*y = vec4(v1.GetX(), v1.GetY(), v1.GetZ(), 0.0f);
 }
 
+void CreateLine(Vertex** vertices)
+{
+	Vertex lineVertices[2];
+	
+	lineVertices[0].position.Set(0.0f, 0.0f, 0.0f, 1.0f);
+	lineVertices[1].position.Set(1.0f, 0.0f, 0.0f, 1.0f);
+
+	arrpush(*vertices, lineVertices[0]);
+	arrpush(*vertices, lineVertices[1]);
+}
+
 void CreateEquilateralTriangle(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
 {
 	Vertex triangleVertices[3]{};
@@ -477,7 +488,7 @@ void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outVer
 	vertex.texCoords = vec2(0.0f, 1.0f);
 	arrpush(vertexList, vertex);
 
-	//Top Cneter Vertex
+	//Top Center Vertex
 	vertex.position = vec4(0.0f, 0.5f, 0.0f, 1.0f);
 	vertex.texCoords = vec2(0.5f, 0.0f);
 	arrpush(vertexList, vertex);
@@ -543,6 +554,134 @@ void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outVer
 	}
 
 	*outVertexCount = 5;
+	*outIndexCount = indexCount;
+	arrfree(triangles);
+	arrfree(vertexList);
+}
+
+void CreateFrustrum(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount)
+{
+	Vertex* vertexList = nullptr;
+	Triangle* triangles = nullptr;
+	uint32_t indexCount = 0;
+
+	Vertex vertex;
+
+	//Small square
+	vertex.position = vec4(-0.25f, 0.25f, 0.0f, 1.0f);
+	vertex.texCoords = vec2(0.0f, 0.0f);
+	arrpush(vertexList, vertex);
+
+	vertex.position = vec4(0.25f, 0.25f, 0.0f, 1.0f);
+	vertex.texCoords = vec2(0.0f, 0.0f);
+	arrpush(vertexList, vertex);
+
+	vertex.position = vec4(0.25f, -0.25f, 0.0f, 1.0f);
+	vertex.texCoords = vec2(0.0f, 0.0f);
+	arrpush(vertexList, vertex);
+
+	vertex.position = vec4(-0.25f, -0.25f, 0.0f, 1.0f);
+	vertex.texCoords = vec2(0.0f, 0.0f);
+	arrpush(vertexList, vertex);
+
+	//Large Square
+	vertex.position = vec4(-0.5f, 0.5f, 1.0f, 1.0f);
+	vertex.texCoords = vec2(1.0f, 0.0f);
+	arrpush(vertexList, vertex);
+
+	vertex.position = vec4(0.5f, 0.5f, 1.0f, 1.0f);
+	vertex.texCoords = vec2(1.0f, 1.0f);
+	arrpush(vertexList, vertex);
+
+	vertex.position = vec4(0.5f, -0.5f, 1.0f, 1.0f);
+	vertex.texCoords = vec2(0.0f, 1.0f);
+	arrpush(vertexList, vertex);
+
+	vertex.position = vec4(-0.5f, -0.5f, 1.0f, 1.0f);
+	vertex.texCoords = vec2(0.0f, 1.0f);
+	arrpush(vertexList, vertex);
+
+	Triangle triangle{};
+
+	//Small Square Triangles
+	CreateTriangle(&triangle, vertexList, 0, 1, 2);
+	arrpush(triangles, triangle);
+
+	CreateTriangle(&triangle, vertexList, 0, 2, 3);
+	arrpush(triangles, triangle);
+
+	//Large Square Triangles
+	CreateTriangle(&triangle, vertexList, 5, 4, 7);
+	arrpush(triangles, triangle);
+
+	CreateTriangle(&triangle, vertexList, 5, 7, 6);
+	arrpush(triangles, triangle);
+
+	//Right Triangles
+	CreateTriangle(&triangle, vertexList, 1, 5, 6);
+	arrpush(triangles, triangle);
+
+	CreateTriangle(&triangle, vertexList, 1, 6, 2);
+	arrpush(triangles, triangle);
+
+	//Left Triangles
+	CreateTriangle(&triangle, vertexList, 4, 0, 3);
+	arrpush(triangles, triangle);
+
+	CreateTriangle(&triangle, vertexList, 4, 3, 7);
+	arrpush(triangles, triangle);
+
+	//Top Triangles
+	CreateTriangle(&triangle, vertexList, 0, 4, 5);
+	arrpush(triangles, triangle);
+
+	CreateTriangle(&triangle, vertexList, 0, 5, 1);
+	arrpush(triangles, triangle);
+
+	//Bottom Triangles
+	CreateTriangle(&triangle, vertexList, 2, 6, 7);
+	arrpush(triangles, triangle);
+
+	CreateTriangle(&triangle, vertexList, 2, 7, 3);
+	arrpush(triangles, triangle);
+
+	uint32_t numTriangles = arrlenu(triangles);
+	for (uint32_t i = 0; i < numTriangles; ++i)
+	{
+		//Compute the normal and tangent
+		vec4 normal;
+		vec4 tangent;
+		normal = ComputeNormal(&triangles[i]);
+		tangent = ComputeTangent(&triangles[i]);
+
+		uint32_t i0 = triangles[i].i0;
+		uint32_t i1 = triangles[i].i1;
+		uint32_t i2 = triangles[i].i2;
+
+		vertexList[i0].normal += normal;
+		vertexList[i1].normal += normal;
+		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
+
+		arrpush(*indices, i0);
+		arrpush(*indices, i1);
+		arrpush(*indices, i2);
+
+		indexCount += 3;
+	}
+
+	for (uint32_t i = 0; i < arrlenu(vertexList); ++i)
+	{
+		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
+
+		arrpush(*vertices, vertexList[i]);
+	}
+
+	*outVertexCount = 8;
 	*outIndexCount = indexCount;
 	arrfree(triangles);
 	arrfree(vertexList);

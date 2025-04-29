@@ -1024,7 +1024,6 @@ inline float Determinant(const Matrix2x2& mat)
 	return mat.mat[0][0] * mat.mat[1][1] - mat.mat[0][1] * mat.mat[1][0];
 }
 
-
 inline Matrix2x2 Inverse(const Matrix2x2& mat)
 {
 	float det = Determinant(mat);

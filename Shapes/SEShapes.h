@@ -11,6 +11,11 @@ struct Vertex
 	vec2 texCoords;
 };
 
+//Create the vertices for an unit line.
+//Unit meaning its length is one.
+//Stores the vertices in a stb_ds array.
+void CreateLine(Vertex** vertices);
+
 //Creates the vertices for an unit equilateral triangle centered around the origin.
 //Unit meaning base = 1 and height = 1.
 //Stores the vertices in a stb_ds array.
@@ -40,6 +45,11 @@ void CreateBox(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, 
 //Unit meaning base area = 1, height = 1.
 //Stores the vertices and indices in a stb_ds array.
 void CreateSquarePyramid(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount);
+
+//Creates the vertices and indices for a frustrum. 
+//The origin is at the center of the small square.
+//Stores the vertices and indices in a stb_ds array.
+void CreateFrustrum(Vertex** vertices, uint32_t** indices, uint32_t* outVertexCount, uint32_t* outIndexCount);
 
 //Creates the vertices and indices for an unit triangular pyramid centered around the origin.
 //Unit meaning base area = 1, height = 1.
