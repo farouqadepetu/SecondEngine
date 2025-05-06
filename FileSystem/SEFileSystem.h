@@ -10,5 +10,14 @@ enum FileType
 	BINARY
 };
 
-void ReadFile(const char* filename, char** buffer, uint32_t* fileSize, FileType type);
+struct SEFile
+{
+	FILE* file = nullptr;
+	char* buffer = nullptr; //a stb_ds array
+	uint32_t size;
+	FileType type;
+};
+
+void ReadFile(const char* filename, SEFile* outFile, FileType type);
+void FreeSEFile(SEFile* file);
 void GetCurrentPath(char* dir);

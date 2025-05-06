@@ -37,6 +37,9 @@
     <Filter Include="Shapes">
       <UniqueIdentifier>{1ccbb0f9-1e58-448a-814b-98b85ac5fc61}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Mesh">
+      <UniqueIdentifier>{2883a9aa-49de-467f-ab8d-c03e53d4cae0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Renderer\DirectX\SEDirectX.cpp">
@@ -89,6 +92,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\Shapes\SEShapes.cpp">
       <Filter>Shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Mesh\SEMesh.cpp">
+      <Filter>Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Mesh\SEMeshLoader.cpp">
+      <Filter>Mesh</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -172,6 +181,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\Shapes\SEShapes.h">
       <Filter>Shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Mesh\SEMesh.h">
+      <Filter>Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Mesh\SEMeshLoader.h">
+      <Filter>Mesh</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -2,14 +2,7 @@
 
 #include "../Math/SEMath_Header.h"
 #include "../ThirdParty/stb_ds.h"
-
-struct Vertex
-{
-	vec4 position;
-	vec4 normal;
-	vec4 tangent;
-	vec2 texCoords;
-};
+#include "../Mesh/SEMesh.h"
 
 //Create the vertices for an unit line.
 //Unit meaning its length is one.

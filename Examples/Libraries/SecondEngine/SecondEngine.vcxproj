@@ -75,6 +75,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\FileSystem\SEFileSystem.cpp" />
+    <ClCompile Include="..\..\..\Mesh\SEMesh.cpp" />
+    <ClCompile Include="..\..\..\Mesh\SEMeshLoader.cpp" />
     <ClCompile Include="..\..\..\Renderer\DirectX\DMA\D3D12MemAlloc.cpp" />
     <ClCompile Include="..\..\..\Renderer\DirectX\SEDirectX.cpp" />
     <ClCompile Include="..\..\..\Renderer\SECamera.cpp" />
@@ -99,6 +101,8 @@
     <ClInclude Include="..\..\..\Math\SEMath_Header.h" />
     <ClInclude Include="..\..\..\Math\SEMath_Intrinsics.h" />
     <ClInclude Include="..\..\..\Math\SEMath_Utility.h" />
+    <ClInclude Include="..\..\..\Mesh\SEMesh.h" />
+    <ClInclude Include="..\..\..\Mesh\SEMeshLoader.h" />
     <ClInclude Include="..\..\..\Renderer\DirectX\DMA\D3D12MemAlloc.h" />
     <ClInclude Include="..\..\..\Renderer\SECamera.h" />
     <ClInclude Include="..\..\..\Renderer\SEDDSLoader.h" />

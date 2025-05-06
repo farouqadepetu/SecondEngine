@@ -1,23 +1,28 @@
-#include "SEFileSystem.h"
 #include <Windows.h>
 #include <cstdio>
 
-void ReadFile(const char* filename, char** buffer, uint32_t* fileSize, FileType type)
+#include "..\ThirdParty\stb_ds.h"
+#include "SEFileSystem.h"
+
+
+void ReadFile(const char* filename, SEFile* outFile, FileType type)
 {
-	FILE* file = nullptr;
+	SEFile file{};
 
 	switch (type)
 	{
 	case TEXT:
-		fopen_s(&file, filename, "r");
+		fopen_s(&file.file, filename, "r");
+		file.type = TEXT;
 		break;
 	case BINARY:
-		fopen_s(&file, filename, "rb");
+		fopen_s(&file.file, filename, "rb");
+		file.type = BINARY;
 		break;
 	}
 
 	char errorMsg[256]{};
-	if (!file)
+	if (!file.file)
 	{
 		strcat_s(errorMsg, "Failed to open file ");
 		strcat_s(errorMsg, filename);
@@ -26,28 +31,58 @@ void ReadFile(const char* filename, char** buffer, uint32_t* fileSize, FileType 
 		exit(-1);
 	}
 
-	fseek(file, 0, SEEK_END);
-
-	uint32_t size = ftell(file);
-
-	char* buf = (char*)calloc(size, sizeof(char));
-
-	fseek(file, 0, SEEK_SET);
-
-	int result = fread(buf, sizeof(char), size, file);
-	if (result != size)
+	uint32_t size = 0;
+	char* buf = nullptr;
+	if (type == TEXT)
 	{
-		strcat_s(errorMsg, "Failed to read file ");
-		strcat_s(errorMsg, filename);
-		strcat_s(errorMsg, ". Exiting prorgam.");
-		MessageBoxA(nullptr, errorMsg, "File read error.", MB_OK);
-		exit(-1);
+		char ch = fgetc(file.file);
+		while (ch != EOF)
+		{
+			arrpush(buf, ch);
+			ch = fgetc(file.file);
+		}
+
+		arrpush(buf, '\0');
+		size = arrlenu(buf);
+	}
+	else //type == BINARY
+	{
+		//only use fseek for binary files for getting size of the file
+		fseek(file.file, 0, SEEK_END);
+
+		size = ftell(file.file);
+
+		buf = (char*)calloc(size, sizeof(char));
+
+		fseek(file.file, 0, SEEK_SET);
+
+		int result = fread(buf, sizeof(char), size, file.file);
+		if (result != size)
+		{
+			strcat_s(errorMsg, "Failed to read file ");
+			strcat_s(errorMsg, filename);
+			strcat_s(errorMsg, ". Exiting prorgam.");
+			MessageBoxA(nullptr, errorMsg, "File read error.", MB_OK);
+			exit(-1);
+		}
 	}
 
-	fclose(file);
+	fclose(file.file);
+	
+	file.buffer = buf;
+	file.size = size;
 
-	*buffer = buf;
-	*fileSize = size;
+	*outFile = file;
+}
+
+void FreeSEFile(SEFile* file)
+{
+	if (file->type == TEXT)
+		arrfree(file->buffer);
+	else //type == BINARY
+		free(file->buffer);
+
+	fclose(file->file);
 }
 
 void WriteFile(const char* filename, char* buffer, uint32_t numChars, FileType type)
@@ -73,7 +108,6 @@ void WriteFile(const char* filename, char* buffer, uint32_t numChars, FileType t
 		MessageBoxA(nullptr, errorMsg, "File open error.", MB_OK);
 		exit(-1);
 	}
-
 
 	int result = fwrite(buffer, sizeof(char), numChars, file);
 	if (result != numChars)

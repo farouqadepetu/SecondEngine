@@ -1108,12 +1108,11 @@ void DirectXCreateShader(const Renderer* const pRenderer, const ShaderInfo* cons
 	strcat_s(inputFileWithPath, "CompiledShaders\\HLSL\\");
 	strcat_s(inputFileWithPath, pInfo->filename);
 
-	char* buffer = nullptr;
-	uint32_t fileSize = 0;
-	ReadFile(inputFileWithPath, &buffer, &fileSize, BINARY);
-
-	pShader->dx.shader.pShaderBytecode = buffer;
-	pShader->dx.shader.BytecodeLength = fileSize;
+	SEFile file{};
+	ReadFile(inputFileWithPath, &file, BINARY);
+	
+	pShader->dx.shader.pShaderBytecode = file.buffer;
+	pShader->dx.shader.BytecodeLength = file.size;
 }
 
 void DirectXDestroyShader(const Renderer* const pRenderer, Shader* pShader)

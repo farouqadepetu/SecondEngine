@@ -13,6 +13,7 @@
 		xcopy "$(SolutionDir)..\Renderer\ShaderLibrary\*" "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\ShaderLibrary\" /s /y
 		xcopy "$(ProjectDir)Shaders\*" "$(ProjectDir)$(Platform)\$(Configuration)\Shaders\" /s /y
 		xcopy "$(ProjectDir)Textures\*" "$(ProjectDir)$(Platform)\$(Configuration)\Textures\" /s /y
+		xcopy "$(ProjectDir)Meshes\*" "$(ProjectDir)$(Platform)\$(Configuration)\Meshes\" /s /y
 		xcopy "$(SolutionDir)..\Renderer\Fonts\" "$(ProjectDir)$(Platform)\$(Configuration)\Fonts\" /s /y /d
 		
 		"$(SolutionDir)..\Renderer\ShaderCompiler.exe" "$(ProjectDir)$(Platform)\$(Configuration)\\"

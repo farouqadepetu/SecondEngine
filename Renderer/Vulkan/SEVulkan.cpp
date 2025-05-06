@@ -1403,14 +1403,13 @@ void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const
 	strcat_s(inputFileWithPath, "CompiledShaders\\GLSL\\");
 	strcat_s(inputFileWithPath, pInfo->filename);
 
-	char* buffer = nullptr;
-	uint32_t fileSize = 0;
-	ReadFile(inputFileWithPath, &buffer, &fileSize, BINARY);
+	SEFile file{};
+	ReadFile(inputFileWithPath, &file, BINARY);
 
 	uint32_t num = 3;
-	uint32_t newSize = (fileSize + num) & ~num; //make filesize the nearest number divisible by 4
+	uint32_t newSize = (file.size + num) & ~num; //make filesize the nearest number divisible by 4
 	char* code = (char*)calloc(newSize, sizeof(char));
-	memcpy(code, buffer, fileSize);
+	memcpy(code, file.buffer, file.size);
 
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1445,8 +1444,7 @@ void VulkanCreateShader(const Renderer* const pRenderer, const ShaderInfo* const
 
 	pShader->vk.shaderCreateInfo = stageCreateInfo;
 
-	free(buffer);
-	free(code);
+	FreeSEFile(&file);
 }
 
 void VulkanDestroyShader(const Renderer* const pRenderer, Shader* pShader)
