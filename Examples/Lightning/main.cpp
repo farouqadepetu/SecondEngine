@@ -6,6 +6,7 @@
 #include "../../../SecondEngine/Shapes/SEShapes.h"
 #include "../../../SecondEngine/UI/SEUI.h"
 #include "../../Renderer/ShaderLibrary/lightSource.h"
+#include "../../../SecondEngine/Mesh/SEMeshLoader.h"
 
 Renderer gRenderer;
 
@@ -96,6 +97,9 @@ enum
 	CYLINDER,
 	CONE,
 	TORUS,
+	TEAPOT,
+	DRAGON,
+	COW,
 	MAX_SHAPES
 };
 
@@ -177,7 +181,10 @@ const char* gShapeNames[] =
 	"HEMISPHERE",
 	"CYLINDER",
 	"CONE",
-	"TORUS"
+	"TORUS",
+	"TEAPOT",
+	"DRAGON",
+	"COW"
 };
 uint32_t gCurrentShape = 0;
 
@@ -551,6 +558,18 @@ public:
 		gVertexOffsets[TORUS] = arrlenu(gVertices);
 		gIndexOffsets[TORUS] = arrlenu(gIndices);
 		CreateTorus(&gVertices, &gIndices, &gVertexCounts[TORUS], &gIndexCounts[TORUS], 1.0f, 0.5f);
+
+		gVertexOffsets[TEAPOT] = arrlenu(gVertices);
+		gIndexOffsets[TEAPOT] = arrlenu(gIndices);
+		ParseOBJ("Meshes/teapot.obj", &gVertices, &gIndices, &gVertexCounts[TEAPOT], &gIndexCounts[TEAPOT]);
+
+		gVertexOffsets[DRAGON] = arrlenu(gVertices);
+		gIndexOffsets[DRAGON] = arrlenu(gIndices);
+		ParseOBJ("Meshes/dragon.obj", &gVertices, &gIndices, &gVertexCounts[DRAGON], &gIndexCounts[DRAGON]);
+
+		gVertexOffsets[COW] = arrlenu(gVertices);
+		gIndexOffsets[COW] = arrlenu(gIndices);
+		ParseOBJ("Meshes/cow.obj", &gVertices, &gIndices, &gVertexCounts[COW], &gIndexCounts[COW]);
 
 		BufferInfo vbInfo{};
 		vbInfo.size = arrlen(gVertices) * sizeof(Vertex);
@@ -1070,11 +1089,29 @@ public:
 				gAngle = 0.0f;
 		}
 
-		mat4 model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 0.0f);
+		mat4 model;
+
 		if (gCurrentShape == TORUS)
 		{
-			model.SetRow(3, 0.0f, 0.0f, 1.0f, 1.0f);
+			model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 1.0f);
 		}
+		else if (gCurrentShape == TEAPOT)
+		{
+			model = mat4::Scale(0.5f, 0.5f, 0.5f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, -1.0f, 1.0f);
+		}
+		else if (gCurrentShape == COW)
+		{
+			model = mat4::Scale(0.5f, 0.5f, 0.5f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 1.0f);
+		}
+		else if (gCurrentShape == DRAGON)
+		{
+			model = mat4::Scale(0.025f, 0.025f, 0.025f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 1.0f);
+		}
+		else
+		{
+			model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle);
+		}
+
 		gShapesUniformData.model = Transpose(model);
 		gShapesUniformData.transposeInverseModel = Inverse(model);
 

@@ -379,8 +379,34 @@ void ParseOBJ(const char* filename, Vertex** vertices, uint32_t** indices, uint3
 		}
 	}
 
+	for (uint32_t i = 0; i < arrlenu(faces); i = i + 3)
+	{
+		Triangle triangle{};
+		CreateTriangle(&triangle, vertexList, faces[i].vIndex - 1, faces[i + 1].vIndex - 1, faces[i + 2].vIndex - 1);
+
+		//Compute the normal and tangent
+		vec4 normal;
+		vec4 tangent;
+		normal = ComputeNormal(&triangle);
+		tangent = ComputeTangent(&triangle);
+
+		uint32_t i0 = triangle.i0;
+		uint32_t i1 = triangle.i1;
+		uint32_t i2 = triangle.i2;
+
+		vertexList[i0].normal += normal;
+		vertexList[i1].normal += normal;
+		vertexList[i2].normal += normal;
+
+		vertexList[i0].tangent += tangent;
+		vertexList[i1].tangent += tangent;
+		vertexList[i2].tangent += tangent;
+	}
+
 	for (uint32_t i = 0; i < arrlenu(vData.v); ++i)
 	{
+		vertexList[i].normal = Normalize(vertexList[i].normal);
+		vertexList[i].tangent = Normalize(vertexList[i].tangent);
 		arrpush(*vertices, vertexList[i]);
 	}
 
