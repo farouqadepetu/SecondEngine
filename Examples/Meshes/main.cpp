@@ -84,10 +84,11 @@ enum
 	CONE,
 	CONE_BASE,
 	TORUS,
+	CAPSULE,
 	TEAPOT,
 	DRAGON,
 	COW,
-	MAX_Meshes
+	MAX_MESHES
 };
 
 const char* gShapeNames[] =
@@ -111,6 +112,7 @@ const char* gShapeNames[] =
 	"CONE",
 	"CONE_BASE",
 	"TORUS",
+	"CAPSULE",
 	"TEAPOT",
 	"DRAGON",
 	"COW"
@@ -128,10 +130,10 @@ Buffer gMeshesUniformBuffers[gNumFrames];
 PerFrameUniformData gSkyboxPerFrameUniformData;
 Buffer gSkyboxPerFrameBuffer[gNumFrames];
 
-uint32_t gVertexCounts[MAX_Meshes];
-uint32_t gVertexOffsets[MAX_Meshes];
-uint32_t gIndexOffsets[MAX_Meshes];
-uint32_t gIndexCounts[MAX_Meshes];
+uint32_t gVertexCounts[MAX_MESHES];
+uint32_t gVertexOffsets[MAX_MESHES];
+uint32_t gIndexOffsets[MAX_MESHES];
+uint32_t gIndexCounts[MAX_MESHES];
 
 MainComponent gFillWindow;
 MainComponent gShapeWindow;
@@ -405,6 +407,10 @@ public:
 		gIndexOffsets[TORUS] = arrlenu(gIndices);
 		CreateTorus(&gVertices, &gIndices, &gVertexCounts[TORUS], &gIndexCounts[TORUS], 2.0f, 1.0f);
 
+		gVertexOffsets[CAPSULE] = arrlenu(gVertices);
+		gIndexOffsets[CAPSULE] = arrlenu(gIndices);
+		ParseOBJ("Meshes/capsule.obj", &gVertices, &gIndices, &gVertexCounts[CAPSULE], &gIndexCounts[CAPSULE]);
+
 		gVertexOffsets[TEAPOT] = arrlenu(gVertices);
 		gIndexOffsets[TEAPOT] = arrlenu(gIndices);
 		ParseOBJ("Meshes/teapot.obj", &gVertices, &gIndices, &gVertexCounts[TEAPOT], &gIndexCounts[TEAPOT]);
@@ -562,7 +568,7 @@ public:
 		SubComponent Meshes{};
 		Meshes.type = SUB_COMPONENT_TYPE_DROPDOWN;
 		Meshes.dropDown.pLabel = "Meshes";
-		Meshes.dropDown.numNames = MAX_Meshes;
+		Meshes.dropDown.numNames = MAX_MESHES;
 		Meshes.dropDown.pData = &gCurrentShape;
 		Meshes.dropDown.pNames = gShapeNames;
 		AddSubComponent(&gShapeWindow, &Meshes);
@@ -705,7 +711,11 @@ public:
 		}
 		else if (gCurrentShape == DRAGON)
 		{
-			model = mat4::Scale(0.05f, 0.05f, 0.05f);
+			model = mat4::Scale(0.025f, 0.025f, 0.025f);
+		}
+		else if (gCurrentShape == CAPSULE)
+		{
+			model = mat4::RotX(90.0f) * mat4::RotY(90.0f);
 		}
 
 		gMeshesUniformData.model[0] = Transpose(model);

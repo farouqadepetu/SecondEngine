@@ -97,9 +97,7 @@ enum
 	CYLINDER,
 	CONE,
 	TORUS,
-	TEAPOT,
-	DRAGON,
-	COW,
+	CAPSULE,
 	MAX_SHAPES
 };
 
@@ -182,9 +180,7 @@ const char* gShapeNames[] =
 	"CYLINDER",
 	"CONE",
 	"TORUS",
-	"TEAPOT",
-	"DRAGON",
-	"COW"
+	"CAPSULE",
 };
 uint32_t gCurrentShape = 0;
 
@@ -557,19 +553,11 @@ public:
 
 		gVertexOffsets[TORUS] = arrlenu(gVertices);
 		gIndexOffsets[TORUS] = arrlenu(gIndices);
-		CreateTorus(&gVertices, &gIndices, &gVertexCounts[TORUS], &gIndexCounts[TORUS], 1.0f, 0.5f);
+		CreateTorus(&gVertices, &gIndices, &gVertexCounts[TORUS], &gIndexCounts[TORUS], 2.0f, 1.0f);
 
-		gVertexOffsets[TEAPOT] = arrlenu(gVertices);
-		gIndexOffsets[TEAPOT] = arrlenu(gIndices);
-		ParseOBJ("Meshes/teapot.obj", &gVertices, &gIndices, &gVertexCounts[TEAPOT], &gIndexCounts[TEAPOT]);
-
-		gVertexOffsets[DRAGON] = arrlenu(gVertices);
-		gIndexOffsets[DRAGON] = arrlenu(gIndices);
-		ParseOBJ("Meshes/dragon.obj", &gVertices, &gIndices, &gVertexCounts[DRAGON], &gIndexCounts[DRAGON]);
-
-		gVertexOffsets[COW] = arrlenu(gVertices);
-		gIndexOffsets[COW] = arrlenu(gIndices);
-		ParseOBJ("Meshes/cow.obj", &gVertices, &gIndices, &gVertexCounts[COW], &gIndexCounts[COW]);
+		gVertexOffsets[CAPSULE] = arrlenu(gVertices);
+		gIndexOffsets[CAPSULE] = arrlenu(gIndices);
+		ParseOBJ("Meshes/capsule.obj", &gVertices, &gIndices, &gVertexCounts[CAPSULE], &gIndexCounts[CAPSULE]);
 
 		BufferInfo vbInfo{};
 		vbInfo.size = arrlen(gVertices) * sizeof(Vertex);
@@ -1093,19 +1081,11 @@ public:
 
 		if (gCurrentShape == TORUS)
 		{
-			model = mat4::Scale(1.0f, 1.0f, 1.0f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 1.0f);
-		}
-		else if (gCurrentShape == TEAPOT)
-		{
-			model = mat4::Scale(0.5f, 0.5f, 0.5f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, -1.0f, 1.0f);
-		}
-		else if (gCurrentShape == COW)
-		{
 			model = mat4::Scale(0.5f, 0.5f, 0.5f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 1.0f);
 		}
-		else if (gCurrentShape == DRAGON)
+		else if (gCurrentShape == CAPSULE)
 		{
-			model = mat4::Scale(0.025f, 0.025f, 0.025f) * mat4::RotY(gAngle) * mat4::Translate(0.0f, 0.0f, 1.0f);
+			model = mat4::RotX(90.0f) * mat4::RotY(gAngle);
 		}
 		else
 		{

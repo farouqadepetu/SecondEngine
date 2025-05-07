@@ -140,6 +140,8 @@ struct OBJVertexData
 	vec3* v = nullptr;
 	vec3* vn = nullptr;
 	vec2* vt = nullptr;
+	bool vnExist = false;
+	bool vtExist = false;
 };
 
 struct OBJFace
@@ -158,9 +160,10 @@ void OBJParseVertex(char* buf, OBJVertexData* vData)
 	char ch = buf[index];
 	if (ch == 'n' || ch == 't')
 	{
-		index = index + 2;
 		if (ch == 't')
 			numIterations = 2;
+
+		index = index + 2;
 	}
 	else //ch == ' '
 	{
@@ -289,9 +292,18 @@ void ParseOBJ(const char* filename, Vertex** vertices, uint32_t** indices, uint3
 		{
 			++index;
 			if (buf[index] == 'n' || buf[index] == 't')
+			{
+				if (buf[index] == 'n')
+					vData.vnExist = true;
+				else if (buf[index] == 't')
+					vData.vtExist = true;
+
 				index = index + 2;
+			}
 			else
+			{
 				++index;
+			}
 
 			if (buf[index] == '-' || (buf[index] >= '0' && buf[index] <= '9'))
 			{
@@ -384,20 +396,21 @@ void ParseOBJ(const char* filename, Vertex** vertices, uint32_t** indices, uint3
 		Triangle triangle{};
 		CreateTriangle(&triangle, vertexList, faces[i].vIndex - 1, faces[i + 1].vIndex - 1, faces[i + 2].vIndex - 1);
 
-		//Compute the normal and tangent
-		vec4 normal;
-		vec4 tangent;
-		normal = ComputeNormal(&triangle);
-		tangent = ComputeTangent(&triangle);
-
 		uint32_t i0 = triangle.i0;
 		uint32_t i1 = triangle.i1;
 		uint32_t i2 = triangle.i2;
 
-		vertexList[i0].normal += normal;
-		vertexList[i1].normal += normal;
-		vertexList[i2].normal += normal;
+		if (vData.vnExist == false)
+		{
+			vec4 normal;
+			normal = ComputeNormal(&triangle);
+			vertexList[i0].normal += normal;
+			vertexList[i1].normal += normal;
+			vertexList[i2].normal += normal;
+		}
 
+		vec4 tangent;
+		tangent = ComputeTangent(&triangle);
 		vertexList[i0].tangent += tangent;
 		vertexList[i1].tangent += tangent;
 		vertexList[i2].tangent += tangent;
@@ -405,7 +418,9 @@ void ParseOBJ(const char* filename, Vertex** vertices, uint32_t** indices, uint3
 
 	for (uint32_t i = 0; i < arrlenu(vData.v); ++i)
 	{
-		vertexList[i].normal = Normalize(vertexList[i].normal);
+		if (vData.vnExist == false)
+			vertexList[i].normal = Normalize(vertexList[i].normal);
+
 		vertexList[i].tangent = Normalize(vertexList[i].tangent);
 		arrpush(*vertices, vertexList[i]);
 	}
