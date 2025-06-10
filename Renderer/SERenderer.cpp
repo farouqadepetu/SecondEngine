@@ -95,6 +95,8 @@ extern void DirectXInitUI(const Renderer* const pRenderer, const UIDesc* const p
 extern void DirectXDestroyUI(const Renderer* const pRenderer);
 extern void DirectXRenderUI(const CommandBuffer* const pCommandBuffer);
 
+extern void DirectXSwapChainResize(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain);
+
 //VULKAN
 extern void VulkanInitRenderer(Renderer* pRenderer, const char* appName);
 extern void VulkanDestroyRenderer(Renderer* pRenderer);
@@ -191,6 +193,8 @@ extern void VulkanInitUI(const Renderer* const pRenderer, const UIDesc* const pI
 extern void VulkanDestroyUI(const Renderer* const pRenderer);
 extern void VulkanRenderUI(const CommandBuffer* const pCommandBuffer);
 
+extern void VulkanSwapChainResize(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain);
+
 //CALLABLE
 void (*InitRenderer)(Renderer* pRenderer, const char*);
 void (*DestroyRenderer)(Renderer* pRenderer);
@@ -274,6 +278,8 @@ void (*InitUI)(const Renderer* const pRenderer, const UIDesc* const pInfo);
 void (*DestroyUI)(const Renderer* const pRenderer);
 void (*RenderUI)(const CommandBuffer* const pCommandBuffer);
 
+void (*SwapChainResize)(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain);
+
 void InitSE()
 {
 	if (gRendererAPI == VULKAN)
@@ -349,6 +355,8 @@ void InitSE()
 		InitUI = VulkanInitUI;
 		DestroyUI = VulkanDestroyUI;
 		RenderUI = VulkanRenderUI;
+
+		SwapChainResize = VulkanSwapChainResize;
 	}
 	else if (gRendererAPI == DIRECTX)
 	{
@@ -424,6 +432,8 @@ void InitSE()
 		InitUI = DirectXInitUI;
 		DestroyUI = DirectXDestroyUI;
 		RenderUI = DirectXRenderUI;
+
+		SwapChainResize = DirectXSwapChainResize;
 	}
 }
 
@@ -500,6 +510,8 @@ void ExitSE()
 	InitUI = nullptr;
 	DestroyUI = nullptr;
 	RenderUI = nullptr;
+
+	SwapChainResize = nullptr;
 }
 
 void OnRendererApiSwitch()

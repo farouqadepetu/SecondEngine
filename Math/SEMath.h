@@ -465,7 +465,7 @@ inline Vector3 CrossProduct(const Vector3& a, const Vector3& b)
 //VECTOR4
 //------------------------------------------------------------------------------------------------------------
 
-class Vector4
+class alignas(16) Vector4
 {
 public:
 	Vector4();
@@ -705,7 +705,7 @@ inline float Length(const Vector4& a)
 inline Vector4 Normalize(const Vector4& a)
 {
 	float mag = 1.0f / Length(a);
-	assert(!CompareFloats(mag, 0.0f) && "Magnitude of the vector is 0.");
+	//assert(!CompareFloats(mag, 0.0f) && "Magnitude of the vector is 0.");
 	return Vector4(a.x * mag, a.y * mag, a.z * mag, a.w * mag);
 }
 

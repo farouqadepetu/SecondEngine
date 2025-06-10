@@ -180,7 +180,7 @@ struct SubComponent
         struct SubComponentRadioButton
         {
             const char* pLabel;
-            int32_t* pData;
+            void* pData;
             int32_t id;
         }radio;
     };

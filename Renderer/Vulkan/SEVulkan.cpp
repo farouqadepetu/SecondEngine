@@ -899,6 +899,12 @@ void VulkanDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapCha
 	vkDestroySwapchainKHR(pRenderer->vk.logicalDevice, pSwapChain->vk.swapChain, nullptr);
 	vkDestroySurfaceKHR(pRenderer->vk.instance, pSwapChain->vk.surface, nullptr);
 }
+
+void VulkanSwapChainResize(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain)
+{
+	VulkanDestroySwapChain(pRenderer, pSwapChain);
+	VulkanCreateSwapChain(pRenderer, pInfo, pSwapChain);
+}
 //-------------------------------------------------------------------------------------------------------------------------------------------
 
 void VulkanInitUI(const Renderer* const pRenderer, const UIDesc* const pInfo)

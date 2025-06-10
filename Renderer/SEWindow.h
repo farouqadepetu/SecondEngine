@@ -19,6 +19,8 @@ struct Window
 {
 	WNDCLASSEXW wndClass;
 	HWND wndHandle;
+	bool fullscreen;
+	WINDOWPLACEMENT placement;
 };
 
 

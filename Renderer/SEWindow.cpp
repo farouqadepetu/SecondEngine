@@ -8,6 +8,8 @@ bool gAppPaused = false;
 bool gMinimized = false;
 bool gMaximized = false;
 bool gResizing = false;
+bool gEnableFullscreen = false;
+//bool gEnableWindowed = false;
 
 //bool gMouseCaptured = false;
 bool gKeys[0x100] = { 0 };
@@ -21,6 +23,9 @@ MainComponent gApiWindow;
 const char* gApiNames[] = { "DIRECTX", "VULKAN" };
 uint32_t gCurrentApiIndex = 0;
 uint32_t gNextApiIndex = 0;
+
+App* gApp = nullptr;
+bool gQuit = false;
 
 void CheckInput(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -229,7 +234,6 @@ void ErrorExit(LPCTSTR lpszFunction)
 	ExitProcess(dw);
 }
 
-
 void CreateWindow(WndInfo* data, Window* window)
 {
 	size_t numChars = strlen(data->wndName) + 1;
@@ -261,15 +265,17 @@ void CreateWindow(WndInfo* data, Window* window)
 
 	RECT desiredClientSize{ 0, 0, (long)data->width,(long)data->height };
 
+	DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+
 	//Calulates the required size of the window to make sure the client window size is (WIDTH, HEIGHT)
 	//When the function returns, the structure contains the coordinates of the top-left and bottom-right corners of the window 
 	//to accommodate the desired client area.
-	AdjustWindowRect(&desiredClientSize, WS_OVERLAPPEDWINDOW, false);
+	AdjustWindowRect(&desiredClientSize, style, false);
 
 	uint32_t width = desiredClientSize.right - desiredClientSize.left;
 	uint32_t height = desiredClientSize.bottom - desiredClientSize.top;
 
-	window->wndHandle = CreateWindowEx(0, cName, cName, WS_OVERLAPPEDWINDOW,
+	window->wndHandle = CreateWindowEx(0, cName, cName, style,
 		CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
 
 	if (!window->wndHandle)
@@ -337,10 +343,10 @@ void CreateComponents(Window* pWindow)
 	AddSubComponent(&gFrameStatsWindow, &fpsText);
 
 	uint32_t width = GetWidth(pWindow);
-	mcInfo.pLabel = "API";
-	mcInfo.size = vec2(150.0f, 60.0f);
+	mcInfo.pLabel = "Settings";
+	mcInfo.size = vec2(150.0f, 160.0f);
 	mcInfo.position = vec2(width - mcInfo.size.GetX(), 0.0f);
-	mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_DECORATION | MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS | MAIN_COMPONENT_FLAGS_NO_NAV |
+	mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_SAVED_SETTINGS | MAIN_COMPONENT_FLAGS_NO_NAV |
 		MAIN_COMPONENT_FLAGS_NO_RESIZE;
 	CreateMainComponent(&mcInfo, &gApiWindow);
 
@@ -351,6 +357,20 @@ void CreateComponents(Window* pWindow)
 	api.dropDown.numNames = 2;
 	api.dropDown.pNames = gApiNames;
 	AddSubComponent(&gApiWindow, &api);
+
+	SubComponent windowed{};
+	windowed.type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
+	windowed.radio.pLabel = "Windowed";
+	windowed.radio.id = 0;
+	windowed.radio.pData = &gEnableFullscreen;
+	AddSubComponent(&gApiWindow, &windowed);
+
+	SubComponent fullscreen{};
+	fullscreen.type = SUB_COMPONENT_TYPE_RADIO_BUTTON;
+	fullscreen.radio.pLabel = "Fullscreen";
+	fullscreen.radio.id = 1;
+	fullscreen.radio.pData = &gEnableFullscreen;
+	AddSubComponent(&gApiWindow, &fullscreen);
 }
 
 void OnApiSwitch(App* pApp, Window* pWindow, Timer* timer)
@@ -402,7 +422,6 @@ void FrameStats(float deltaTime)
 	snprintf(gFrameStatString, 64, "FPS = %d\nFrame Time = %f ms", gFps, deltaTime);
 }
 
-
 int WindowsMain(App* pApp)
 {
 	Window window{};
@@ -415,20 +434,21 @@ int WindowsMain(App* pApp)
 	Timer timer{};
 	InitTimer(&timer);
 
-	pApp->pWindow = &window;
+	gApp = pApp;
+
+	gApp->pWindow = &window;
 
 	InitUserInterface(&window);
 	CreateComponents(&window);
 
-	pApp->Init();
+	gApp->Init();
 
 	MSG msg{};
-	bool quit = false;
-	while (!quit)
+	while (!gQuit)
 	{
 		Tick(&timer);
 		float deltaTime = timer.deltaTime;
-		quit = ProcessMessages();
+		gQuit = ProcessMessages();
 
 		if (!gAppPaused)
 		{
@@ -438,26 +458,65 @@ int WindowsMain(App* pApp)
 			extern void UpdateUserInterface();
 			UpdateUserInterface();
 
+			if (window.fullscreen == false && gEnableFullscreen == true)
+			{
+				DWORD fullscreenStyle = WS_POPUP | WS_VISIBLE;
+				SetWindowLong(window.wndHandle, GWL_STYLE, fullscreenStyle);
+
+				HMONITOR monitor = MonitorFromWindow(window.wndHandle, MONITOR_DEFAULTTONEAREST);
+				MONITORINFO monitorInfo{};
+				monitorInfo.cbSize = sizeof(monitorInfo);
+
+				window.placement.length = sizeof(WINDOWPLACEMENT);
+				GetWindowPlacement(window.wndHandle, &window.placement); //Save current window position and size
+
+				if (GetMonitorInfoW(monitor, &monitorInfo) == true);
+				{
+					SetWindowPos(window.wndHandle, nullptr, monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+						monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+						monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+						SWP_NOZORDER);
+				}
+
+				window.fullscreen = true;
+				gResize = true;
+			}
+			else if (window.fullscreen == true && gEnableFullscreen == false)
+			{
+
+				DWORD windowedStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+				SetWindowLong(window.wndHandle, GWL_STYLE, windowedStyle);
+
+				window.placement.length = sizeof(WINDOWPLACEMENT);
+				SetWindowPlacement(window.wndHandle, &window.placement); //restore window position and size
+				SetWindowPos(window.wndHandle, nullptr, window.placement.rcNormalPosition.left, window.placement.rcNormalPosition.top,
+					window.placement.rcNormalPosition.right - window.placement.rcNormalPosition.left,
+					window.placement.rcNormalPosition.bottom - window.placement.rcNormalPosition.top, SWP_NOZORDER);
+
+				window.fullscreen = false;
+				gResize = true;
+			}
+
 			if (gResize == true)
 			{
-				pApp->Resize();
+				gApp->Resize();
 				gResize = false;
 			}
 
 			if (gCurrentApiIndex != gNextApiIndex)
 			{
-				OnApiSwitch(pApp, &window, &timer);
+				OnApiSwitch(gApp, &window, &timer);
 				gCurrentApiIndex = gNextApiIndex;
 				continue;
 			}
 
-			pApp->Update(deltaTime);
-			pApp->Draw();
+			gApp->Update(deltaTime);
+			gApp->Draw();
 		}
 
 	}
 
-	pApp->Exit();
+	gApp->Exit();
 	DestroyMainComponent(&gFrameStatsWindow);
 	DestroyMainComponent(&gApiWindow);
 	DestroyUserInterface();

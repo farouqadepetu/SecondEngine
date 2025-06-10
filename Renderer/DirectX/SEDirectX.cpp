@@ -1045,16 +1045,23 @@ void DirectXCreateSwapChain(const Renderer* const pRenderer, const SwapChainInfo
 	desc.SampleDesc.Quality = 0;
 	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	desc.BufferCount = bufferCount;
-	desc.Scaling = DXGI_SCALING_STRETCH;
+	desc.Scaling = DXGI_SCALING_NONE;
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 	desc.Flags = DirectXCheckTearingSupport(pRenderer) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
 	pSwapChain->dx.flags = desc.Flags;
 
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fsDesc{};
+	fsDesc.RefreshRate.Numerator = 0;
+	fsDesc.RefreshRate.Denominator = 0;
+	fsDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	fsDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	fsDesc.Windowed = TRUE;
+
 	IDXGISwapChain1* swapChain1 = nullptr;
 	DIRECTX_ERROR_CHECK(pRenderer->dx.factory->CreateSwapChainForHwnd(pInfo->queue->dx.queue, pInfo->window->wndHandle, &desc,
-		nullptr, nullptr, &swapChain1));
+		&fsDesc, nullptr, &swapChain1));
 
 	// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
 	// will be handled manually.
@@ -1095,7 +1102,53 @@ void DirectXDestroySwapChain(const Renderer* const pRenderer, SwapChain* pSwapCh
 		SAFE_RELEASE(pSwapChain->pRenderTargets[i].texture.dx.resource);
 	}
 	SAFE_FREE(pSwapChain->pRenderTargets);
+
+	pSwapChain->dx.swapChain->SetFullscreenState(false, nullptr);
+
 	SAFE_RELEASE(pSwapChain->dx.swapChain);
+}
+
+void DirectXSwapChainResize(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain)
+{
+	if (pInfo->window->fullscreen == true)
+	{
+		pSwapChain->dx.swapChain->SetFullscreenState(true, nullptr);
+	}
+	else
+	{
+		//NEED TO FIX THIS
+		//pSwapChain->dx.swapChain->SetFullscreenState(false, nullptr);
+	}
+
+	for (uint32_t i = 0; i < pSwapChain->numRenderTargets; ++i)
+	{
+		DirectXDescriptorHeapFree(&gRtvHeap, pSwapChain->pRenderTargets[i].dx.descriptorId, 0);
+		SAFE_RELEASE(pSwapChain->pRenderTargets[i].texture.dx.resource);
+	}
+	SAFE_FREE(pSwapChain->pRenderTargets);
+
+	DIRECTX_ERROR_CHECK(pSwapChain->dx.swapChain->ResizeBuffers(pSwapChain->numRenderTargets, pInfo->width, pInfo->height,
+		(DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pInfo->format), pSwapChain->dx.flags));
+
+	pSwapChain->pRenderTargets = (RenderTarget*)calloc(pSwapChain->numRenderTargets, sizeof(RenderTarget));
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = gRtvHeap.cpuHeap->GetCPUDescriptorHandleForHeapStart();
+
+	for (uint32_t i = 0; i < pSwapChain->numRenderTargets; ++i)
+	{
+		DIRECTX_ERROR_CHECK(pSwapChain->dx.swapChain->GetBuffer(i, IID_PPV_ARGS(&pSwapChain->pRenderTargets[i].texture.dx.resource)));
+
+		DirectXDescriptroHeapAllocateInfo heapAllocateInfo{};
+		heapAllocateInfo.type = VIEW_TYPE_RTV;
+		heapAllocateInfo.pRtvDesc = nullptr;
+		heapAllocateInfo.pRenderTarget = &pSwapChain->pRenderTargets[i];
+		heapAllocateInfo.allocateOnGpuHeap = false;
+		DirectXDescriptorHeapAllocate(pRenderer, &heapAllocateInfo, &gRtvHeap, nullptr);
+
+		pSwapChain->pRenderTargets[i].info.width = pInfo->width;
+		pSwapChain->pRenderTargets[i].info.height = pInfo->height;
+		pSwapChain->pRenderTargets[i].info.format = pInfo->format;
+		pSwapChain->pRenderTargets[i].info.clearValue = pInfo->clearValue;
+	}
 }
 
 void DirectXCreateShader(const Renderer* const pRenderer, const ShaderInfo* const pInfo, Shader* pShader)

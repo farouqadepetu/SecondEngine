@@ -441,7 +441,7 @@ void ProcessSubComponentRadioButton(SubComponent* pSubComponent, uint32_t id)
 	ImGui::PushID(id);
 
 	//SubComponentRadioButton* pRadioButton = &pSubComponent->subComponentRadioButton;
-	ImGui::RadioButton(pSubComponent->radio.pLabel, pSubComponent->radio.pData, pSubComponent->radio.id);
+	ImGui::RadioButton(pSubComponent->radio.pLabel, (int32_t*)pSubComponent->radio.pData, pSubComponent->radio.id);
 
 	ImGui::PopID();
 }

@@ -640,7 +640,7 @@ public:
 
 		MainComponentInfo mcInfo{};
 		mcInfo.pLabel = "##";
-		mcInfo.position = vec2(GetWidth(pWindow) - 200.0f, 100.0f);
+		mcInfo.position = vec2(GetWidth(pWindow) - 200.0f, 175.0f);
 		mcInfo.size = vec2(200.0f, 500.0f);
 		mcInfo.flags = MAIN_COMPONENT_FLAGS_NO_RESIZE;
 		CreateMainComponent(&mcInfo, &gGuiWindow);
@@ -835,6 +835,11 @@ public:
 			RotateCamera(&gCamera, quat::MakeRotation(turnSpeed2 * deltaTime, gCamera.right));
 		if (CheckKeyDown('K'))
 			RotateCamera(&gCamera, quat::MakeRotation(-turnSpeed2 * deltaTime, gCamera.right));
+		if (CheckKeyDown(VK_ESCAPE))
+		{
+			extern bool gQuit;
+			gQuit = true;
+		}
 
 		POINT currMousePos{};
 		GetCursorPos(&currMousePos);
@@ -853,15 +858,13 @@ public:
 	{
 		WaitQueueIdle(&gRenderer, &gGraphicsQueue);
 
-		DestroySwapChain(&gRenderer, &gSwapChain);
-
 		uint32_t newWidth = GetWidth(pWindow);
 		uint32_t newHeight = GetHeight(pWindow);
 
 		gSwapChain.info.width = newWidth;
 		gSwapChain.info.height = newHeight;
 
-		CreateSwapChain(&gRenderer, &gSwapChain.info, &gSwapChain);
+		SwapChainResize(&gRenderer, &gSwapChain.info, &gSwapChain);
 
 		DestroyRenderTarget(&gRenderer, &gDepthBuffer);
 

@@ -890,6 +890,8 @@ extern void (*InitUI)(const Renderer* const pRenderer, const UIDesc* const pInfo
 extern void (*DestroyUI)(const Renderer* const pRenderer);
 extern void (*RenderUI)(const CommandBuffer* const pCommandBuffer);
 
+extern void (*SwapChainResize)(const Renderer* const pRenderer, const SwapChainInfo* const pInfo, SwapChain* pSwapChain);
+
 void InitSE();
 void ExitSE();
 void OnRendererApiSwitch();
