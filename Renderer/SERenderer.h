@@ -196,6 +196,7 @@ enum UpdateType
 	UPDATE_TYPE_RW_BUFFER,
 	UPDATE_TYPE_UNIFORM_BUFFER,
 	UPDATE_TYPE_TEXTURE,
+	UPDATE_TYPE_ARRAY_OF_TEXTURES,
 	UPDATE_TYPE_RW_TEXTURE
 };
 
@@ -697,12 +698,14 @@ struct UpdateDescriptorSetInfo
 {
 	UpdateType type;
 	uint32_t binding;
+	uint32_t numDescriptors;
 
 	union
 	{
 		Buffer* pBuffer;
 		Texture* pTexture;
 		Sampler* pSampler;
+		RenderTarget* pRenderTarget;
 	};
 };
 

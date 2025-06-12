@@ -1,9 +1,13 @@
 #version 460
 #include "resources.h.glsl"
 
-layout(location = 0) out vec4 finalColor;
+layout(location = 0) in vec4 outPosW;
 
 void main() 
 {
-	//gl_FragDepth = gl_FragCoord.z;
+	float lightDistance = length(outPosW.xyz - lightSourceBuffer.lightPosition[constants.lightIndex].xyz);
+    
+    lightDistance = lightDistance / 10.0f;
+    
+    gl_FragDepth = lightDistance;
 }

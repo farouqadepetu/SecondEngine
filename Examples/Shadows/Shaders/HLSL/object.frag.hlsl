@@ -12,10 +12,10 @@ struct VertexOutput
     float2 outTexCoords : TEXCOORD;
 };
 
-/*float ComputeShadow(float4 lightSpacePos)
+float ComputeShadow(float4 posL)
 {
     //perspective divide
-    float3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+    float3 projCoords = posL.xyz / posL.w;
     
     //transform from [-1, 1] -> [0, 1]
     projCoords.x = projCoords.x * 0.5f + 0.5f;
@@ -28,30 +28,13 @@ struct VertexOutput
     
     //check if the pixel is in shadow or not
     //1.0f if true (in shadow), 0.0f if false (not in shadow)
-    float shadow = float((currentDepth - constants.shadowBias) > closestDepth);
+    float shadow = float((currentDepth - constants.shadowBias) < closestDepth);
     
     // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
     if (projCoords.z > 1.0)
         shadow = 0.0;
     
     return shadow;
-}*/
-
-float ComputeShadow2(float4 posL)
-{
-    //perspective divide
-    float3 projCoords = posL.xyz / posL.w;
-    
-    //transform from [-1, 1] -> [0, 1]
-    projCoords.x = projCoords.x * 0.5f + 0.5f;
-    projCoords.y = -projCoords.y * 0.5f + 0.5f;
-    
-    //get the closest depth value from light perspective compared with the current depth - bias
-    //if sampled depth <= current depth then 1 is returned (pixel is in shadow)
-    //else 0 is returned (pixel is not in shadow)
-    float closestDepth = gShadowMap.SampleCmp(gSamplerComparison, projCoords.xy, projCoords.z - constants.shadowBias).r;
-    
-    return closestDepth;
 }
 
 float2 SampleCube(const float3 v, out uint faceIndex)
@@ -118,7 +101,7 @@ float4 psMain(VertexOutput vout) : SV_Target
         desc.lightDir = normalize(-directionalLight.direction.xyz);
         desc.halfwayDir = normalize(desc.lightDir + desc.viewDir);
         finalColor += ComputeDirectionalLight(directionalLight, material[objectIndex], desc);
-        finalColor *= ComputeShadow2(vout.outPosL);
+        finalColor *= ComputeShadow(vout.outPosL);
     }
     else if (constants.currentLightSource == POINT_LIGHT)
     {

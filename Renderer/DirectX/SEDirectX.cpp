@@ -2677,6 +2677,24 @@ void DirectXUpdateDescriptorSet(const Renderer* const pRenderer, const Descripto
 				heapAllocateInfo.allocateOnGpuHeap = true;
 				heapAllocateInfo.isBuffer = false;
 			}
+			else if (UPDATE_TYPE_ARRAY_OF_TEXTURES)
+			{
+				for (uint32_t j = 0; j < pInfos[i].numDescriptors; ++j)
+				{
+					heapAllocateInfo.type = VIEW_TYPE_SRV;
+					heapAllocateInfo.pSrvDesc = nullptr;
+					heapAllocateInfo.pTexture = &pInfos[i].pRenderTarget[j].texture;
+					heapAllocateInfo.allocateOnGpuHeap = true;
+					heapAllocateInfo.isBuffer = false;
+
+					DirectXDescriptorHeapAllocate(pRenderer, &heapAllocateInfo, &gCbvSrvUavHeap, &firstIndex);
+
+					if (pDescriptorSet->dx.heapIndices[index] < 0)
+						pDescriptorSet->dx.heapIndices[index] = firstIndex;
+				}
+
+				continue;
+			}
 			else //UPDATE_TYPE_RW_TEXTURE
 			{
 				heapAllocateInfo.type = VIEW_TYPE_UAV;

@@ -135,19 +135,14 @@
   <ItemGroup>
     <None Include="..\..\Renderer\ShaderLibrary\GLSL\pbr.h.glsl" />
     <None Include="Shaders\GLSL\lightSource.vert.glsl" />
+    <None Include="Shaders\GLSL\object.frag.glsl" />
     <None Include="Shaders\GLSL\object.vert.glsl" />
+    <None Include="Shaders\GLSL\shadowDebug.frag.glsl" />
     <None Include="Shaders\GLSL\shadowMap.frag.glsl" />
-    <None Include="Shaders\GLSL\floor.frag.glsl" />
     <None Include="Shaders\GLSL\lightSource.frag.glsl" />
-    <None Include="Shaders\GLSL\lightSource.h.glsl" />
-    <None Include="Shaders\GLSL\pbr.frag.glsl" />
-    <None Include="Shaders\GLSL\pbr.h.glsl" />
-    <None Include="Shaders\GLSL\phong.frag.glsl" />
-    <None Include="Shaders\GLSL\phong.h.glsl" />
     <None Include="Shaders\GLSL\resources.h.glsl" />
     <None Include="Shaders\GLSL\shadowMap.vert.glsl" />
-    <None Include="Shaders\GLSL\skybox.frag.glsl" />
-    <None Include="Shaders\GLSL\skybox.vert.glsl" />
+    <None Include="Shaders\GLSL\shadowDebug.vert.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Renderer\ShaderLibrary\lightSource.h" />

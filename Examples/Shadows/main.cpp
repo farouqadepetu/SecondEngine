@@ -284,7 +284,7 @@ public:
 
 		vertexInputInfo.numVertexAttributes = 4;
 
-		RootParameterInfo rootParameterInfos[10]{};
+		RootParameterInfo rootParameterInfos[9]{};
 
 		//Camera
 		rootParameterInfos[0].binding = 0;
@@ -359,22 +359,13 @@ public:
 		rootParameterInfos[7].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
 		//Sampler
-		rootParameterInfos[8].binding = 5;
+		rootParameterInfos[8].binding = 7;
 		rootParameterInfos[8].baseRegister = 0;
 		rootParameterInfos[8].registerSpace = 0;
 		rootParameterInfos[8].numDescriptors = 1;
 		rootParameterInfos[8].stages = STAGE_PIXEL;
 		rootParameterInfos[8].type = DESCRIPTOR_TYPE_SAMPLER;
 		rootParameterInfos[8].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
-
-		//Sampler Comparison
-		rootParameterInfos[9].binding = 6;
-		rootParameterInfos[9].baseRegister = 1;
-		rootParameterInfos[9].registerSpace = 0;
-		rootParameterInfos[9].numDescriptors = 1;
-		rootParameterInfos[9].stages = STAGE_PIXEL;
-		rootParameterInfos[9].type = DESCRIPTOR_TYPE_SAMPLER;
-		rootParameterInfos[9].updateFrequency = UPDATE_FREQUENCY_PER_NONE;
 
 		RootConstantsInfo rootConstantInfo{};
 		rootConstantInfo.numValues = 5;
@@ -385,7 +376,7 @@ public:
 
 		RootSignatureInfo graphicsRootSignatureInfo{};
 		graphicsRootSignatureInfo.pRootParameterInfos = rootParameterInfos;
-		graphicsRootSignatureInfo.numRootParameterInfos = 10;
+		graphicsRootSignatureInfo.numRootParameterInfos = 9;
 		graphicsRootSignatureInfo.useRootConstants = true;
 		graphicsRootSignatureInfo.rootConstantsInfo = rootConstantInfo;
 		graphicsRootSignatureInfo.useInputLayout = true;
@@ -574,6 +565,7 @@ public:
 			updatePerFrame[2].binding = 2;
 			updatePerFrame[2].type = UPDATE_TYPE_UNIFORM_BUFFER;
 			updatePerFrame[2].pBuffer = &gLightSourceUniformBuffer[i];
+			updatePerFrame[2].numDescriptors = 1;
 
 			updatePerFrame[3].binding = 3;
 			updatePerFrame[3].type = UPDATE_TYPE_UNIFORM_BUFFER;
@@ -590,26 +582,20 @@ public:
 			UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerFrame, i, 6, updatePerFrame);
 		}
 
-		UpdateDescriptorSetInfo updatePerNone[9]{};
+		UpdateDescriptorSetInfo updatePerNone[8]{};
 		updatePerNone[0].binding = 0;
 		updatePerNone[0].type = UPDATE_TYPE_TEXTURE;
 		updatePerNone[0].pTexture = &gShadowMap.texture;
 
-		for (uint32_t i = 0; i < 6; ++i)
-		{
-			updatePerNone[i + 1].binding = i + 1;
-			updatePerNone[i + 1].type = UPDATE_TYPE_TEXTURE;
-			updatePerNone[i + 1].pTexture = &gShadowMapPL[i].texture;
-		}
+		updatePerNone[1].binding = 1;
+		updatePerNone[1].type = UPDATE_TYPE_ARRAY_OF_TEXTURES;
+		updatePerNone[1].pRenderTarget = gShadowMapPL;
+		updatePerNone[1].numDescriptors = 6;
 
-		updatePerNone[7].binding = 8;
-		updatePerNone[7].type = UPDATE_TYPE_SAMPLER;
-		updatePerNone[7].pSampler = &gSampler;
-
-		updatePerNone[8].binding = 9;
-		updatePerNone[8].type = UPDATE_TYPE_SAMPLER;
-		updatePerNone[8].pSampler = &gSamplerComparison;
-		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 9, updatePerNone);
+		updatePerNone[2].binding = 7;
+		updatePerNone[2].type = UPDATE_TYPE_SAMPLER;
+		updatePerNone[2].pSampler = &gSampler;
+		UpdateDescriptorSet(&gRenderer, &gDescriptorSetPerNone, 0, 3, updatePerNone);
 	
 		LookAt(&gCamera, vec3(0.0f, -3.0f, -6.0f), vec3(0.0f, -3.0f, 1.0f), vec3(0.0f, 1.0f, 0.0f));
 		gCamera.vFov = 45.0f;
@@ -1160,9 +1146,11 @@ public:
 				gConstants.objectIndex = 6;
 				BindRootConstants(pCommandBuffer, 5, sizeof(RootConstants), &gConstants, 0);
 				DrawIndexedInstanced(pCommandBuffer, gIndexCounts[CYLINDER], 1, gIndexOffsets[CYLINDER], gVertexOffsets[CYLINDER], 0);
+
+				BindRenderTarget(pCommandBuffer, nullptr);
 			}
 
-			BindRenderTarget(pCommandBuffer, nullptr);
+			//BindRenderTarget(pCommandBuffer, nullptr);
 
 			for (uint32_t i = 0; i < 6; ++i)
 			{

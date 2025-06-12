@@ -2325,9 +2325,13 @@ void VulkanUpdateDescriptorSet(const Renderer* const pRenderer, const Descriptor
 		{
 			++numBufferInfos;
 		}
-		else //UPDATE_TYPE_TEXTURE || UPDATE_TYPE_RW_TEXTURE || UPDATE_TYPE_SAMPLER
+		else //UPDATE_TYPE_TEXTURE || UPDATE_TYPE_ARRAY_OF_TEXTURES || UPDATE_TYPE_RW_TEXTURE || UPDATE_TYPE_SAMPLER
 		{
-			++numImageInfos;
+			if (pInfos[i].type == UPDATE_TYPE_ARRAY_OF_TEXTURES)
+				numImageInfos += pInfos[i].numDescriptors;
+			
+			else
+				++numImageInfos;
 		}
 	}
 
@@ -2370,16 +2374,37 @@ void VulkanUpdateDescriptorSet(const Renderer* const pRenderer, const Descriptor
 
 			++bufferInfoCount;
 		}
-		else //UPDATE_TYPE_TEXTURE || UPDATE_TYPE_RW_TEXTURE || UPDATE_TYPE_SAMPLER
+		else //UPDATE_TYPE_TEXTURE || UPDATE_TYPE_ARRAY_OF_TEXTURES || UPDATE_TYPE_RW_TEXTURE || UPDATE_TYPE_SAMPLER
 		{
-			if (pInfos[i].type == UPDATE_TYPE_TEXTURE || pInfos[i].type == UPDATE_TYPE_RW_TEXTURE)
+			if (pInfos[i].type == UPDATE_TYPE_TEXTURE || pInfos[i].type == UPDATE_TYPE_ARRAY_OF_TEXTURES 
+				|| pInfos[i].type == UPDATE_TYPE_RW_TEXTURE)
 			{
-				imageInfos[imageInfoCount].imageView = pInfos[i].pTexture->vk.imageView;
-				imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				if (pInfos[i].type == UPDATE_TYPE_ARRAY_OF_TEXTURES)
+				{
+					descriptorWrites[i].pImageInfo = &imageInfos[imageInfoCount];
+					for (uint32_t j = 0; j < pInfos[i].numDescriptors; ++j)
+					{
+						imageInfos[imageInfoCount].imageView = pInfos[i].pRenderTarget[j].texture.vk.imageView;
+						imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+						++imageInfoCount;
+					}
+					descriptorWrites[i].descriptorCount = pInfos[i].numDescriptors;
+				}
+				else
+				{
+					imageInfos[imageInfoCount].imageView = pInfos[i].pTexture->vk.imageView;
+					imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+					descriptorWrites[i].descriptorCount = 1;
+					descriptorWrites[i].pImageInfo = &imageInfos[imageInfoCount];
+					++imageInfoCount;
+				}
 			}
 			else //UPDATE_TYPE_SAMPLER
 			{
 				imageInfos[imageInfoCount].sampler = pInfos[i].pSampler->vk.sampler;
+				descriptorWrites[i].descriptorCount = 1;
+				descriptorWrites[i].pImageInfo = &imageInfos[imageInfoCount];
+				++imageInfoCount;
 			}
 
 			descriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -2387,12 +2412,11 @@ void VulkanUpdateDescriptorSet(const Renderer* const pRenderer, const Descriptor
 			descriptorWrites[i].dstSet = pDescriptorSet->vk.pDescriptorSets[index];
 			descriptorWrites[i].dstBinding = pInfos[i].binding;
 			descriptorWrites[i].dstArrayElement = 0;
-			descriptorWrites[i].descriptorCount = 1;
-			descriptorWrites[i].pImageInfo = &imageInfos[imageInfoCount];
 
 			switch (pInfos[i].type)
 			{
 			case UPDATE_TYPE_TEXTURE:
+			case UPDATE_TYPE_ARRAY_OF_TEXTURES:
 				descriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 				break;
 
@@ -2404,8 +2428,6 @@ void VulkanUpdateDescriptorSet(const Renderer* const pRenderer, const Descriptor
 				descriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 				break;
 			}
-
-			++imageInfoCount;
 		}
 	}
 

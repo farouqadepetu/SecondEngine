@@ -58,4 +58,3 @@ ConstantBuffer<RootConstants> constants : register(b6);
 Texture2D gShadowMap : register(t0);
 Texture2D gShadowMapPL[6] : register(t1);
 SamplerState gSampler : register(s0);
-SamplerComparisonState gSamplerComparison : register(s1);

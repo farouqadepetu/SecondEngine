@@ -1,5 +1,10 @@
-#include "phong.h.glsl"
-#include "pbr.h.glsl"
+#include "../ShaderLibrary/GLSL/pbr.h.glsl"
+
+#define NUM_OBJECTS 7
+#define NUM_LIGHT_DATA 8
+#define DIRECTIONAL_LIGHT 0
+#define POINT_LIGHT 1
+#define SPOTLIGHT 2
 
 layout(row_major, set = 1, binding = 0) uniform CameraUniformBuffer
 {
@@ -10,15 +15,17 @@ layout(row_major, set = 1, binding = 0) uniform CameraUniformBuffer
 
 layout(row_major, set = 1, binding = 1) uniform ObjectUniformBuffer
 {
-    mat4 objectModel;
-    mat4 objectInverseModel;
+    mat4 objectModel[NUM_OBJECTS];
+    mat4 objectInverseModel[NUM_OBJECTS];
+    PBRMaterial material[NUM_OBJECTS];
 } objectBuffer;
 
 layout(row_major, set = 1, binding = 2) uniform LightSourceUniformBuffer
 {
-    mat4 lightSourceModel;
-    mat4 lightSourceView;
-    mat4 lightSourceProjection;
+    mat4 lightSourceModel[NUM_LIGHT_DATA];
+    mat4 lightSourceView[NUM_LIGHT_DATA];
+    mat4 lightSourceProjection[NUM_LIGHT_DATA];
+    vec4 lightPosition[NUM_LIGHT_DATA];
 } lightSourceBuffer;
 
 layout(row_major, set = 1, binding = 3) uniform PointLightUniformBuffer
@@ -39,12 +46,12 @@ layout(row_major, set = 1, binding = 5) uniform SpotlightUniformBuffer
 layout(push_constant) uniform RootConstants
 {
     uint currentLightSource;
+    float shadowBias;
+    uint objectIndex;
+    uint lightIndex;
+    uint debugIndex;
 }constants;
 
-layout(set = 0, binding = 0) uniform texture2D gBricksColor;
-layout(set = 0, binding = 1) uniform texture2D gBricksAO;
-layout(set = 0, binding = 2) uniform texture2D gBricksRoughness;
-layout(set = 0, binding = 3) uniform texture2D gBricksNormal;
-layout(set = 0, binding = 4) uniform texture2D gFloor;
-layout(set = 0, binding = 5) uniform textureCube gTextureCube;
-layout(set = 0, binding = 6) uniform sampler gSampler;
+layout(set = 0, binding = 0) uniform texture2D gShadowMap;
+layout(set = 0, binding = 1) uniform texture2D gShadowMapPL[6];
+layout(set = 0, binding = 7) uniform sampler gSampler;

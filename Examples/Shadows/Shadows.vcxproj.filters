@@ -36,34 +36,10 @@
     <None Include="Shaders\GLSL\shadowMap.frag.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
-    <None Include="Shaders\GLSL\floor.frag.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
     <None Include="Shaders\GLSL\lightSource.frag.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
-    <None Include="Shaders\GLSL\lightSource.h.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\pbr.frag.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\pbr.h.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\phong.frag.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\phong.h.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
     <None Include="Shaders\GLSL\resources.h.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\skybox.frag.glsl">
-      <Filter>Shaders\GLSL</Filter>
-    </None>
-    <None Include="Shaders\GLSL\skybox.vert.glsl">
       <Filter>Shaders\GLSL</Filter>
     </None>
     <None Include="Shaders\GLSL\lightSource.vert.glsl">
@@ -74,6 +50,15 @@
     </None>
     <None Include="..\..\Renderer\ShaderLibrary\GLSL\pbr.h.glsl">
       <Filter>Shaders\ShaderLibrary\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\object.frag.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shadowDebug.frag.glsl">
+      <Filter>Shaders\GLSL</Filter>
+    </None>
+    <None Include="Shaders\GLSL\shadowDebug.vert.glsl">
+      <Filter>Shaders\GLSL</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
