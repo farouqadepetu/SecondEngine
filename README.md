@@ -11,9 +11,14 @@ Consists of procedural generated shapes and loading of objects using OBJ. Can sw
 https://github.com/user-attachments/assets/b90a46e0-148a-482c-9c4d-7473ab04beb8
 
 
+
 Lightning Example:
 Implementation of the Phong and Physically Based Rendering (PBR) lightning models.
 
 
 https://github.com/user-attachments/assets/c65efa7c-3035-41ae-8a7b-9168b01fb7be
+
+
+
+https://github.com/user-attachments/assets/403a207e-2c4b-418e-80d3-08d5af165a7d
 
