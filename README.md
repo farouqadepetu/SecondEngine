@@ -4,5 +4,9 @@ Examples made using the Second Engine.
 
 Meshes Example:
 Consists of procedural generated shapes and loading of objects using OBJ. Can switch between solid and wireframe.
-https://github.com/user-attachments/assets/026bec97-514e-46ec-815b-dee94d8a12e8
+
+
+
+
+https://github.com/user-attachments/assets/b90a46e0-148a-482c-9c4d-7473ab04beb8
 
