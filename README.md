@@ -22,3 +22,14 @@ https://github.com/user-attachments/assets/c65efa7c-3035-41ae-8a7b-9168b01fb7be
 
 https://github.com/user-attachments/assets/403a207e-2c4b-418e-80d3-08d5af165a7d
 
+
+Shadows Example:
+Implementation of directional shadow mapping.
+
+
+https://github.com/user-attachments/assets/8403995c-49d1-49b9-8a39-9272d9cbed73
+
+
+
+https://github.com/user-attachments/assets/6bd857ab-780c-4609-b2a1-ef2c0e87d567
+
