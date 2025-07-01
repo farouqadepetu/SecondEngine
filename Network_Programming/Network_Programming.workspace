@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeLite_Workspace Name="Network_Programming" Database="" Version="10000">
+  <Project Name="Network_Programming" Path="Network_Programming.project" Active="No"/>
+  <Project Name="Server_Stream" Path="Server/Server.project" Active="No"/>
+  <Project Name="Client_Stream" Path="Client_Stream/Client_Stream.project" Active="No"/>
+  <Project Name="Server_Stream" Path="Server_Stream/Server_Stream.project" Active="No"/>
+  <Project Name="Server_Datagram" Path="Server_Datagram/Server_Datagram.project" Active="No"/>
+  <Project Name="Client_Datagram" Path="Client_Datagram/Client_Datagram.project" Active="Yes"/>
+  <BuildMatrix>
+    <WorkspaceConfiguration Name="Debug">
+      <Environment/>
+      <Project Name="Network_Programming" ConfigName="Debug"/>
+      <Project Name="Server_Stream" ConfigName="Debug"/>
+      <Project Name="Client_Stream" ConfigName="Debug"/>
+      <Project Name="Server_Stream" ConfigName="Debug"/>
+      <Project Name="Server_Datagram" ConfigName="Debug"/>
+      <Project Name="Client_Datagram" ConfigName="Debug"/>
+    </WorkspaceConfiguration>
+    <WorkspaceConfiguration Name="Release">
+      <Environment/>
+      <Project Name="Network_Programming" ConfigName="Release"/>
+      <Project Name="Server_Stream" ConfigName="Release"/>
+      <Project Name="Client_Stream" ConfigName="Release"/>
+      <Project Name="Server_Stream" ConfigName="Release"/>
+      <Project Name="Server_Datagram" ConfigName="Release"/>
+      <Project Name="Client_Datagram" ConfigName="Release"/>
+    </WorkspaceConfiguration>
+  </BuildMatrix>
+</CodeLite_Workspace>
