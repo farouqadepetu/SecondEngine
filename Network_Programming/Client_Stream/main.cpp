@@ -92,6 +92,12 @@ int main(int argc, char **argv)
 	buf[numbytes] = '\0';
 	
 	printf("client : recieved %s\n", buf);
+	printf("client : sending ack\n");
+	int sendError = send(socketfd, "ACK\n", 4, 0);
+	if(sendError == -1)
+	{
+		perror("send");
+	}
 	
 	close(socketfd);
 	
