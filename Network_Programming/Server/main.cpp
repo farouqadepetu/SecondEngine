@@ -13,6 +13,7 @@
 
 #define MYPORT "3490"
 #define BACKLOG 10
+#define MAXDATASIZE 100 //max number of bytes we can recieve at once
 
 void sigChildHandler(int unused)
 {
@@ -141,11 +142,23 @@ int main(int argc, char **argv)
 			
 			close(socketfd); //child doesn't need the listener
 			
-			int sendError = send(newfd, "Hello, World!\n", 13, 0);
+			int sendError = send(newfd, "Hello, World!", 13, 0);
 			if(sendError == -1)
 			{
 				perror("send");
 			}
+			
+			printf("server: waiting for ack\n");
+			char buf[MAXDATASIZE];
+			int numbytes = recv(newfd, buf, MAXDATASIZE - 1, 0);
+			if(numbytes == -1)
+			{
+				perror("recv");
+				exit(1);
+			}
+			buf[numbytes] = '\0';
+			printf("Recieved %s\n", buf);
+	
 			close(newfd);
 			exit(0);
 			

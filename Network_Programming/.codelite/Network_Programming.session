@@ -1,40 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Session Name="/home/farouq/Documents/Network_Programming/Network_Programming.workspace">
-  <int Value="3" Name="m_selectedTab"/>
-  <wxString Value="/home/farouq/Documents/Network_Programming/Network_Programming.workspace" Name="m_workspaceName"/>
+<Session Name="/home/farouq/Documents/SecondEngine/Network_Programming/Network_Programming.workspace">
+  <int Value="0" Name="m_selectedTab"/>
+  <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Network_Programming.workspace" Name="m_workspaceName"/>
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
-      <wxString Value="/home/farouq/Documents/Network_Programming/main.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="0" Name="CurrentLine"/>
+      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Server/main.cpp" Name="FileName"/>
+      <int Value="138" Name="FirstVisibleLine"/>
+      <int Value="155" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
-      <wxString Value="/home/farouq/Documents/Network_Programming/Server/main.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="8" Name="CurrentLine"/>
-      <wxArrayString Name="Bookmarks"/>
-      <IntVector Name="CollapsedFolds"/>
-    </TabInfo>
-    <TabInfo>
-      <wxString Value="/home/farouq/Documents/Network_Programming/Client_Stream/main.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="0" Name="CurrentLine"/>
-      <wxArrayString Name="Bookmarks"/>
-      <IntVector Name="CollapsedFolds"/>
-    </TabInfo>
-    <TabInfo>
-      <wxString Value="/home/farouq/Documents/Network_Programming/Client_Datagram/main.cpp" Name="FileName"/>
-      <int Value="12" Name="FirstVisibleLine"/>
-      <int Value="21" Name="CurrentLine"/>
-      <wxArrayString Name="Bookmarks"/>
-      <IntVector Name="CollapsedFolds"/>
-    </TabInfo>
-    <TabInfo>
-      <wxString Value="/home/farouq/Documents/Network_Programming/Server_Datagram/main.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="20" Name="CurrentLine"/>
+      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Client_Stream/main.cpp" Name="FileName"/>
+      <int Value="75" Name="FirstVisibleLine"/>
+      <int Value="94" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
