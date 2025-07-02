@@ -1,0 +1,1 @@
+../build-Debug/Polling_Client/main.cpp.o: main.cpp
