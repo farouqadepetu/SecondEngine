@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <arpa/inet.h>
@@ -94,6 +93,7 @@ void SendData(int* listenerSocket, int* connectionSocket, int* epollInstance)
 	{
 		//this is the parent
 		waitpid(pid, nullptr, 0);
+		printf("parent: child exited\n");
 		//close(*connectionSocket); //parent doesn't need the connected socket
 	}
 }
