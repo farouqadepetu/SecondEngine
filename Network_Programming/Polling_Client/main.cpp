@@ -112,7 +112,8 @@ int main(int argc, char **argv)
 	}
 	
 	epoll_event events[MAX_EVENTS];
-	while(true)
+	bool running = true;
+	while(running)
 	{
 		//block until an event happens
 		int event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
@@ -122,7 +123,8 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		
-		printf("An event happened. Checking...\n");
+		printf("client: an event happened. Checking...\n");
+		epoll_event modifiedPoll;
 		for(int i = 0; i < event_count; ++i)
 		{
 			if(events[i].events & EPOLLIN)
@@ -139,12 +141,28 @@ int main(int argc, char **argv)
 				buf[numbytes] = '\0';
 				
 				printf("client : recieved %s\n", buf);
+				
+				modifiedPoll.data.fd = socketfd;
+				modifiedPoll.events = EPOLLOUT | EPOLLET; //an event is raised when you can send data w.o blocking
+				epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, socketfd, &modifiedPoll);
+				if(epollCtlError == -1)
+				{
+					perror("epoll_ctl");
+					exit(1);
+				}
+			}
+			
+			if(events[i].events & EPOLLOUT)
+			{
 				printf("client : sending ack\n");
-				int sendError = send(socketfd, "ACK\n", 4, 0);
+				/*int sendError = send(socketfd, "ACK\n", 4, 0);
 				if(sendError == -1)
 				{
 					perror("send");
-				}
+				}*/
+				
+				//close(socketfd);
+				//running = false;
 			}
 		}
 		break;
