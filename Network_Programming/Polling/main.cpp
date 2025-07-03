@@ -45,19 +45,19 @@ void SendData(int* listenerSocket, int* connectionSocket, int* epollInstance)
 		printf("server: waiting for ack\n");
 		
 		epoll_event events[MAX_EVENTS];
-		bool running = true;
-		while(running)
+	
+		//block until an event happens
+		int event_count = epoll_wait(*epollInstance, events, MAX_EVENTS, -1);
+		if(event_count == -1)
 		{
-			//block until an event happens
-			int event_count = epoll_wait(*epollInstance, events, MAX_EVENTS, -1);
-			if(event_count == -1)
-			{
-				perror("event_count");
-				exit(1);
-			}
-			
-			printf("server:child: an event happened! Checking..");
-			
+			perror("event_count");
+			exit(1);
+		}
+		
+		printf("server:child: an event happened! Checking..");
+		
+		while(true)
+		{
 			for(int i = 0; i < event_count; ++i)
 			{
 				//connection has been closed
@@ -92,9 +92,7 @@ void SendData(int* listenerSocket, int* connectionSocket, int* epollInstance)
 	else
 	{
 		//this is the parent
-		waitpid(pid, nullptr, 0);
-		printf("parent: child exited\n");
-		//close(*connectionSocket); //parent doesn't need the connected socket
+		close(*connectionSocket); //parent doesn't need the connected socket
 	}
 }
 

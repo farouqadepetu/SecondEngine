@@ -151,8 +151,7 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 			}
-			
-			if(events[i].events & EPOLLOUT)
+			else if(events[i].events & EPOLLOUT)
 			{
 				printf("client : sending ack\n");
 				int sendError = send(socketfd, "ACK\n", 4, 0);
@@ -161,8 +160,8 @@ int main(int argc, char **argv)
 					perror("send");
 				}
 				
-				//close(socketfd);
-				//running = false;
+				close(socketfd);
+				running = false;
 			}
 		}
 		break;
