@@ -127,6 +127,7 @@ int main(int argc, char **argv)
 		epoll_event modifiedPoll;
 		for(int i = 0; i < event_count; ++i)
 		{
+			printf("event = %d\n", events[i].events);
 			if(events[i].events & EPOLLIN)
 			{
 				//ready to read data
@@ -142,8 +143,13 @@ int main(int argc, char **argv)
 				
 				printf("client : recieved %s\n", buf);
 				
+				if(events[i].events & EPOLLOUT)
+				{
+					printf("EPOLLOUT with EPOLLIN\n");
+				}
+				
 				modifiedPoll.data.fd = socketfd;
-				modifiedPoll.events = EPOLLOUT | EPOLLET; //an event is raised when you can send data w.o blocking
+				modifiedPoll.events = EPOLLOUT; //an event is raised when you can send data w.o blocking
 				epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, socketfd, &modifiedPoll);
 				if(epollCtlError == -1)
 				{
@@ -164,7 +170,6 @@ int main(int argc, char **argv)
 				running = false;
 			}
 		}
-		break;
 	}
 	
 	close(socketfd);

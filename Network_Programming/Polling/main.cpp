@@ -60,6 +60,8 @@ void SendData(int* listenerSocket, int* connectionSocket, int* epollInstance)
 		{
 			for(int i = 0; i < event_count; ++i)
 			{
+				printf("event = %d\n", events[i].events);
+				
 				//connection has been closed
 				if(events[i].events & EPOLLHUP)
 				{
@@ -206,7 +208,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	/*struct sigaction sa;
+	struct sigaction sa;
 	sa.sa_handler = SigChildHandler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART; //restart function if interrupted.
@@ -215,7 +217,7 @@ int main(int argc, char **argv)
 	{
 		perror("sigaction");
 		exit(1);
-	}*/
+	}
 	
 	int epoll_fd = epoll_create1(0); //create epoll instance
 	if(epoll_fd == -1)
@@ -263,6 +265,13 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 				
+				int fnctlError = fcntl(connectionSocket, F_SETFL, O_NONBLOCK);
+				if(fnctlError == -1)
+				{
+					perror("fcntl");
+					exit(1);
+				}
+				
 				epoll_event connectedPoll;
 				connectedPoll.data.fd = connectionSocket;
 				
@@ -274,13 +283,6 @@ int main(int argc, char **argv)
 				if(epollCtlError == -1)
 				{
 					perror("epoll_ctl");
-					exit(1);
-				}
-				
-				int fnctlError = fcntl(connectionSocket, F_SETFL, O_NONBLOCK);
-				if(fnctlError == -1)
-				{
-					perror("fcntl");
 					exit(1);
 				}
 				

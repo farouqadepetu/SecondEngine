@@ -6,8 +6,8 @@
   <Project Name="Server_Stream" Path="Server_Stream/Server_Stream.project" Active="No"/>
   <Project Name="Server_Datagram" Path="Server_Datagram/Server_Datagram.project" Active="No"/>
   <Project Name="Client_Datagram" Path="Client_Datagram/Client_Datagram.project" Active="No"/>
-  <Project Name="Polling_Server" Path="Polling/Polling.project" Active="No"/>
-  <Project Name="Polling_Client" Path="Polling_Client/Polling_Client.project" Active="Yes"/>
+  <Project Name="Polling_Server" Path="Polling/Polling.project" Active="Yes"/>
+  <Project Name="Polling_Client" Path="Polling_Client/Polling_Client.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug">
       <Environment/>
