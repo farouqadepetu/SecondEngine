@@ -113,6 +113,7 @@ int main(int argc, char **argv)
 	
 	epoll_event events[MAX_EVENTS];
 	bool running = true;
+	int i = 0;
 	while(running)
 	{
 		//block until an event happens
@@ -131,18 +132,72 @@ int main(int argc, char **argv)
 			if(events[i].events & EPOLLIN)
 			{
 				//ready to read data
-				char buf[MAX_DATA_SIZE];
-				int numbytes = recv(socketfd, buf, MAX_DATA_SIZE - 1, 0);
-				if(numbytes == -1)
+				int numbytes;
+				if(i == 0)
 				{
-					perror("recv");
-					exit(1);
+					char buf[MAX_DATA_SIZE];
+					numbytes = recv(socketfd, buf, MAX_DATA_SIZE - 1, 0);
+					if(numbytes == -1)
+					{
+						perror("recv");
+						exit(1);
+					}
+					buf[numbytes] = '\0';
+					printf("client : recieved %s\n", buf);
+					++i;
 				}
-				
-				buf[numbytes] = '\0';
-				
-				printf("client : recieved %s\n", buf);
-				
+				else if (i == 1)
+				{
+					uint32_t num;
+					numbytes = recv(socketfd, &num, sizeof(uint32_t), 0);
+					if(numbytes == -1)
+					{
+						perror("recv");
+						exit(1);
+					}
+					num = ntohl(num);
+					printf("client : recieved %d\n", num);
+					++i;
+				}
+				else if(i == 2)
+				{
+					uint32_t num;
+					numbytes = recv(socketfd, &num, sizeof(uint32_t), 0);
+					if(numbytes == -1)
+					{
+						perror("recv");
+						exit(1);
+					}
+					int numI = (int)ntohl(num);
+					printf("client : recieved %d\n", numI);
+					++i;
+				}
+				else if(i == 3)
+				{
+					uint32_t num;
+					numbytes = recv(socketfd, &num, sizeof(uint32_t), 0);
+					if(numbytes == -1)
+					{
+						perror("recv");
+						exit(1);
+					}
+					float numF = (float)ntohl(num);
+					printf("client : recieved %f\n", numF);
+					++i;
+				}
+				else if(i == 4)
+				{
+					uint64_t num;
+					numbytes = recv(socketfd, &num, sizeof(uint64_t), 0);
+					if(numbytes == -1)
+					{
+						perror("recv");
+						exit(1);
+					}
+					double numD = (double)be64toh(num);
+					printf("client : recieved %lf\n", numD);
+					++i;
+				}
 				if(events[i].events & EPOLLOUT)
 				{
 					printf("EPOLLOUT with EPOLLIN\n");
@@ -157,7 +212,7 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 			}
-			else if(events[i].events & EPOLLOUT)
+			/*else if(events[i].events & EPOLLOUT)
 			{
 				printf("client : sending ack\n");
 				int sendError = send(socketfd, "ACK\n", 4, 0);
@@ -168,7 +223,7 @@ int main(int argc, char **argv)
 				
 				close(socketfd);
 				running = false;
-			}
+			}*/
 		}
 	}
 	

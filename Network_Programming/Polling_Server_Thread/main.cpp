@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <syscall.h>
 #include <semaphore.h>
+#include <string.h>
 
 //replace?
 #include <queue>
@@ -85,11 +86,51 @@ void* HandleConnection(void* ptr)
 				
 			if(events[i].events & EPOLLOUT)
 			{
-				int sendError = send(data->connectionSocket, "Hello, World!", 13, 0);
+				char msg[] = "Hello World!";
+				printf("%ld\n", sizeof(msg));
+				uint32_t numU = 349;
+				int numI = -5039292;
+				float numF = 50.983f;
+				double numD = 987.3212;
+				
+				int sendError = send(data->connectionSocket, msg, sizeof(msg), 0);
 				if(sendError == -1)
 				{
 					perror("send");
 				}
+				
+				uint32_t dataU = htonl(numU);
+				sendError = send(data->connectionSocket, &dataU, sizeof(uint32_t), 0);
+				if(sendError == -1)
+				{
+					perror("send");
+				}
+				
+				int dataI = htonl(numI);
+				sendError = send(data->connectionSocket, &dataI, sizeof(int), 0);
+				if(sendError == -1)
+				{
+					perror("send");
+				}
+				
+				uint32_t tempF;
+				memcpy(&tempF, &numF, sizeof(float));
+				uint32_t dataF = htonl(tempF);
+				sendError = send(data->connectionSocket, &dataF, sizeof(uint32_t), 0);
+				if(sendError == -1)
+				{
+					perror("send");
+				}
+				
+				uint64_t tempD;
+				memcpy(&tempD, &numD, sizeof(double));
+				uint64_t dataD = htole64(tempD);
+				sendError = send(data->connectionSocket, &dataD, sizeof(uint64_t), 0);
+				if(sendError == -1)
+				{
+					perror("send");
+				}
+				
 				printf("server:thread sent data\n");
 				
 				printf("server:thread waiting for ack\n");
@@ -178,7 +219,11 @@ void* JoinThread(void* ptr)
 		pthread_t tid = tids.front();
 		tids.pop();
 		printf("Joining thread\n");
-		pthread_join(tid, nullptr);
+		int joinError = pthread_join(tid, nullptr);
+		if(joinError != 0)
+		{
+			perror("pthread_join");
+		}
 		printf("Thread joined\n");
 		pthread_mutex_unlock(&queueMutex);
 	}
@@ -338,6 +383,8 @@ int main(int argc, char **argv)
 		}
 	}
 	
+	pthread_mutex_destroy(&queueMutex);
+	sem_destroy(&joinSem);
 	close(epoll_fd);
 	close(listenerSocket);
 	
