@@ -3,18 +3,18 @@
 ## any manual changes will be erased      
 ##
 ## Debug
-ProjectName            :=Polling_Server
+ProjectName            :=Polling_Server_Thread
 ConfigurationName      :=Debug
 WorkspaceConfiguration :=Debug
 WorkspacePath          :=/home/farouq/Documents/SecondEngine/Network_Programming
-ProjectPath            :=/home/farouq/Documents/SecondEngine/Network_Programming/Polling
-IntermediateDirectory  :=../build-$(WorkspaceConfiguration)/Polling
+ProjectPath            :=/home/farouq/Documents/SecondEngine/Network_Programming/Polling_Server_Thread
+IntermediateDirectory  :=../build-$(WorkspaceConfiguration)/Polling_Server_Thread
 OutDir                 :=$(IntermediateDirectory)
 CurrentFileName        :=
 CurrentFilePath        :=
 CurrentFileFullPath    :=
 User                   :=farouq
-Date                   :=04/07/25
+Date                   :=05/07/25
 CodeLitePath           :=/home/farouq/.codelite
 MakeDirCommand         :=mkdir -p
 LinkerName             :=/usr/bin/g++-13
@@ -94,7 +94,7 @@ PreBuild:
 ## Objects
 ##
 $(IntermediateDirectory)/main.cpp$(ObjectSuffix): main.cpp $(IntermediateDirectory)/main.cpp$(DependSuffix)
-	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Polling/main.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IncludePath)
+	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Polling_Server_Thread/main.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IncludePath)
 $(IntermediateDirectory)/main.cpp$(DependSuffix): main.cpp
 	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/main.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/main.cpp$(DependSuffix) -MM main.cpp
 

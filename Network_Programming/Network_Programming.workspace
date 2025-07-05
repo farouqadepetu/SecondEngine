@@ -6,8 +6,9 @@
   <Project Name="Server_Stream" Path="Server_Stream/Server_Stream.project" Active="No"/>
   <Project Name="Server_Datagram" Path="Server_Datagram/Server_Datagram.project" Active="No"/>
   <Project Name="Client_Datagram" Path="Client_Datagram/Client_Datagram.project" Active="No"/>
-  <Project Name="Polling_Server" Path="Polling/Polling.project" Active="Yes"/>
+  <Project Name="Polling_Server" Path="Polling/Polling.project" Active="No"/>
   <Project Name="Polling_Client" Path="Polling_Client/Polling_Client.project" Active="No"/>
+  <Project Name="Polling_Server_Thread" Path="Polling_Server_Thread/Polling_Server_Thread.project" Active="Yes"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug">
       <Environment/>
@@ -19,6 +20,7 @@
       <Project Name="Client_Datagram" ConfigName="Debug"/>
       <Project Name="Polling_Server" ConfigName="Debug"/>
       <Project Name="Polling_Client" ConfigName="Debug"/>
+      <Project Name="Polling_Server_Thread" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release">
       <Environment/>
@@ -30,6 +32,7 @@
       <Project Name="Client_Datagram" ConfigName="Release"/>
       <Project Name="Polling_Server" ConfigName="Release"/>
       <Project Name="Polling_Client" ConfigName="Release"/>
+      <Project Name="Polling_Server_Thread" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>

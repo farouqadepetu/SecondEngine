@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <cstdlib>
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -11,103 +10,130 @@
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <pthread.h>
+#include <syscall.h>
+#include <semaphore.h>
+
+//replace?
+#include <queue>
 
 #define MYPORT "3490"
 #define BACKLOG 10
 #define MAX_DATA_SIZE 100 //max number of bytes we can recieve at once
 #define MAX_EVENTS 5
 
-bool gRunning = true;
+sem_t joinSem;
+pthread_mutex_t queueMutex;
+std::queue<pthread_t> tids;
 
-void SigChildHandler(int unused)
+struct HandleConnectionData
 {
-	int saved_errno = errno;
-	
-	//waits for any child process to finish, doesn't block once finished.
-	while(waitpid(-1, nullptr, WNOHANG) > 0);
-	
-	errno = saved_errno;
-	
-	gRunning = false;
-}
+	int listenerSocket;
+	int connectionSocket;
+};
 
-void SendData(int* listenerSocket, int* connectionSocket, int* epoll_fd)
+void* HandleConnection(void* ptr)
 {
-	pid_t pid = fork();
-	if(pid == 0)
+	HandleConnectionData* data;
+	data = (HandleConnectionData*)ptr;
+	
+	//sect the connection socket to non-blocking
+	int fnctlError = fcntl(data->connectionSocket, F_SETFL, O_NONBLOCK);
+	if(fnctlError == -1)
 	{
-		//this is the child process
-		
-		close(*listenerSocket); //child doesn't need the listener
-		
-		int sendError = send(*connectionSocket, "Hello, World!", 13, 0);
-		if(sendError == -1)
+		perror("fcntl");
+		exit(1);
+	}
+	
+	int epoll_fd = epoll_create1(0); //create epoll instance
+	if(epoll_fd == -1)
+	{
+		perror("epoll_create1");
+		pthread_exit(nullptr);
+	}
+	
+	epoll_event connectedPoll;
+	connectedPoll.data.fd = data->connectionSocket;
+	connectedPoll.events = EPOLLOUT | EPOLLET;
+	
+	int epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, data->connectionSocket, &connectedPoll);
+	if(epollCtlError == -1)
+	{
+		perror("epoll_ctl");
+		pthread_exit(nullptr);
+	}
+	
+	epoll_event events[MAX_EVENTS];
+
+	while(true)
+	{
+		//block until an event happens
+		int event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+		if(event_count == -1)
 		{
-			perror("send");
+			perror("event_count");
+			pthread_exit(nullptr);
 		}
 		
-		printf("server: waiting for ack\n");
-		
-		epoll_event events[MAX_EVENTS];
-	
-		while(true)
+		printf("server:thread an event happened! Checking..\n");
+		for(int i = 0; i < event_count; ++i)
 		{
-			//block until an event happens
-			int event_count = epoll_wait(*epoll_fd, events, MAX_EVENTS, -1);
-			if(event_count == -1)
-			{
-				perror("event_count");
-				exit(1);
-			}
+			printf("event = %d\n", events[i].events);
 			
-			printf("server:child: an event happened! Checking..");
-			for(int i = 0; i < event_count; ++i)
-			{
-				printf("event = %d\n", events[i].events);
+			if(events[i].data.fd == data->listenerSocket)
+				continue;
 				
-				if(events[i].data.fd == *listenerSocket)
-					continue;
-					
-				if(events[i].events & EPOLLIN)
+			if(events[i].events & EPOLLOUT)
+			{
+				int sendError = send(data->connectionSocket, "Hello, World!", 13, 0);
+				if(sendError == -1)
 				{
-					char buf[MAX_DATA_SIZE];
-					int numbytes = recv(*connectionSocket, buf, MAX_DATA_SIZE - 1, 0);
-					if(numbytes == -1)
-					{
-						//error
-						perror("recv");
-						exit(1);
-					}
-					else if(numbytes == 0)
-					{
-						//client closed connection
-						printf("server:child: client closed connection, exiting\n");
-						close(*connectionSocket);
-						close(*epoll_fd);
-						exit(0);
-					}
-					else
-					{
-						//data was recieved
-						buf[numbytes] = '\0';
-						printf("Recieved %s\n", buf);
-					}
-					
+					perror("send");
+				}
+				printf("server:thread sent data\n");
+				
+				printf("server:thread waiting for ack\n");
+				
+				connectedPoll.data.fd = data->connectionSocket;
+				connectedPoll.events = EPOLLIN;
+				
+				int epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, data->connectionSocket, &connectedPoll);
+				if(epollCtlError == -1)
+				{
+					perror("epoll_ctl");
+					pthread_exit(nullptr);
+				}
+			}
+			else if(events[i].events & EPOLLIN)
+			{
+				char buf[MAX_DATA_SIZE];
+				int numbytes = recv(data->connectionSocket, buf, MAX_DATA_SIZE - 1, 0);
+				if(numbytes == -1)
+				{
+					//error
+					perror("recv");
+					pthread_exit(nullptr);
+				}
+				else if(numbytes == 0)
+				{
+					//client closed connection
+					printf("server:thread client closed connection, exiting\n");
+					close(data->connectionSocket);
+					close(epoll_fd);
+					pthread_mutex_lock(&queueMutex);
+					tids.push(pthread_self());
+					sem_post(&joinSem);
+					pthread_mutex_unlock(&queueMutex);
+					pthread_exit(nullptr);
+				}
+				else
+				{
+					//data was recieved
+					buf[numbytes] = '\0';
+					printf("Recieved %s\n", buf);
 				}
 			}
 		}
-	}
-	else if(pid < 0)
-	{
-		//error
-		perror("fork");
-		close(*listenerSocket);
-		exit(1);
-	}
-	else
-	{
-		//this is the parent
-		close(*connectionSocket);
 	}
 }
 
@@ -141,6 +167,21 @@ int NewConnection(int* listenerSocket)
 	printf("server: got connection from %s\n", ipAddrStr);
 	
 	return connectionSocket;
+}
+
+void* JoinThread(void* ptr)
+{
+	while(true)
+	{
+		sem_wait(&joinSem);
+		pthread_mutex_lock(&queueMutex);
+		pthread_t tid = tids.front();
+		tids.pop();
+		printf("Joining thread\n");
+		pthread_join(tid, nullptr);
+		printf("Thread joined\n");
+		pthread_mutex_unlock(&queueMutex);
+	}
 }
 
 int main(int argc, char **argv)
@@ -221,17 +262,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	struct sigaction sa;
-	sa.sa_handler = SigChildHandler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART; //restart function if interrupted.
-	int sigActionError = sigaction(SIGCHLD, &sa, nullptr);
-	if(sigActionError == -1)
-	{
-		perror("sigaction");
-		exit(1);
-	}
-	
 	int epoll_fd = epoll_create1(0); //create epoll instance
 	if(epoll_fd == -1)
 	{
@@ -251,10 +281,22 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
+	sem_init(&joinSem, 0, 0);
+	pthread_mutex_init(&queueMutex, nullptr);
+	
+	pthread_t joinThread;
+	int pthread_error = pthread_create(&joinThread, nullptr, JoinThread, nullptr);
+	if(pthread_error != 0)
+	{
+		perror("pthread_create");
+		exit(1);
+	}
+	printf("server: join thread created\n");
+	
 	printf("Waiting for connections...\n");
 	
 	epoll_event events[MAX_EVENTS];
-	while(gRunning)
+	while(true)
 	{
 		//block until an event happens
 		int event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
@@ -281,28 +323,17 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 				
-				int fnctlError = fcntl(connectionSocket, F_SETFL, O_NONBLOCK);
-				if(fnctlError == -1)
+				pthread_t tid;
+				HandleConnectionData data;
+				data.listenerSocket = listenerSocket;
+				data.connectionSocket = connectionSocket;
+				pthread_error = pthread_create(&tid, nullptr, HandleConnection, (void*)&data);
+				if(pthread_error != 0)
 				{
-					perror("fcntl");
+					perror("pthread_create");
 					exit(1);
 				}
-				
-				epoll_event connectedPoll;
-				connectedPoll.data.fd = connectionSocket;
-				
-				//an event is raised when their is a new connection to accept or 
-				//when there is data to read (recv)
-				connectedPoll.events = EPOLLIN;
-				
-				int epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connectionSocket, &connectedPoll);
-				if(epollCtlError == -1)
-				{
-					perror("epoll_ctl");
-					exit(1);
-				}
-		
-				SendData(&listenerSocket, &connectionSocket, &epoll_fd);
+				printf("server: connection thread created\n");
 			}
 		}
 	}
