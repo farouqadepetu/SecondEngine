@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <string.h>
 
 #define PORT "3490"
 #define MAX_DATA_SIZE 100 //max number of bytes we can recieve at once
@@ -26,7 +27,7 @@ int main(int argc, char **argv)
 	
 	//get server info
 	addrinfo* serverInfo;
-	int gaiError = getaddrinfo("192.168.1.200", PORT, &hints, &serverInfo);
+	int gaiError = getaddrinfo("192.168.1.204", PORT, &hints, &serverInfo);
 	if(gaiError != 0)
 	{
 		printf("getaddrinfo error: %s\n", gai_strerror(gaiError));
@@ -113,7 +114,7 @@ int main(int argc, char **argv)
 	
 	epoll_event events[MAX_EVENTS];
 	bool running = true;
-	int i = 0;
+	int j = 0;
 	while(running)
 	{
 		//block until an event happens
@@ -133,78 +134,78 @@ int main(int argc, char **argv)
 			{
 				//ready to read data
 				int numbytes;
-				if(i == 0)
+				if(j == 0)
 				{
-					char buf[MAX_DATA_SIZE];
-					numbytes = recv(socketfd, buf, MAX_DATA_SIZE - 1, 0);
+					char data[MAX_DATA_SIZE];
+					numbytes = recv(socketfd, data, MAX_DATA_SIZE - 1, 0);
 					if(numbytes == -1)
 					{
 						perror("recv");
 						exit(1);
 					}
-					buf[numbytes] = '\0';
-					printf("client : recieved %s\n", buf);
-					++i;
+					data[numbytes] = '\0';
+					printf("client : recieved string %s\n", data);
+					++j;
 				}
-				else if (i == 1)
+				else if (j == 1)
 				{
-					uint32_t num;
-					numbytes = recv(socketfd, &num, sizeof(uint32_t), 0);
+					uint32_t data;
+					numbytes = recv(socketfd, &data, sizeof(uint32_t), 0);
 					if(numbytes == -1)
 					{
 						perror("recv");
 						exit(1);
 					}
-					num = ntohl(num);
-					printf("client : recieved %d\n", num);
-					++i;
+					uint32_t numU = ntohl(data);
+					printf("client : recieved uint %d\n", numU);
+					++j;
 				}
-				else if(i == 2)
+				else if(j == 2)
 				{
-					uint32_t num;
-					numbytes = recv(socketfd, &num, sizeof(uint32_t), 0);
+					uint32_t data;
+					numbytes = recv(socketfd, &data, sizeof(uint32_t), 0);
 					if(numbytes == -1)
 					{
 						perror("recv");
 						exit(1);
 					}
-					int numI = (int)ntohl(num);
-					printf("client : recieved %d\n", numI);
-					++i;
+					int numI = (int)ntohl(data);
+					printf("client : recieved int %d\n", numI);
+					++j;
 				}
-				else if(i == 3)
+				else if(j == 3)
 				{
-					uint32_t num;
-					numbytes = recv(socketfd, &num, sizeof(uint32_t), 0);
+					uint32_t data;
+					numbytes = recv(socketfd, &data, sizeof(uint32_t), 0);
 					if(numbytes == -1)
 					{
 						perror("recv");
 						exit(1);
 					}
-					float numF = (float)ntohl(num);
-					printf("client : recieved %f\n", numF);
-					++i;
+					data = ntohl(data);
+					float numF;
+					memcpy(&numF, &data, 4);
+					printf("client : recieved float %f\n", numF);
+					++j;
 				}
-				else if(i == 4)
+				else if(j == 4)
 				{
-					uint64_t num;
-					numbytes = recv(socketfd, &num, sizeof(uint64_t), 0);
+					uint64_t data;
+					numbytes = recv(socketfd, &data, sizeof(uint64_t), 0);
 					if(numbytes == -1)
 					{
 						perror("recv");
 						exit(1);
 					}
-					double numD = (double)be64toh(num);
-					printf("client : recieved %lf\n", numD);
-					++i;
-				}
-				if(events[i].events & EPOLLOUT)
-				{
-					printf("EPOLLOUT with EPOLLIN\n");
+					data = be64toh(data);
+					double numD;
+					memcpy(&numD, &data, 8);
+					printf("client : recieved double %lf\n", numD);
+					++j;
 				}
 				
 				modifiedPoll.data.fd = socketfd;
-				modifiedPoll.events = EPOLLOUT; //an event is raised when you can send data w.o blocking
+				modifiedPoll.events = EPOLLOUT | EPOLLET; //an event is raised when you can send data w.o blocking
 				epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, socketfd, &modifiedPoll);
 				if(epollCtlError == -1)
 				{
@@ -212,7 +213,7 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 			}
-			/*else if(events[i].events & EPOLLOUT)
+			else if(events[i].events & EPOLLOUT)
 			{
 				printf("client : sending ack\n");
 				int sendError = send(socketfd, "ACK\n", 4, 0);
@@ -221,9 +222,18 @@ int main(int argc, char **argv)
 					perror("send");
 				}
 				
-				close(socketfd);
-				running = false;
-			}*/
+				modifiedPoll.data.fd = socketfd;
+				modifiedPoll.events = EPOLLIN;
+				epollCtlError = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, socketfd, &modifiedPoll);
+				if(epollCtlError == -1)
+				{
+					perror("epoll_ctl");
+					exit(1);
+				}
+				
+				if(j == 5)
+					running = false;
+			}
 		}
 	}
 	

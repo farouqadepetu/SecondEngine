@@ -23,8 +23,8 @@
 #define MAX_DATA_SIZE 100 //max number of bytes we can recieve at once
 #define MAX_EVENTS 5
 
-sem_t joinSem;
-pthread_mutex_t queueMutex;
+pthread_mutex_t queueMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t queueCond = PTHREAD_COND_INITIALIZER;
 std::queue<pthread_t> tids;
 
 struct HandleConnectionData
@@ -32,6 +32,15 @@ struct HandleConnectionData
 	int listenerSocket;
 	int connectionSocket;
 };
+
+void ThreadExit()
+{
+	pthread_mutex_lock(&queueMutex);
+	tids.push(pthread_self());
+	pthread_cond_signal(&queueCond);
+	pthread_mutex_unlock(&queueMutex);
+	pthread_exit(nullptr);
+}
 
 void* HandleConnection(void* ptr)
 {
@@ -87,7 +96,6 @@ void* HandleConnection(void* ptr)
 			if(events[i].events & EPOLLOUT)
 			{
 				char msg[] = "Hello World!";
-				printf("%ld\n", sizeof(msg));
 				uint32_t numU = 349;
 				int numI = -5039292;
 				float numF = 50.983f;
@@ -148,7 +156,7 @@ void* HandleConnection(void* ptr)
 			else if(events[i].events & EPOLLIN)
 			{
 				char buf[MAX_DATA_SIZE];
-				int numbytes = recv(data->connectionSocket, buf, MAX_DATA_SIZE - 1, 0);
+				int numbytes = recv(data->connectionSocket, buf, 4, 0);
 				if(numbytes == -1)
 				{
 					//error
@@ -161,10 +169,7 @@ void* HandleConnection(void* ptr)
 					printf("server:thread client closed connection, exiting\n");
 					close(data->connectionSocket);
 					close(epoll_fd);
-					pthread_mutex_lock(&queueMutex);
-					tids.push(pthread_self());
-					sem_post(&joinSem);
-					pthread_mutex_unlock(&queueMutex);
+					ThreadExit();
 					pthread_exit(nullptr);
 				}
 				else
@@ -210,12 +215,15 @@ int NewConnection(int* listenerSocket)
 	return connectionSocket;
 }
 
-void* JoinThread(void* ptr)
+void* ThreadJoin(void* ptr)
 {
 	while(true)
 	{
-		sem_wait(&joinSem);
 		pthread_mutex_lock(&queueMutex);
+		while(tids.empty())
+		{
+			pthread_cond_wait(&queueCond, &queueMutex);
+		}
 		pthread_t tid = tids.front();
 		tids.pop();
 		printf("Joining thread\n");
@@ -326,11 +334,27 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	sem_init(&joinSem, 0, 0);
-	pthread_mutex_init(&queueMutex, nullptr);
+	pthread_mutexattr_t attr;
+	int result = pthread_mutexattr_init(&attr);
+	result |= pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	result |= pthread_mutex_init(&queueMutex, &attr);
+	result |= pthread_mutexattr_destroy(&attr);
+	if(result != 0)
+	{
+		printf("Error initializing mutex. Exiting program!\n");
+		exit(1);
+	}
+	
+	result = pthread_cond_init(&queueCond, nullptr);
+	if(result != 0)
+	{
+		printf("Error initializing condition variable. Exiting program!\n");
+		exit(1);
+	}
+	
 	
 	pthread_t joinThread;
-	int pthread_error = pthread_create(&joinThread, nullptr, JoinThread, nullptr);
+	int pthread_error = pthread_create(&joinThread, nullptr, ThreadJoin, nullptr);
 	if(pthread_error != 0)
 	{
 		perror("pthread_create");
@@ -383,8 +407,8 @@ int main(int argc, char **argv)
 		}
 	}
 	
+	pthread_cond_destroy(&queueCond);
 	pthread_mutex_destroy(&queueMutex);
-	sem_destroy(&joinSem);
 	close(epoll_fd);
 	close(listenerSocket);
 	
