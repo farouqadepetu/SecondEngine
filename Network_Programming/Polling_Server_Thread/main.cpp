@@ -32,19 +32,11 @@ void HandleConnection(void* ptr)
 	HandleConnectionData* data;
 	data = (HandleConnectionData*)ptr;
 	
-	int error = SetToNonBlock(&data->connectionSocket);
-	if(error == -1)
-	{
-		perror("SetToNonBlock");
-		ExitThread();
-		return;
-	}
-	
 	SocketEvent socketEvent;
 	SocketEventInfo eventInfo;
 	eventInfo.socketfd = data->connectionSocket.socketfd;
 	eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
-	error = CreateSocketEvent(&eventInfo, &socketEvent);
+	int error = CreateSocketEvent(&eventInfo, &socketEvent);
 	if(error == -1)
 	{
 		perror("CreateSocketEvent");
@@ -52,6 +44,13 @@ void HandleConnection(void* ptr)
 		return;
 	}
 	
+	error = SetToNonBlock(&data->connectionSocket);
+	if(error == -1)
+	{
+		perror("SetToNonBlock");
+		ExitThread();
+		return;
+	}
 
 	while(true)
 	{

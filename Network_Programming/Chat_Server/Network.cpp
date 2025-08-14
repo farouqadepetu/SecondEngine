@@ -307,6 +307,7 @@ int WaitForEvent(SocketEvent* pEvent)
 		return -1;
 	}
 	
+	printf("Rasied Event = %d\n", rasiedEvent.events);
 	if(rasiedEvent.events & EPOLLIN)
 		pEvent->event = EVENT_READ;
 	if(rasiedEvent.events & EPOLLOUT)

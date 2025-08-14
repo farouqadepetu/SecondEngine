@@ -56,18 +56,18 @@ int main(int argc, char **argv)
 	}
 	FreeAddresses(&addresses);
 	
-	error = SetToNonBlock(&socket);
-	if(error == -1)
-	{
-		perror("SetToNonBlock");
-		exit(1);
-	}
-	
 	SocketEvent socketEvent;
 	SocketEventInfo eventInfo;
 	eventInfo.socketfd = socket.socketfd;
-	eventInfo.events = EVENT_READ | EVENT_EDGE_TRIGGERED;
+	eventInfo.events = EVENT_READ;
 	error = CreateSocketEvent(&eventInfo, &socketEvent);
+	if(error == -1)
+	{
+		perror("CreateSocketEvent");
+		exit(1);
+	}
+	
+	error = SetToNonBlock(&socket);
 	if(error == -1)
 	{
 		perror("SetToNonBlock");
@@ -96,6 +96,7 @@ int main(int argc, char **argv)
 			}
 			
 			data[numBytes] = '\0';
+			printf("client: Recieved %s\n", data);
 			
 			eventInfo.socketfd = socket.socketfd;
 			eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
@@ -107,11 +108,9 @@ int main(int argc, char **argv)
 			}
 			
 		}
-		
 		if(socketEvent.event & EVENT_WRITE)
 		{
 			char buffer[]= "ACK\n";
-			printf("string length = %ld\n", strlen(buffer));
 			error = Send(&socket, buffer, strlen(buffer));
 			if(error == -1)
 			{
@@ -120,14 +119,16 @@ int main(int argc, char **argv)
 			}
 			
 			eventInfo.socketfd = socket.socketfd;
-			eventInfo.events = EVENT_READ;
+			eventInfo.events = EVENT_READ | EVENT_EDGE_TRIGGERED;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
 			if(error == -1)
 			{
 				perror("ModifySocketEvent");
 				exit(1);
 			}
-			//running = false;
+			
+			printf("Closing connection\n");
+			running = false;
 		}
 	}
 	

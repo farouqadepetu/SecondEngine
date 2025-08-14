@@ -7,8 +7,8 @@
   <Project Name="Server_Datagram" Path="Server_Datagram/Server_Datagram.project" Active="No"/>
   <Project Name="Client_Datagram" Path="Client_Datagram/Client_Datagram.project" Active="No"/>
   <Project Name="Polling_Server" Path="Polling/Polling.project" Active="No"/>
-  <Project Name="Polling_Client" Path="Polling_Client/Polling_Client.project" Active="No"/>
-  <Project Name="Polling_Server_Thread" Path="Polling_Server_Thread/Polling_Server_Thread.project" Active="Yes"/>
+  <Project Name="Polling_Client" Path="Polling_Client/Polling_Client.project" Active="Yes"/>
+  <Project Name="Polling_Server_Thread" Path="Polling_Server_Thread/Polling_Server_Thread.project" Active="No"/>
   <Project Name="Chat_Server" Path="Chat_Server/Chat_Server.project" Active="No"/>
   <Project Name="HTTP" Path="HTTP/HTTP.project" Active="No"/>
   <BuildMatrix>
