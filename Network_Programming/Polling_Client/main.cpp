@@ -34,10 +34,6 @@ int main(int argc, char **argv)
 		perror("GetAddresses");
 		exit(1);
 	}
-	PrintAddresses(&addresses);
-	char buffer[ADDRESS_STRLEN];
-	GetAddress(&addresses, buffer);
-	printf("1st address = %s\n", buffer);
 	
 	Socket socket;
 	Addresses outAddress;
@@ -56,6 +52,13 @@ int main(int argc, char **argv)
 	}
 	FreeAddresses(&addresses);
 	
+	error = SetToNonBlock(&socket);
+	if(error == -1)
+	{
+		perror("SetToNonBlock");
+		exit(1);
+	}
+	
 	SocketEvent socketEvent;
 	SocketEventInfo eventInfo;
 	eventInfo.socketfd = socket.socketfd;
@@ -64,13 +67,6 @@ int main(int argc, char **argv)
 	if(error == -1)
 	{
 		perror("CreateSocketEvent");
-		exit(1);
-	}
-	
-	error = SetToNonBlock(&socket);
-	if(error == -1)
-	{
-		perror("SetToNonBlock");
 		exit(1);
 	}
 	
@@ -120,7 +116,7 @@ int main(int argc, char **argv)
 			}
 			
 			eventInfo.socketfd = socket.socketfd;
-			eventInfo.events = EVENT_READ | EVENT_EDGE_TRIGGERED;
+			eventInfo.events = EVENT_READ;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
 			if(error == -1)
 			{

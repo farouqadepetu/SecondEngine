@@ -113,6 +113,8 @@ int Send(const Socket* pSocket, void* buffer, uint32_t numBytesToSend);
 
 enum Events
 {
+	EVENT_NONE = 0x0,
+	
 	//Raised when there is data to read from the socket.
 	EVENT_READ = 0x1,
 	

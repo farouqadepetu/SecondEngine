@@ -254,6 +254,7 @@ int CreateSocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
 	
 	epoll_event epollEvent;
 	epollEvent.data.fd = pInfo->socketfd;
+	epollEvent.events = 0;
 	
 	if(pInfo->events & EVENT_READ)
 		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
@@ -307,11 +308,12 @@ int WaitForEvent(SocketEvent* pEvent)
 		return -1;
 	}
 	
-	//printf("Rasied Event = %d\n", rasiedEvent.events);
+	pEvent->event = EVENT_NONE;
+	
 	if(rasiedEvent.events & EPOLLIN)
-		pEvent->event = EVENT_READ;
+		pEvent->event |= EVENT_READ;
 	if(rasiedEvent.events & EPOLLOUT)
-		pEvent->event = EVENT_WRITE;
+		pEvent->event |= EVENT_WRITE;
 		
 	return 0;
 }
