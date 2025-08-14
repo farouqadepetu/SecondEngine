@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Session Name="/home/farouq/Documents/SecondEngine/Network_Programming/Network_Programming.workspace">
-  <int Value="2" Name="m_selectedTab"/>
+  <int Value="3" Name="m_selectedTab"/>
   <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Network_Programming.workspace" Name="m_workspaceName"/>
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
-      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Server/main.cpp" Name="FileName"/>
+      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Polling_Server_Thread/main.cpp" Name="FileName"/>
       <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="0" Name="CurrentLine"/>
-      <wxArrayString Name="Bookmarks"/>
-      <IntVector Name="CollapsedFolds"/>
-    </TabInfo>
-    <TabInfo>
-      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Client_Stream/main.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="0" Name="CurrentLine"/>
-      <wxArrayString Name="Bookmarks"/>
-      <IntVector Name="CollapsedFolds"/>
-    </TabInfo>
-    <TabInfo>
-      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Polling/main.cpp" Name="FileName"/>
-      <int Value="271" Name="FirstVisibleLine"/>
-      <int Value="283" Name="CurrentLine"/>
+      <int Value="10" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
       <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Polling_Client/main.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
-      <int Value="0" Name="CurrentLine"/>
+      <int Value="46" Name="FirstVisibleLine"/>
+      <int Value="81" Name="CurrentLine"/>
+      <wxArrayString Name="Bookmarks"/>
+      <IntVector Name="CollapsedFolds"/>
+    </TabInfo>
+    <TabInfo>
+      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.h" Name="FileName"/>
+      <int Value="62" Name="FirstVisibleLine"/>
+      <int Value="78" Name="CurrentLine"/>
+      <wxArrayString Name="Bookmarks"/>
+      <IntVector Name="CollapsedFolds"/>
+    </TabInfo>
+    <TabInfo>
+      <wxString Value="/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.cpp" Name="FileName"/>
+      <int Value="119" Name="FirstVisibleLine"/>
+      <int Value="143" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>

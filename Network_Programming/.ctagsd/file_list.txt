@@ -1,8 +1,16 @@
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/main.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Thread.h
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.h
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Thread.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Polling_Server_Thread/main.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Thread.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Polling_Client/main.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Client_Datagram/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Server_Datagram/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Client_Stream/main.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/HTTP/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Polling/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Server/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/main.cpp

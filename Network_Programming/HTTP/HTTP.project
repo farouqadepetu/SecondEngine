@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<CodeLite_Project Name="Polling_Server_Thread" Version="11000" InternalType="Console">
+<CodeLite_Project Name="HTTP" Version="11000" InternalType="Console">
   <Description/>
   <Dependencies/>
   <Settings Type="Executable">
@@ -93,8 +93,6 @@
     </Configuration>
   </Settings>
   <VirtualDirectory Name="src">
-    <File Name="../Chat_Server/Network.cpp"/>
-    <File Name="../Chat_Server/Thread.cpp"/>
     <File Name="main.cpp"/>
   </VirtualDirectory>
 </CodeLite_Project>

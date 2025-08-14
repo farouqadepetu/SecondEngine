@@ -1,1 +1,1 @@
-../build-Debug/Polling_Server_Thread/main.cpp.o
+../build-Debug/Polling_Server_Thread/main.cpp.o ../build-Debug/Polling_Server_Thread/up_Chat_Server_Network.cpp.o ../build-Debug/Polling_Server_Thread/up_Chat_Server_Thread.cpp.o

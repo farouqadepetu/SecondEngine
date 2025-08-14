@@ -10,6 +10,7 @@
   <Project Name="Polling_Client" Path="Polling_Client/Polling_Client.project" Active="No"/>
   <Project Name="Polling_Server_Thread" Path="Polling_Server_Thread/Polling_Server_Thread.project" Active="Yes"/>
   <Project Name="Chat_Server" Path="Chat_Server/Chat_Server.project" Active="No"/>
+  <Project Name="HTTP" Path="HTTP/HTTP.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug">
       <Environment/>
@@ -23,6 +24,7 @@
       <Project Name="Polling_Client" ConfigName="Debug"/>
       <Project Name="Polling_Server_Thread" ConfigName="Debug"/>
       <Project Name="Chat_Server" ConfigName="Debug"/>
+      <Project Name="HTTP" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release">
       <Environment/>
@@ -36,6 +38,7 @@
       <Project Name="Polling_Client" ConfigName="Release"/>
       <Project Name="Polling_Server_Thread" ConfigName="Release"/>
       <Project Name="Chat_Server" ConfigName="Release"/>
+      <Project Name="HTTP" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>

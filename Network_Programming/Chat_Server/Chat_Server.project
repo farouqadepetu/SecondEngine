@@ -93,6 +93,8 @@
     </Configuration>
   </Settings>
   <VirtualDirectory Name="src">
+    <File Name="Network.cpp"/>
+    <File Name="Network.h"/>
     <File Name="Thread.cpp"/>
     <File Name="Thread.h"/>
     <File Name="main.cpp"/>

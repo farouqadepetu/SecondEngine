@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <string.h>
+#include "../Chat_Server/Network.h"
 
 #define PORT "3490"
 #define MAX_DATA_SIZE 100 //max number of bytes we can recieve at once
@@ -18,71 +19,124 @@
 
 int main(int argc, char **argv)
 {
-	//set up the type of addresses we want returned.
-	addrinfo hints;
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = 0;
+	AddressInfo info;
+	Addresses addresses;
+	info.family = FAMILY_UNSPEC;
+	info.type = SOCKET_TYPE_STREAM;
+	info.prot = PROTOCOL_TCP;
+	info.flags = ADDRESS_INFO_FLAG_NONE | ADDRESS_INFO_FLAG_NUMERIC_HOST;
+	info.name = "192.168.1.204";
+	info.port = PORT;
 	
-	//get server info
-	addrinfo* serverInfo;
-	int gaiError = getaddrinfo("192.168.1.204", PORT, &hints, &serverInfo);
-	if(gaiError != 0)
+	int error = GetAddresses(&info, &addresses);
+	if(error == -1)
 	{
-		printf("getaddrinfo error: %s\n", gai_strerror(gaiError));
+		perror("GetAddresses");
+		exit(1);
+	}
+	PrintAddresses(&addresses);
+	char buffer[ADDRESS_STRLEN];
+	GetAddress(&addresses, buffer);
+	printf("1st address = %s\n", buffer);
+	
+	Socket socket;
+	Addresses outAddress;
+	error = CreateSocket(&socket, &addresses, &outAddress);
+	if(error == -1)
+	{
+		perror("CreateSocket");
 		exit(1);
 	}
 	
-	//loop through the results and bind to the first we can
-	addrinfo* pAddrInfos = serverInfo;
-	int socketfd;
-	void* addr;
-	char ipAddrStr[INET6_ADDRSTRLEN];
-	while(pAddrInfos != nullptr)
+	error = Connect(&socket, &outAddress);
+	if(error == -1)
 	{
-		socketfd = socket(pAddrInfos->ai_family, pAddrInfos->ai_socktype, pAddrInfos->ai_protocol);
-		if(socketfd == -1)
-		{
-			perror("client: socket");
-			pAddrInfos = pAddrInfos->ai_next;
-			continue;
-		}
-		
-		if(pAddrInfos->ai_family == AF_INET)
-		{
-			sockaddr_in* ipv4Addr = (struct sockaddr_in*)pAddrInfos->ai_addr;
-			addr = &(ipv4Addr->sin_addr);
-		}
-		else if(pAddrInfos->ai_family == AF_INET6)
-		{
-			sockaddr_in6* ipv6Addr = (struct sockaddr_in6*)pAddrInfos->ai_addr;
-			addr = &(ipv6Addr->sin6_addr);
-		}
-		
-		inet_ntop(pAddrInfos->ai_family, addr,  ipAddrStr, INET6_ADDRSTRLEN);
-		printf("client: attempting connection to %s\n", ipAddrStr);
-		
-		int connectError = connect(socketfd, pAddrInfos->ai_addr, pAddrInfos->ai_addrlen);
-		if(connectError == -1)
-		{
-			perror("client: connect");
-			pAddrInfos = pAddrInfos->ai_next;
-			continue;
-		}
-		
-		printf("client: connection to %s successful\n", ipAddrStr);
-		break;
-	}
-	
-	if(pAddrInfos == nullptr)
-	{
-		printf("connect: failed to connect");
+		perror("Connect");
 		exit(1);
 	}
+	FreeAddresses(&addresses);
+	
+	error = SetToNonBlock(&socket);
+	if(error == -1)
+	{
+		perror("SetToNonBlock");
+		exit(1);
+	}
+	
+	SocketEvent socketEvent;
+	SocketEventInfo eventInfo;
+	eventInfo.socketfd = socket.socketfd;
+	eventInfo.events = EVENT_READ | EVENT_EDGE_TRIGGERED;
+	error = CreateSocketEvent(&eventInfo, &socketEvent);
+	if(error == -1)
+	{
+		perror("SetToNonBlock");
+		exit(1);
+	}
+	
+	bool running = true;
+	while(running)
+	{
+		WaitForEvent(&socketEvent);
+		printf("client: an event happened. Checking...\n");
+		if(socketEvent.event & EVENT_READ)
+		{
+			char data[MAX_DATA_SIZE];
+			int numBytes = Recieve(&socket, data, MAX_DATA_SIZE - 1);
+			if(numBytes == -1)
+			{
+				perror("Recieve");
+				exit(1);
+			}
+			if(numBytes == 0)
+			{
+				//connection was closed
+				running = false;
+				continue;
+			}
+			
+			data[numBytes] = '\0';
+			
+			eventInfo.socketfd = socket.socketfd;
+			eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
+			error = ModifySocketEvent(&eventInfo, &socketEvent);
+			if(error == -1)
+			{
+				perror("ModifySocketEvent");
+				exit(1);
+			}
+			
+		}
+		
+		if(socketEvent.event & EVENT_WRITE)
+		{
+			char buffer[]= "ACK\n";
+			printf("string length = %ld\n", strlen(buffer));
+			error = Send(&socket, buffer, strlen(buffer));
+			if(error == -1)
+			{
+				perror("Send");
+				exit(1);
+			}
+			
+			eventInfo.socketfd = socket.socketfd;
+			eventInfo.events = EVENT_READ;
+			error = ModifySocketEvent(&eventInfo, &socketEvent);
+			if(error == -1)
+			{
+				perror("ModifySocketEvent");
+				exit(1);
+			}
+			//running = false;
+		}
+	}
+	
+	CloseSocketEvent(&socketEvent);
+	CloseSocket(&socket);
+	
 	
 	//set the socket to non-blocking
-	int fnctlError = fcntl(socketfd, F_SETFL, O_NONBLOCK);
+	/*int fnctlError = fcntl(socketfd, F_SETFL, O_NONBLOCK);
 	if(fnctlError == -1)
 	{
 		perror("fcntl");
@@ -237,7 +291,7 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	close(socketfd);
+	close(socketfd);*/
 	
 	return 0;
 }
