@@ -110,6 +110,7 @@ int main(int argc, char **argv)
 		}
 		if(socketEvent.event & EVENT_WRITE)
 		{
+			printf("Sending ack\n");
 			char buffer[]= "ACK\n";
 			error = Send(&socket, buffer, strlen(buffer));
 			if(error == -1)

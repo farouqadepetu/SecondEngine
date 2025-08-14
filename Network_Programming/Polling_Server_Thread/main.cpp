@@ -109,6 +109,14 @@ void HandleConnection(void* ptr)
 			buffer[numBytes] = '\0';
 			printf("server: Recieved %s", buffer);
 			
+			printf("Ack recieved, closing connection\n");
+			//connection was closed
+			CloseSocketEvent(&socketEvent);
+			CloseSocket(&data->connectionSocket);
+			free(data);
+			ExitThread();
+			return;
+			
 			eventInfo.socketfd = data->connectionSocket.socketfd;
 			eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
