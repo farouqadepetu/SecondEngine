@@ -117,12 +117,12 @@ void GetAddress(const Address* pAddress, char* buffer)
 	sockaddr_in6* ipv6Addr = nullptr;
 	if(pAddress->addressInfo.ai_family == AF_INET)
 	{
-		ipv4Addr = (struct sockaddr_in*)pAddress;
+		ipv4Addr = (struct sockaddr_in*)pAddress->addressInfo.ai_addr;
 		addr = &(ipv4Addr->sin_addr);
 	}
 	else if(pAddress->addressInfo.ai_family == AF_INET6)
 	{
-		ipv6Addr = (struct sockaddr_in6*)pAddress;
+		ipv6Addr = (struct sockaddr_in6*)pAddress->addressInfo.ai_addr;
 		addr = &(ipv6Addr->sin6_addr);
 	}
 	
