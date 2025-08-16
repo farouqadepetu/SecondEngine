@@ -9,6 +9,7 @@
 
 enum Family
 {
+	FAMILY_NONE,
 	FAMILY_IPV4,
 	FAMILY_IPV6,
 	FAMILY_UNSPEC
@@ -16,12 +17,14 @@ enum Family
 
 enum SocketType
 {
+	SOCKET_TYPE_NONE,
 	SOCKET_TYPE_STREAM,
 	SOCKET_TYPE_DATAGRAM
 };
 
 enum Protocol
 {
+	PROTOCOL_NONE,
 	PROTOCOL_TCP,
 	PROTOCOL_UDP
 };
@@ -46,33 +49,56 @@ struct AddressInfo
 	const char* port; //port number
 };
 
+//Stores a list of addresses and the number of addresses
 struct Addresses
 {
-	addrinfo* pAddrInfo;
+	uint32_t numAddresses;
+	addrinfo* pAddrInfos;
+};
+
+//Stores one address
+struct Address
+{
+	addrinfo addressInfo;
 };
 
 //Stores a list of address in pAddresses. pInfo specifies the type of socket address to store.
 //Returns 0 if successful, -1 otherwise
 int GetAddresses(const AddressInfo* pInfo, Addresses* pAddresses);
 
-//Frees address
+//Frees addresses
 void FreeAddresses(Addresses* pAddresses);
 
-//Prints the list of ip addresses
+//Prints the list of addresses
 void PrintAddresses(const Addresses* pAddresses);
 
-//Stores the first ip address of the list in buffer
-void GetAddress(const Addresses* pAddress, char* buffer);
+//Returns the family of the address
+Family GetFamily(const Address* pAddress);
+
+//Returns the socket type
+SocketType GetSocketType(const Address* pAddress);
+
+//Returns the protocol
+Protocol GetProtocol(const Address* pAddress);
+
+//Store the address at index in pAddress.
+//If the index is out-of-bounds, pAddress = nullptr, uses 0-index
+void GetAddress(const Addresses* pAddresses, Address* pAddress, uint32_t index);
+
+//Stores the ip address in buffer
+void GetAddress(const Address* pAddress, char* buffer);
+
+//Stores the name in buffer
+void GetName(const Address* pAddress, char* buffer);
 
 struct Socket
 {
 	int socketfd;
 };
 
-//Creates a socket from the first address we can create one from.
-//Returns the address that the socket was created from in pOutAddress
+//Tries to createsa socket from the given address.
 //Returns 0 if successful, -1 otherwise
-int CreateSocket(Socket* pSocket, const Addresses* pAddresses, Addresses* pOutAddress);
+int CreateSocket(Socket* pSocket, const Address* pAddress);
 
 //Closes a socket
 void CloseSocket(Socket* pSocket);
@@ -84,12 +110,11 @@ int SetToBlock(Socket* pSocket);
 int SetToNonBlock(Socket* pSocket);
 
 //Connects a socket to a server
-//The address should be from the pOutAddress in CreateSocket()
-int Connect(Socket* pSocket, const Addresses* pAddress);
+int Connect(Socket* pSocket, const Address* pAddress);
 
 //Associates a socket with an ip address and port number
 //Returns 0 if successful, -1 otherwise
-int Bind(Socket* pSocket, const Addresses* pAddress);
+int Bind(Socket* pSocket, const Address* pAddress);
 
 //Tells a socket to listen for incoming connections. 
 //Size is the number pending connections that can be held before news ones get rejected
@@ -106,21 +131,34 @@ int Accept(Socket* pListeningSocket, Socket* pConnectionSocket);
 //Returns -1 if error
 int Recieve(const Socket* pSocket, void* buffer, uint32_t numBytesToRead);
 
+//Read incoming data
+//Returns the number of bytes read
+//If the remote side closed connection will return 0. Use this to determine if a connection was closed.
+//Returns -1 if error
+//The address of where the data came from will be put in address if no error.
+//The address will have _NONE for the protocol and socket type and name will be empty(nullptr).
+int RecieveFrom(const Socket* pSocket, void* buffer, uint32_t numBytesToRead, const Address* pAddress);
+
 //Send data
 //Returns the number of bytes sent.
 //Returns -1 if error
 int Send(const Socket* pSocket, void* buffer, uint32_t numBytesToSend);
+
+//Send data
+//Returns the number of bytes sent.
+//Returns -1 if error
+int SendTo(const Socket* pSocket, void* buffer, uint32_t numBytesToSend, Address* pAddress);
 
 enum Events
 {
 	EVENT_NONE = 0x0,
 	
 	//Raised when there is data to read from the socket.
-	EVENT_READ = 0x1,
+	EVENT_RECIEVE = 0x1,
 	
 	//Rasied when there data can be sent without being blocked
 	//if the socket is set to non-blocking, this will always be rasied if level triggered
-	EVENT_WRITE = 0x2,
+	EVENT_SEND = 0x2,
 	
 	//Sets the event to be edge triggered.
 	//For edge triggered events will only be recieved if when the state of the file descriptor changes.

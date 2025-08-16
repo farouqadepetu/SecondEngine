@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 int GetAddresses(const AddressInfo* pInfo, Addresses* pAddresses)
 {
@@ -35,90 +36,115 @@ int GetAddresses(const AddressInfo* pInfo, Addresses* pAddresses)
 	if(pInfo->flags & ADDRESS_INFO_FLAG_V4MAPPED)
 		hints.ai_flags |= AI_V4MAPPED;
 	
-	int gaiError = getaddrinfo(pInfo->name, pInfo->port, &hints, &pAddresses->pAddrInfo);
+	int gaiError = getaddrinfo(pInfo->name, pInfo->port, &hints, &pAddresses->pAddrInfos);
 	if(gaiError != 0)
 	{
 		return -1;
 	}
+	
+	addrinfo* pAddrInfos = pAddresses->pAddrInfos;
+	uint32_t i = 0;
+	while(pAddrInfos != nullptr)
+	{
+		++i;
+		pAddrInfos = pAddrInfos->ai_next;
+	}
+	pAddresses->numAddresses = i;
+	
 	return 0;
 }
 
 void FreeAddresses(Addresses* pAddresses)
 {
-	freeaddrinfo(pAddresses->pAddrInfo);
+	freeaddrinfo(pAddresses->pAddrInfos);
 }
 
-void GetAddress(const Addresses* pAddresses, char* buffer)
+Family GetFamily(const Address* pAddress)
 {
-	void* addr;
-	sockaddr_in* ipv4Addr = nullptr;
-	sockaddr_in6* ipv6Addr = nullptr;
-	if(pAddresses->pAddrInfo->ai_family == AF_INET)
+	if(pAddress->addressInfo.ai_family == AF_INET)
+		return FAMILY_IPV4;
+	else if(pAddress->addressInfo.ai_family == AF_INET6)
+		return FAMILY_IPV6;
+		
+	return FAMILY_NONE;
+}
+
+SocketType GetSocketType(const Address* pAddress)
+{
+	if(pAddress->addressInfo.ai_socktype == SOCK_STREAM)
+		return SOCKET_TYPE_STREAM;
+	else if(pAddress->addressInfo.ai_socktype == SOCKET_TYPE_DATAGRAM)
+		return SOCKET_TYPE_DATAGRAM;
+		
+	return SOCKET_TYPE_NONE;
+}
+
+Protocol GetProtocol(const Address* pAddress)
+{
+	if(pAddress->addressInfo.ai_protocol == IPPROTO_TCP)
+		return PROTOCOL_TCP;
+	else if(pAddress->addressInfo.ai_protocol == IPPROTO_TCP)
+		return PROTOCOL_UDP;
+		
+	return PROTOCOL_NONE;
+}
+
+//Store the address at index in pAddress.
+//If the index is out-of-bounds, pAddress = nullptr;
+void GetAddress(const Addresses* pAddresses, Address* pAddress, uint32_t index)
+{
+	if (index > pAddresses->numAddresses - 1)
 	{
-		ipv4Addr = (struct sockaddr_in*)pAddresses->pAddrInfo->ai_addr;
-		addr = &(ipv4Addr->sin_addr);
-	}
-	else if(pAddresses->pAddrInfo->ai_family == AF_INET6)
-	{
-		ipv6Addr = (struct sockaddr_in6*)pAddresses->pAddrInfo->ai_addr;
-		addr = &(ipv6Addr->sin6_addr);
+		pAddress = nullptr;
+		return;
 	}
 	
-	inet_ntop(pAddresses->pAddrInfo->ai_family, addr, buffer, INET6_ADDRSTRLEN);
-}
-
-void PrintAddresses(const Addresses* pAddresses)
-{
-	addrinfo* pAddrInfos = pAddresses->pAddrInfo;
-	void* addr;
-	char ipAddrStr[INET6_ADDRSTRLEN];
+	addrinfo* pAddrInfos = pAddresses->pAddrInfos;
 	uint32_t i = 0;
-	sockaddr_in* ipv4Addr = nullptr;
-	sockaddr_in6* ipv6Addr = nullptr;
-	while(pAddrInfos != nullptr)
+	while(i < index)
 	{
-		if(pAddrInfos->ai_family == AF_INET)
-		{
-			ipv4Addr = (struct sockaddr_in*)pAddrInfos->ai_addr;
-			addr = &(ipv4Addr->sin_addr);
-		}
-		else if(pAddrInfos->ai_family == AF_INET6)
-		{
-			ipv6Addr = (struct sockaddr_in6*)pAddrInfos->ai_addr;
-			addr = &(ipv6Addr->sin6_addr);
-		}
-		
-		inet_ntop(pAddrInfos->ai_family, addr, ipAddrStr, INET6_ADDRSTRLEN);
-		printf("IP %d = %s\n", i, ipAddrStr);
 		++i;
 		pAddrInfos = pAddrInfos->ai_next;
 	}
+		
+	pAddress->addressInfo = *pAddrInfos;
 }
 
-int CreateSocket(Socket* pSocket, const Addresses* pAddresses, Addresses* pOutAddress)
+void GetAddress(const Address* pAddress, char* buffer)
 {
-	addrinfo* pAddrInfos = pAddresses->pAddrInfo;
-	int socketfd;
-	while(pAddrInfos != nullptr)
+	void* addr;
+	sockaddr_in* ipv4Addr = nullptr;
+	sockaddr_in6* ipv6Addr = nullptr;
+	if(pAddress->addressInfo.ai_family == AF_INET)
 	{
-		socketfd = socket(pAddrInfos->ai_family, pAddrInfos->ai_socktype, pAddrInfos->ai_protocol);
-		if(socketfd == -1)
-		{
-			perror("socket error: ");
-			pAddrInfos = pAddrInfos->ai_next;
-			continue;
-		}
-		
-		break;
+		ipv4Addr = (struct sockaddr_in*)pAddress;
+		addr = &(ipv4Addr->sin_addr);
+	}
+	else if(pAddress->addressInfo.ai_family == AF_INET6)
+	{
+		ipv6Addr = (struct sockaddr_in6*)pAddress;
+		addr = &(ipv6Addr->sin6_addr);
 	}
 	
-	if(pAddrInfos == nullptr)
+	inet_ntop(pAddress->addressInfo.ai_family, addr, buffer, ADDRESS_STRLEN);
+}
+
+//Stores the name in buffer
+void GetName(const Address* pAddress, char* buffer)
+{
+	buffer = pAddress->addressInfo.ai_canonname;
+}
+
+int CreateSocket(Socket* pSocket, const Address* pAddress)
+{
+	int socketfd = socket(pAddress->addressInfo.ai_family, pAddress->addressInfo.ai_socktype, 
+	pAddress->addressInfo.ai_protocol);
+	if(socketfd == -1)
 	{
-		return -1;
+		return - 1;
 	}
 	
 	pSocket->socketfd = socketfd;
-	pOutAddress->pAddrInfo = pAddrInfos;
 	return 0;
 }
 
@@ -159,14 +185,15 @@ int SetToNonBlock(Socket* pSocket)
 	return 0;
 }
 
-int Connect(Socket* pSocket, const Addresses* pAddress)
+int Connect(Socket* pSocket, const Address* pAddress)
 {
 	char ipAddrStr[ADDRESS_STRLEN];
 	GetAddress(pAddress, ipAddrStr);
 	
 	printf("attempting connection to %s\n", ipAddrStr);
 	
-	int connectError = connect(pSocket->socketfd, pAddress->pAddrInfo->ai_addr, pAddress->pAddrInfo->ai_addrlen);
+	int connectError = connect(pSocket->socketfd, pAddress->addressInfo.ai_addr, 
+	pAddress->addressInfo.ai_addrlen);
 	if(connectError == -1)
 	{
 		return -1;
@@ -176,7 +203,7 @@ int Connect(Socket* pSocket, const Addresses* pAddress)
 	return 0;
 }
 
-int Bind(Socket* pSocket, const Addresses* pAddress)
+int Bind(Socket* pSocket, const Address* pAddress)
 {
 	//allow port number reuse
 	int yes = 1;
@@ -186,7 +213,7 @@ int Bind(Socket* pSocket, const Addresses* pAddress)
 		return sockOptError;
 	}
 	
-	int bindError = bind(pSocket->socketfd, pAddress->pAddrInfo->ai_addr, pAddress->pAddrInfo->ai_addrlen);
+	int bindError = bind(pSocket->socketfd, pAddress->addressInfo.ai_addr, pAddress->addressInfo.ai_addrlen);
 	
 	return bindError;
 }
@@ -236,9 +263,31 @@ int Recieve(const Socket* pSocket, void* buffer, uint32_t numBytesToRead)
 	return numBytesRead;
 }
 
+int RecieveFrom(const Socket* pSocket, void* buffer, uint32_t numBytesToRead, Address* pAddress)
+{
+	socklen_t addr_len = sizeof(sockaddr);
+	sockaddr_storage their_address;
+	int numBytesRead = recvfrom(pSocket->socketfd, buffer, numBytesToRead, 0, (sockaddr*)&their_address, 
+	&addr_len);
+
+	pAddress->addressInfo.ai_family = their_address.ss_family;
+	memcpy(pAddress->addressInfo.ai_addr, &their_address, sizeof(sockaddr_storage));
+	pAddress->addressInfo.ai_addrlen = addr_len;
+	
+	return numBytesRead;
+}
+
 int Send(const Socket* pSocket, void* buffer, uint32_t numBytesToSend)
 {
 	int numBytesSent = send(pSocket->socketfd, buffer, numBytesToSend, 0);
+	
+	return numBytesSent;
+}
+
+int SendTo(const Socket* pSocket, void* buffer, uint32_t numBytesToSend, const Address* pAddress)
+{
+	int numBytesSent = sendto(pSocket->socketfd, buffer, numBytesToSend, 0, pAddress->addressInfo.ai_addr, 
+	pAddress->addressInfo.ai_addrlen);
 	
 	return numBytesSent;
 }
@@ -256,9 +305,9 @@ int CreateSocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
 	epollEvent.data.fd = pInfo->socketfd;
 	epollEvent.events = 0;
 	
-	if(pInfo->events & EVENT_READ)
+	if(pInfo->events & EVENT_RECIEVE)
 		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
-	if(pInfo->events & EVENT_WRITE)
+	if(pInfo->events & EVENT_SEND)
 		epollEvent.events |= EPOLLOUT; //event is raised when you can write w.o being blocked
 	if(pInfo->events & EVENT_EDGE_TRIGGERED)
 		epollEvent.events |= EPOLLET;
@@ -277,9 +326,9 @@ int ModifySocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
 	epoll_event epollEvent{};
 	epollEvent.data.fd = pInfo->socketfd;
 	
-	if(pInfo->events & EVENT_READ)
+	if(pInfo->events & EVENT_RECIEVE)
 		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
-	if(pInfo->events & EVENT_WRITE)
+	if(pInfo->events & EVENT_SEND)
 		epollEvent.events |= EPOLLOUT; //event is raised when you can write w.o being blocked
 	if(pInfo->events & EVENT_EDGE_TRIGGERED)
 		epollEvent.events |= EPOLLET;
@@ -311,9 +360,9 @@ int WaitForEvent(SocketEvent* pEvent)
 	pEvent->event = EVENT_NONE;
 	
 	if(rasiedEvent.events & EPOLLIN)
-		pEvent->event |= EVENT_READ;
+		pEvent->event |= EVENT_RECIEVE;
 	if(rasiedEvent.events & EPOLLOUT)
-		pEvent->event |= EVENT_WRITE;
+		pEvent->event |= EVENT_SEND;
 		
 	return 0;
 }

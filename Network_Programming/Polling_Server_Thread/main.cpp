@@ -35,7 +35,7 @@ void HandleConnection(void* ptr)
 	SocketEvent socketEvent;
 	SocketEventInfo eventInfo;
 	eventInfo.socketfd = data->connectionSocket.socketfd;
-	eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
+	eventInfo.events = EVENT_SEND | EVENT_EDGE_TRIGGERED;
 	int error = CreateSocketEvent(&eventInfo, &socketEvent);
 	if(error == -1)
 	{
@@ -64,7 +64,7 @@ void HandleConnection(void* ptr)
 		}
 		
 		printf("server:thread %d an event happened! Checking..\n", gettid());
-		if(socketEvent.event & EVENT_WRITE)
+		if(socketEvent.event & EVENT_SEND)
 		{
 			char msg[] = "Hello World!";
 			printf("Sending string Hello World!\n");
@@ -77,7 +77,7 @@ void HandleConnection(void* ptr)
 			}
 			
 			eventInfo.socketfd = data->connectionSocket.socketfd;
-			eventInfo.events = EVENT_READ;
+			eventInfo.events = EVENT_RECIEVE;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
 			if(error == -1)
 			{
@@ -86,7 +86,7 @@ void HandleConnection(void* ptr)
 				return;
 			}
 		}
-		if(socketEvent.event & EVENT_READ)
+		if(socketEvent.event & EVENT_RECIEVE)
 		{
 			//Handle errors
 			char buffer[MAX_DATA_SIZE];
@@ -118,7 +118,7 @@ void HandleConnection(void* ptr)
 			return;
 			
 			eventInfo.socketfd = data->connectionSocket.socketfd;
-			eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
+			eventInfo.events = EVENT_SEND | EVENT_EDGE_TRIGGERED;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
 			if(error == -1)
 			{
@@ -249,9 +249,16 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
+	//Create a socket from the first address we can
 	Socket listeningSocket;
-	Addresses outAddress;
-	error = CreateSocket(&listeningSocket, &addresses, &outAddress);
+	Address outAddress;
+	for(uint32_t i = 0; i < addresses.numAddresses; ++i)
+	{
+		GetAddress(&addresses, &outAddress, i);
+		error = CreateSocket(&listeningSocket, &outAddress);
+		if(error == 0)
+			break;
+	}
 	if(error == -1)
 	{
 		perror("CreateSocket");
@@ -284,7 +291,7 @@ int main(int argc, char **argv)
 	SocketEvent socketEvent;
 	SocketEventInfo eventInfo;
 	eventInfo.socketfd = listeningSocket.socketfd;
-	eventInfo.events = EVENT_READ;
+	eventInfo.events = EVENT_RECIEVE;
 	error = CreateSocketEvent(&eventInfo, &socketEvent);
 	if(error == -1)
 	{

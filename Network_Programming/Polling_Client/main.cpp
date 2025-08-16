@@ -34,10 +34,21 @@ int main(int argc, char **argv)
 		perror("GetAddresses");
 		exit(1);
 	}
+	printf("Number of addresses = %d\n", addresses.numAddresses);
 	
+	//Create a socket from the first address we can
 	Socket socket;
-	Addresses outAddress;
-	error = CreateSocket(&socket, &addresses, &outAddress);
+	Address outAddress;
+	for(uint32_t i = 0; i < addresses.numAddresses; ++i)
+	{
+		char buffer[ADDRESS_STRLEN];
+		GetAddress(&addresses, &outAddress, i);
+		GetAddress(&outAddress, buffer);
+		printf("Address %d = %s\n", i, buffer);
+		error = CreateSocket(&socket, &outAddress);
+		if(error == 0)
+			break;
+	}
 	if(error == -1)
 	{
 		perror("CreateSocket");
@@ -62,7 +73,7 @@ int main(int argc, char **argv)
 	SocketEvent socketEvent;
 	SocketEventInfo eventInfo;
 	eventInfo.socketfd = socket.socketfd;
-	eventInfo.events = EVENT_READ;
+	eventInfo.events = EVENT_RECIEVE;
 	error = CreateSocketEvent(&eventInfo, &socketEvent);
 	if(error == -1)
 	{
@@ -75,7 +86,7 @@ int main(int argc, char **argv)
 	{
 		WaitForEvent(&socketEvent);
 		printf("client: an event happened. Checking...\n");
-		if(socketEvent.event & EVENT_READ)
+		if(socketEvent.event & EVENT_RECIEVE)
 		{
 			char data[MAX_DATA_SIZE];
 			int numBytes = Recieve(&socket, data, MAX_DATA_SIZE - 1);
@@ -95,7 +106,7 @@ int main(int argc, char **argv)
 			printf("client: Recieved %s\n", data);
 			
 			eventInfo.socketfd = socket.socketfd;
-			eventInfo.events = EVENT_WRITE | EVENT_EDGE_TRIGGERED;
+			eventInfo.events = EVENT_SEND | EVENT_EDGE_TRIGGERED;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
 			if(error == -1)
 			{
@@ -104,7 +115,7 @@ int main(int argc, char **argv)
 			}
 			
 		}
-		if(socketEvent.event & EVENT_WRITE)
+		if(socketEvent.event & EVENT_SEND)
 		{
 			printf("Sending ack\n");
 			char buffer[]= "ACK\n";
@@ -116,7 +127,7 @@ int main(int argc, char **argv)
 			}
 			
 			eventInfo.socketfd = socket.socketfd;
-			eventInfo.events = EVENT_READ;
+			eventInfo.events = EVENT_RECIEVE;
 			error = ModifySocketEvent(&eventInfo, &socketEvent);
 			if(error == -1)
 			{

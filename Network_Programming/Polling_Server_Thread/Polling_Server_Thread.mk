@@ -14,7 +14,7 @@ CurrentFileName        :=
 CurrentFilePath        :=
 CurrentFileFullPath    :=
 User                   :=farouq
-Date                   :=14/08/25
+Date                   :=16/08/25
 CodeLitePath           :=/home/farouq/.codelite
 MakeDirCommand         :=mkdir -p
 LinkerName             :=/usr/bin/g++-13
@@ -62,7 +62,7 @@ AS       := /usr/bin/as
 ## User defined environment variables
 ##
 CodeLiteDir:=/usr/share/codelite
-Objects0=$(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(ObjectSuffix) 
+Objects0=$(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix) 
 
 
 
@@ -101,14 +101,6 @@ $(IntermediateDirectory)/main.cpp$(DependSuffix): main.cpp
 $(IntermediateDirectory)/main.cpp$(PreprocessSuffix): main.cpp
 	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/main.cpp$(PreprocessSuffix) main.cpp
 
-$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix): ../Chat_Server/Network.cpp $(IntermediateDirectory)/up_Chat_Server_Network.cpp$(DependSuffix)
-	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix) $(IncludePath)
-$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(DependSuffix): ../Chat_Server/Network.cpp
-	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(DependSuffix) -MM ../Chat_Server/Network.cpp
-
-$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(PreprocessSuffix): ../Chat_Server/Network.cpp
-	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_Server_Network.cpp$(PreprocessSuffix) ../Chat_Server/Network.cpp
-
 $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(ObjectSuffix): ../Chat_Server/Thread.cpp $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(DependSuffix)
 	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Thread.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(ObjectSuffix) $(IncludePath)
 $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(DependSuffix): ../Chat_Server/Thread.cpp
@@ -116,6 +108,14 @@ $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(DependSuffix): ../Chat_Serve
 
 $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(PreprocessSuffix): ../Chat_Server/Thread.cpp
 	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_Server_Thread.cpp$(PreprocessSuffix) ../Chat_Server/Thread.cpp
+
+$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix): ../Chat_Server/Network.cpp $(IntermediateDirectory)/up_Chat_Server_Network.cpp$(DependSuffix)
+	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix) $(IncludePath)
+$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(DependSuffix): ../Chat_Server/Network.cpp
+	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(DependSuffix) -MM ../Chat_Server/Network.cpp
+
+$(IntermediateDirectory)/up_Chat_Server_Network.cpp$(PreprocessSuffix): ../Chat_Server/Network.cpp
+	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_Server_Network.cpp$(PreprocessSuffix) ../Chat_Server/Network.cpp
 
 
 -include $(IntermediateDirectory)/*$(DependSuffix)
