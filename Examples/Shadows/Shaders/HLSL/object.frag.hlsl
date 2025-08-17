@@ -27,7 +27,7 @@ float ComputeShadow(float4 posL)
     float currentDepth = projCoords.z;
     
     //check if the pixel is in shadow or not
-    //1.0f if true (in shadow), 0.0f if false (not in shadow)
+    //1.0f if true (not in shadow), 0.0f if false (in shadow)
     float shadow = float((currentDepth - constants.shadowBias) < closestDepth);
     
     // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.

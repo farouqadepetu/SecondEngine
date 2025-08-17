@@ -741,6 +741,7 @@ public:
 		DestroyDescriptorSet(&gDescriptorSetPerFrame);
 
 		DestroySampler(&gRenderer, &gSampler);
+		DestroySampler(&gRenderer, &gSamplerComparison);
 
 		for (uint32_t i = 0; i < gNumFrames; ++i)
 		{
@@ -865,9 +866,6 @@ public:
 		UpdateViewMatrix(&gCamera);
 		UpdatePerspectiveProjectionMatrix(&gCamera);
 
-		UpdateViewMatrix(&gDLCamera);
-		UpdateOrthographicProjectionMatrix(&gDLCamera);
-
 		gCameraData.cameraView = Transpose(gCamera.viewMat);
 		gCameraData.cameraPos = vec4(gCamera.position.GetX(), gCamera.position.GetY(), gCamera.position.GetZ(), 1.0f);
 		gCameraData.cameraProjection = Transpose(gCamera.perspectiveProjMat);
@@ -959,6 +957,9 @@ public:
 		}
 		else if (gCurrentLightSource == DIRECTIONAL_LIGHT)
 		{
+			UpdateViewMatrix(&gDLCamera);
+			UpdateOrthographicProjectionMatrix(&gDLCamera);
+
 			gLightSourceData.lightSourceModel[0] = Transpose(mat4::Scale(0.1f, 0.1f, 0.1f) *
 				mat4::Translate(gDLCamera.position.GetX(), gDLCamera.position.GetY(), gDLCamera.position.GetZ()));
 
