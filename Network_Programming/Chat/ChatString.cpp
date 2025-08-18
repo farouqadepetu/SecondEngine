@@ -10,6 +10,15 @@ void AllocateChatString(ChatString* pChatStr)
 	pChatStr->str = (char*)calloc(pChatStr->capacity + 1, sizeof(char));
 }
 
+void AllocateChatString(ChatString* pChatStr, uint32_t capacity)
+{
+	pChatStr->capacity = capacity;
+	pChatStr->size = 0;
+	
+	//last char should be the null-terminating char so add one more byte
+	pChatStr->str = (char*)calloc(pChatStr->capacity + 1, sizeof(char));
+}
+
 void ReallocateChatString(ChatString* pChatStr)
 {
 	printf("Reallocating, the current capacity is %d\n", pChatStr->capacity);
@@ -44,4 +53,15 @@ void AddChar(ChatString* pChatStr, char ch)
 	pChatStr->str[pChatStr->size] = ch;
 	++pChatStr->size;
 	pChatStr->str[pChatStr->size] = '\0';
+}
+
+void AddString(ChatString* pChatStr, char* str)
+{
+	uint32_t strSize = strlen(str);
+	printf("Str Size = %d\n", strSize);
+	
+	for(uint32_t i = 0; i < strSize; ++i)
+	{
+		AddChar(pChatStr, str[i]);
+	}
 }

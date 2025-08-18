@@ -11,6 +11,6 @@ struct ChatPacket
 };
 
 void SendChatPacket(Socket* pSocket, ChatPacket* pPacket);
-void RecieveChatPacket(Socket* pSocket, ChatPacket* pPacket);
+void ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket);
 
 #endif

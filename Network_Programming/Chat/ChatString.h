@@ -13,8 +13,21 @@ struct ChatString
 	
 };
 
+//Allocates a string with a default capacity of 32 bytes
 void AllocateChatString(ChatString* pChatStr);
+
+//Allocates a string with capacity bytes
+void AllocateChatString(ChatString* pChatStr, uint32_t capacity);
+
+//Frees the strong
 void FreeChatString(ChatString* pChatStr);
+
+//Appends a chararacter to the end of of the string
 void AddChar(ChatString* pChatStr, char ch);
+
+//Appends str to the end of the string
+//str needs to be null-terminated
+void AddString(ChatString* pChatStr, char* str);
+
 
 #endif

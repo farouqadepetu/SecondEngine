@@ -133,11 +133,13 @@ int main(int argc, char **argv)
 			if(socketEvent.event & EVENT_RECEIVE)
 			{
 				ChatPacket packet;
-				RecieveChatPacket(&connectionSocket, &packet);
+				ReceiveChatPacket(&connectionSocket, &packet);
 				CloseSocketEvent(&socketEvent);
 				CloseSocketEvent(&socketEvent2);
 				CloseSocket(&connectionSocket);
 				CloseSocket(&listeningSocket);
+				FreeChatString(&packet.name);
+				FreeChatString(&packet.msg);
 				return 0;
 			}
 		}
