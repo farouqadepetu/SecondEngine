@@ -58,7 +58,6 @@ void AddChar(ChatString* pChatStr, char ch)
 void AddString(ChatString* pChatStr, char* str)
 {
 	uint32_t strSize = strlen(str);
-	printf("Str Size = %d\n", strSize);
 	
 	for(uint32_t i = 0; i < strSize; ++i)
 	{

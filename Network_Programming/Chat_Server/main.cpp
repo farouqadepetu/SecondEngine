@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MYPORT "3490"
+#define MYPORT "12349"
 #define BACKLOG 10
 
 
@@ -134,6 +134,7 @@ int main(int argc, char **argv)
 			{
 				ChatPacket packet;
 				ReceiveChatPacket(&connectionSocket, &packet);
+				printf("%s: %s\n", packet.name.str, packet.msg.str);
 				CloseSocketEvent(&socketEvent);
 				CloseSocketEvent(&socketEvent2);
 				CloseSocket(&connectionSocket);
