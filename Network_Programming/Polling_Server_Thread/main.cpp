@@ -315,7 +315,6 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		
-		
 		printf("server: an event happened. Checking...\n");
 		Socket connectionSocket;
 		error = Accept(&listeningSocket, &connectionSocket);

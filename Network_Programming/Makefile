@@ -1,8 +1,8 @@
 .PHONY: clean All
 
 All:
-	@echo "----------Building project:[ Polling_Client - Debug ]----------"
-	@cd "Polling_Client" && "$(MAKE)" -f  "Polling_Client.mk"
+	@echo "----------Building project:[ Chat_Server - Debug ]----------"
+	@cd "Chat_Server" && "$(MAKE)" -f  "Chat_Server.mk"
 clean:
-	@echo "----------Cleaning project:[ Polling_Client - Debug ]----------"
-	@cd "Polling_Client" && "$(MAKE)" -f  "Polling_Client.mk" clean
+	@echo "----------Cleaning project:[ Chat_Server - Debug ]----------"
+	@cd "Chat_Server" && "$(MAKE)" -f  "Chat_Server.mk" clean

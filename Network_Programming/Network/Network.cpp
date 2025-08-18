@@ -305,7 +305,7 @@ int CreateSocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
 	epollEvent.data.fd = pInfo->socketfd;
 	epollEvent.events = 0;
 	
-	if(pInfo->events & EVENT_RECIEVE)
+	if(pInfo->events & EVENT_RECEIVE)
 		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
 	if(pInfo->events & EVENT_SEND)
 		epollEvent.events |= EPOLLOUT; //event is raised when you can write w.o being blocked
@@ -326,7 +326,7 @@ int ModifySocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
 	epoll_event epollEvent{};
 	epollEvent.data.fd = pInfo->socketfd;
 	
-	if(pInfo->events & EVENT_RECIEVE)
+	if(pInfo->events & EVENT_RECEIVE)
 		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
 	if(pInfo->events & EVENT_SEND)
 		epollEvent.events |= EPOLLOUT; //event is raised when you can write w.o being blocked
@@ -360,7 +360,7 @@ int WaitForEvent(SocketEvent* pEvent)
 	pEvent->event = EVENT_NONE;
 	
 	if(rasiedEvent.events & EPOLLIN)
-		pEvent->event |= EVENT_RECIEVE;
+		pEvent->event |= EVENT_RECEIVE;
 	if(rasiedEvent.events & EPOLLOUT)
 		pEvent->event |= EVENT_SEND;
 		

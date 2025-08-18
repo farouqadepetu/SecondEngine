@@ -154,7 +154,7 @@ enum Events
 	EVENT_NONE = 0x0,
 	
 	//Raised when there is data to read from the socket.
-	EVENT_RECIEVE = 0x1,
+	EVENT_RECEIVE = 0x1,
 	
 	//Rasied when there data can be sent without being blocked
 	//if the socket is set to non-blocking, this will always be rasied if level triggered
