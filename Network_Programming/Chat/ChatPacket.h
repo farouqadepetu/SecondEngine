@@ -10,7 +10,10 @@ struct ChatPacket
 	ChatString msg;
 };
 
-void SendChatPacket(Socket* pSocket, ChatPacket* pPacket);
-void ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket);
+//Returns -1 if error, 0 otherwise
+int SendChatPacket(Socket* pSocket, ChatPacket* pPacket);
+
+//Returns -1 if error, 2 if connection was closed, 0 for success
+int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket);
 
 #endif

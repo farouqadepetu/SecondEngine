@@ -64,3 +64,12 @@ void AddString(ChatString* pChatStr, char* str)
 		AddChar(pChatStr, str[i]);
 	}
 }
+
+void Clear(ChatString* pChatStr)
+{
+	for(uint32_t i = 0; i < pChatStr->size; ++i)
+	{
+		pChatStr->str[i] = 0;
+	}
+	pChatStr->size = 0;
+}

@@ -1,7 +1,7 @@
 #include "ChatPacket.h"
 #include <stdlib.h>
 
-void SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
+int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 {
 	//add 1 to account for null-terminating char
 	uint32_t nameSize = pPacket->name.size + 1;
@@ -41,18 +41,19 @@ void SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	int numBytesSent = Send(pSocket, buffer, packetSize);
 	if(numBytesSent == -1)
 	{
-		perror("SendChatPacket");
-		exit(1);
+		return -1;
 	}
 	if(numBytesSent != packetSize)
 	{
-		printf("EVERYTHING WASN'T SENT\n");
+		return -1;
 	}
 	
 	free(buffer);
+	
+	return 0;
 }
 
-void ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
+int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 {
 	//Get packet length
 	int packetLength = 0;
@@ -64,8 +65,7 @@ void ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	}
 	if(numBytesRead == 0)
 	{
-		//Need to handle client closing connection
-		return;
+		return -2;
 	}
 	printf("Packet Length = %d\n", packetLength);
 	
@@ -73,13 +73,15 @@ void ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	numBytesRead = Recieve(pSocket, buffer, packetLength - 4);
 	if(numBytesRead == -1)
 	{
-		perror("RecieveChatPacket");
-		exit(1);
+		return -1;
 	}
 	if(numBytesRead != packetLength - 4)
 	{
-		printf("Number of bytes read does not equal to packet length\n");
-		exit(1);
+		return -1;
+	}
+	if(numBytesRead == 0)
+	{
+		return 2;
 	}
 	
 	uint32_t offset = 0;
@@ -108,4 +110,6 @@ void ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	printf("Msg = %s\n", pPacket->msg.str);
 	
 	free(buffer);
+	
+	return 0;
 }

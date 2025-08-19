@@ -14,7 +14,7 @@ CurrentFileName        :=
 CurrentFilePath        :=
 CurrentFileFullPath    :=
 User                   :=farouq
-Date                   :=18/08/25
+Date                   :=19/08/25
 CodeLitePath           :=/home/farouq/.codelite
 MakeDirCommand         :=mkdir -p
 LinkerName             :=/usr/bin/g++-13
@@ -62,7 +62,7 @@ AS       := /usr/bin/as
 ## User defined environment variables
 ##
 CodeLiteDir:=/usr/share/codelite
-Objects0=$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) $(IntermediateDirectory)/main.cpp$(ObjectSuffix) 
+Objects0=$(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) $(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) 
 
 
 
@@ -93,14 +93,6 @@ PreBuild:
 ##
 ## Objects
 ##
-$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix): ../Chat/ChatString.cpp $(IntermediateDirectory)/up_Chat_ChatString.cpp$(DependSuffix)
-	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatString.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) $(IncludePath)
-$(IntermediateDirectory)/up_Chat_ChatString.cpp$(DependSuffix): ../Chat/ChatString.cpp
-	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Chat_ChatString.cpp$(DependSuffix) -MM ../Chat/ChatString.cpp
-
-$(IntermediateDirectory)/up_Chat_ChatString.cpp$(PreprocessSuffix): ../Chat/ChatString.cpp
-	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_ChatString.cpp$(PreprocessSuffix) ../Chat/ChatString.cpp
-
 $(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix): ../Network/Network.cpp $(IntermediateDirectory)/up_Network_Network.cpp$(DependSuffix)
 	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Network/Network.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix) $(IncludePath)
 $(IntermediateDirectory)/up_Network_Network.cpp$(DependSuffix): ../Network/Network.cpp
@@ -109,13 +101,13 @@ $(IntermediateDirectory)/up_Network_Network.cpp$(DependSuffix): ../Network/Netwo
 $(IntermediateDirectory)/up_Network_Network.cpp$(PreprocessSuffix): ../Network/Network.cpp
 	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Network_Network.cpp$(PreprocessSuffix) ../Network/Network.cpp
 
-$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix): ../Chat/ChatPacket.cpp $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix)
-	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatPacket.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) $(IncludePath)
-$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix): ../Chat/ChatPacket.cpp
-	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix) -MM ../Chat/ChatPacket.cpp
+$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix): ../Chat/ChatString.cpp $(IntermediateDirectory)/up_Chat_ChatString.cpp$(DependSuffix)
+	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatString.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) $(IncludePath)
+$(IntermediateDirectory)/up_Chat_ChatString.cpp$(DependSuffix): ../Chat/ChatString.cpp
+	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Chat_ChatString.cpp$(DependSuffix) -MM ../Chat/ChatString.cpp
 
-$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(PreprocessSuffix): ../Chat/ChatPacket.cpp
-	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(PreprocessSuffix) ../Chat/ChatPacket.cpp
+$(IntermediateDirectory)/up_Chat_ChatString.cpp$(PreprocessSuffix): ../Chat/ChatString.cpp
+	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_ChatString.cpp$(PreprocessSuffix) ../Chat/ChatString.cpp
 
 $(IntermediateDirectory)/main.cpp$(ObjectSuffix): main.cpp $(IntermediateDirectory)/main.cpp$(DependSuffix)
 	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/main.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IncludePath)
@@ -124,6 +116,14 @@ $(IntermediateDirectory)/main.cpp$(DependSuffix): main.cpp
 
 $(IntermediateDirectory)/main.cpp$(PreprocessSuffix): main.cpp
 	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/main.cpp$(PreprocessSuffix) main.cpp
+
+$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix): ../Chat/ChatPacket.cpp $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix)
+	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatPacket.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) $(IncludePath)
+$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix): ../Chat/ChatPacket.cpp
+	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix) -MM ../Chat/ChatPacket.cpp
+
+$(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(PreprocessSuffix): ../Chat/ChatPacket.cpp
+	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(PreprocessSuffix) ../Chat/ChatPacket.cpp
 
 
 -include $(IntermediateDirectory)/*$(DependSuffix)

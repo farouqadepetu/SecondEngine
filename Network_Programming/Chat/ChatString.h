@@ -29,5 +29,8 @@ void AddChar(ChatString* pChatStr, char ch);
 //str needs to be null-terminated
 void AddString(ChatString* pChatStr, char* str);
 
+//Removes all chars
+void Clear(ChatString* pChatStr);
+
 
 #endif
