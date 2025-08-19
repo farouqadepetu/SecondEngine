@@ -4,7 +4,7 @@
 #include "../Thread/Thread.h"
 #include <stdlib.h>
 
-#define PORT "12854"
+#define PORT "12349"
 
 void ReadInput(ChatString* pChatStr)
 {
@@ -81,6 +81,7 @@ void ReceieveFromServer(void* ptr)
 				return;
 			}
 			
+			fflush(stdout);
 			printf("%s: %s", packet.name.str, packet.msg.str);
 			Clear(&packet.name);
 			Clear(&packet.msg);

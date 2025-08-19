@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 	error = Listen(&listeningSocket, BACKLOG);
 	if(error == -1)
 	{
-		perror("Bind");
+		perror("Listen");
 		exit(1);
 	}
 	
