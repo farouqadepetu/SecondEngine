@@ -2,6 +2,7 @@
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatString.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatPacket.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/Thread/Thread.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Polling_Server_Thread/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Thread.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat_Server/Network.cpp
@@ -17,5 +18,6 @@
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat_Client/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Chat/ChatPacket.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/Network/Network.cpp
+/home/farouq/Documents/SecondEngine/Network_Programming/Thread/Thread.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/main.cpp
 /home/farouq/Documents/SecondEngine/Network_Programming/net_learnings.h

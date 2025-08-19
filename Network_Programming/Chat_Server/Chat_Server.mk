@@ -62,7 +62,7 @@ AS       := /usr/bin/as
 ## User defined environment variables
 ##
 CodeLiteDir:=/usr/share/codelite
-Objects0=$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) $(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) 
+Objects0=$(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatString.cpp$(ObjectSuffix) $(IntermediateDirectory)/main.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(ObjectSuffix) $(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix) 
 
 
 
@@ -93,14 +93,6 @@ PreBuild:
 ##
 ## Objects
 ##
-$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix): ../Thread/Thread.cpp $(IntermediateDirectory)/up_Thread_Thread.cpp$(DependSuffix)
-	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Thread/Thread.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix) $(IncludePath)
-$(IntermediateDirectory)/up_Thread_Thread.cpp$(DependSuffix): ../Thread/Thread.cpp
-	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Thread_Thread.cpp$(DependSuffix) -MM ../Thread/Thread.cpp
-
-$(IntermediateDirectory)/up_Thread_Thread.cpp$(PreprocessSuffix): ../Thread/Thread.cpp
-	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Thread_Thread.cpp$(PreprocessSuffix) ../Thread/Thread.cpp
-
 $(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix): ../Network/Network.cpp $(IntermediateDirectory)/up_Network_Network.cpp$(DependSuffix)
 	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Network/Network.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Network_Network.cpp$(ObjectSuffix) $(IncludePath)
 $(IntermediateDirectory)/up_Network_Network.cpp$(DependSuffix): ../Network/Network.cpp
@@ -132,6 +124,14 @@ $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(DependSuffix): ../Chat/ChatPack
 
 $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(PreprocessSuffix): ../Chat/ChatPacket.cpp
 	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Chat_ChatPacket.cpp$(PreprocessSuffix) ../Chat/ChatPacket.cpp
+
+$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix): ../Thread/Thread.cpp $(IntermediateDirectory)/up_Thread_Thread.cpp$(DependSuffix)
+	$(CXX) $(IncludePCH) $(SourceSwitch) "/home/farouq/Documents/SecondEngine/Network_Programming/Thread/Thread.cpp" $(CXXFLAGS) $(ObjectSwitch)$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix) $(IncludePath)
+$(IntermediateDirectory)/up_Thread_Thread.cpp$(DependSuffix): ../Thread/Thread.cpp
+	@$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) -MG -MP -MT$(IntermediateDirectory)/up_Thread_Thread.cpp$(ObjectSuffix) -MF$(IntermediateDirectory)/up_Thread_Thread.cpp$(DependSuffix) -MM ../Thread/Thread.cpp
+
+$(IntermediateDirectory)/up_Thread_Thread.cpp$(PreprocessSuffix): ../Thread/Thread.cpp
+	$(CXX) $(CXXFLAGS) $(IncludePCH) $(IncludePath) $(PreprocessOnlySwitch) $(OutputSwitch) $(IntermediateDirectory)/up_Thread_Thread.cpp$(PreprocessSuffix) ../Thread/Thread.cpp
 
 
 -include $(IntermediateDirectory)/*$(DependSuffix)

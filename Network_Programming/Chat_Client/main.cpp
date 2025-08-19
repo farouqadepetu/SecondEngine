@@ -4,7 +4,7 @@
 #include "../Thread/Thread.h"
 #include <stdlib.h>
 
-#define PORT "3490"
+#define PORT "12854"
 
 void ReadInput(ChatString* pChatStr)
 {
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 	info.type = SOCKET_TYPE_STREAM;
 	info.prot = PROTOCOL_TCP;
 	info.flags = ADDRESS_INFO_FLAG_NONE;
-	info.name = "192.168.1.202";
+	info.name = "192.168.1.204";
 	info.port = PORT;
 	
 	int error = GetAddresses(&info, &addresses);
