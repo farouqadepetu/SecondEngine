@@ -1,9 +1,12 @@
+#define STB_DS_IMPLEMENTATION
+
 #include "../Network/Network.h"
 #include "../Chat/ChatPacket.h"
 #include "../Thread/Thread.h"
 #include "../../ThirdParty/stb_ds.h"
 #include <stdio.h>
 #include <stdlib.h>
+
 
 #define MYPORT "12349"
 #define BACKLOG 10

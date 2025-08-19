@@ -93,6 +93,7 @@
     </Configuration>
   </Settings>
   <VirtualDirectory Name="src">
+    <File Name="../Thread/Thread.cpp"/>
     <File Name="../Network/Network.cpp"/>
     <File Name="../Chat/ChatPacket.cpp"/>
     <File Name="../Chat/ChatString.cpp"/>
