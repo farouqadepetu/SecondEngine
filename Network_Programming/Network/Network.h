@@ -168,23 +168,24 @@ enum Events
 };
 
 //WRAPPER FOR EPOLL
-struct SocketEventInfo
-{
-	int socketfd;
-	uint32_t events;
-};
-
 struct SocketEvent
 {
-	int epollFd;
-	uint32_t event;
+	int epollInstance;
+	epoll_event* events = nullptr;
+	uint32_t numFds;
 };
 
 //Returns 0 if successful, -1 otherwise
-int CreateSocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent);
+int CreateSocketEvent(SocketEvent* pEvent);
 
 //Returns 0 if successful, -1 otherwise
-int ModifySocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent);
+int AddSocket(SocketEvent* pEvent, const Socket* pSocket, uint32_t events);
+
+//Returns 0 if successful, -1 otherwise
+int ModifySocket(SocketEvent* pEvent, const Socket* pSocket, uint32_t events);
+
+//Returns 0 if successful, -1 otherwise
+int RemoveSocket(SocketEvent* pEvent, const Socket* pSocket);
 
 void CloseSocketEvent(SocketEvent* pEvent);
 
@@ -192,5 +193,12 @@ void CloseSocketEvent(SocketEvent* pEvent);
 //Returns 0 if successful, -1 otherwise
 int WaitForEvent(SocketEvent* pEvent);
 
+//Returns the socket at index i.
+//If i >= pEvent->numFds then the behaviour is undefined
+Socket GetSocket(const SocketEvent* pEvent, uint32_t i);
+
+//Returns the event at index i.
+//If i >= pEvent->numFds then the behaviour is undefined
+uint32_t CheckEvent(const SocketEvent* pEvent, uint32_t i);
 
 #endif

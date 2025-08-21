@@ -73,3 +73,22 @@ void Clear(ChatString* pChatStr)
 	}
 	pChatStr->size = 0;
 }
+
+bool Empty(const ChatString* pChatStr)
+{
+	if(pChatStr->size == 0)
+		return true;
+		
+	return false;
+}
+
+char GetChar(const ChatString* pChatStr, uint32_t i)
+{
+	if(i >=pChatStr->size)
+	{
+		printf("GetChar() i is out-of-bounds, exiting program!\n");
+		exit(1);
+	}
+	
+	return pChatStr->str[i];
+}

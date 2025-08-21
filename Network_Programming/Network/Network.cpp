@@ -292,27 +292,56 @@ int SendTo(const Socket* pSocket, void* buffer, uint32_t numBytesToSend, const A
 	return numBytesSent;
 }
 
-int CreateSocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
+int CreateSocketEvent(SocketEvent* pEvent)
 {
 	//create epoll instance
-	pEvent->epollFd = epoll_create1(0);
-	if(pEvent->epollFd  == -1)
+	pEvent->epollInstance = epoll_create1(0);
+	if(pEvent->epollInstance  == -1)
 	{
 		return -1;
 	}
 	
+	pEvent->numFds = 0;
+	return 0;
+}
+
+int AddSocket(SocketEvent* pEvent, const Socket* pSocket, uint32_t events)
+{
 	epoll_event epollEvent;
-	epollEvent.data.fd = pInfo->socketfd;
+	epollEvent.data.fd = pSocket->socketfd;
 	epollEvent.events = 0;
 	
-	if(pInfo->events & EVENT_RECEIVE)
+	if(events & EVENT_RECEIVE)
 		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
-	if(pInfo->events & EVENT_SEND)
-		epollEvent.events |= EPOLLOUT; //event is raised when you can write w.o being blocked
-	if(pInfo->events & EVENT_EDGE_TRIGGERED)
+	if(events & EVENT_SEND)
+		epollEvent.events |= EPOLLOUT; //event is raised when you can send data w.o being blocked
+	if(events & EVENT_EDGE_TRIGGERED)
+		epollEvent.events |= EPOLLET;
+	
+	int epollCtlError = epoll_ctl(pEvent->epollInstance, EPOLL_CTL_ADD, pSocket->socketfd, &epollEvent);
+	if(epollCtlError == -1)
+	{
+		return -1;
+	}
+	
+	++pEvent->numFds;
+	return 0;
+}
+
+int ModifySocketEvent(SocketEvent* pEvent, const Socket* pSocket, uint32_t events)
+{
+	epoll_event epollEvent;
+	epollEvent.data.fd = pSocket->socketfd;
+	epollEvent.events = 0;
+	
+	if(events & EVENT_RECEIVE)
+		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
+	if(events & EVENT_SEND)
+		epollEvent.events |= EPOLLOUT; //event is raised when you can send data w.o being blocked
+	if(events & EVENT_EDGE_TRIGGERED)
 		epollEvent.events |= EPOLLET;
 		
-	int epollCtlError = epoll_ctl(pEvent->epollFd, EPOLL_CTL_ADD, pInfo->socketfd, &epollEvent);
+	int epollCtlError = epoll_ctl(pEvent->epollInstance, EPOLL_CTL_MOD, pSocket->socketfd, &epollEvent);
 	if(epollCtlError == -1)
 	{
 		return -1;
@@ -321,48 +350,63 @@ int CreateSocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
 	return 0;
 }
 
-int ModifySocketEvent(const SocketEventInfo* pInfo, SocketEvent* pEvent)
+int RemoveSocket(SocketEvent* pEvent, const Socket* pSocket)
 {
-	epoll_event epollEvent{};
-	epollEvent.data.fd = pInfo->socketfd;
-	
-	if(pInfo->events & EVENT_RECEIVE)
-		epollEvent.events |= EPOLLIN; // event is raised when their data to recv
-	if(pInfo->events & EVENT_SEND)
-		epollEvent.events |= EPOLLOUT; //event is raised when you can write w.o being blocked
-	if(pInfo->events & EVENT_EDGE_TRIGGERED)
-		epollEvent.events |= EPOLLET;
+	epoll_event epollEvent;
+	epollEvent.data.fd = pSocket->socketfd;
+	epollEvent.events = 0;
 		
-	
-	int epollCtlError = epoll_ctl(pEvent->epollFd, EPOLL_CTL_MOD, pInfo->socketfd, &epollEvent);
+	int epollCtlError = epoll_ctl(pEvent->epollInstance, EPOLL_CTL_DEL, pSocket->socketfd, &epollEvent);
 	if(epollCtlError == -1)
 	{
 		return -1;
 	}
+	
+	--pEvent->numFds;
 	return 0;
 }
 
 void CloseSocketEvent(SocketEvent* pEvent)
 {
-	close(pEvent->epollFd);
+		free(pEvent->events);
+	close(pEvent->epollInstance);
 }
 
 int WaitForEvent(SocketEvent* pEvent)
 {
-	epoll_event rasiedEvent;
+	if(pEvent->events == nullptr)
+	{
+		pEvent->events = (epoll_event*)calloc(pEvent->numFds, sizeof(epoll_event));
+	}
+	else
+	{
+		free(pEvent->events);
+		pEvent->events = (epoll_event*)calloc(pEvent->numFds, sizeof(epoll_event));
+	}
+	
 	//block until an event happens
-	int errorCheck = epoll_wait(pEvent->epollFd, &rasiedEvent, 1, -1);
+	int errorCheck = epoll_wait(pEvent->epollInstance, pEvent->events, pEvent->numFds, -1);
 	if(errorCheck == -1)
 	{
 		return -1;
 	}
-	
-	pEvent->event = EVENT_NONE;
-	
-	if(rasiedEvent.events & EPOLLIN)
-		pEvent->event |= EVENT_RECEIVE;
-	if(rasiedEvent.events & EPOLLOUT)
-		pEvent->event |= EVENT_SEND;
 		
 	return 0;
+}
+
+Socket GetSocket(const SocketEvent* pEvent, uint32_t i)
+{
+	Socket socket;
+	socket.socketfd = pEvent->events[i].data.fd;
+	return socket;
+}
+
+uint32_t CheckEvent(const SocketEvent* pEvent, uint32_t i)
+{
+	if(pEvent->events[i].events & EPOLLIN)
+		return EVENT_RECEIVE;
+	if(pEvent->events[i].events & EPOLLOUT)
+		return EVENT_RECEIVE;
+		
+	return EVENT_NONE;
 }

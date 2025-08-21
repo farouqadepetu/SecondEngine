@@ -30,22 +30,34 @@ void ReceieveFromServer(void* ptr)
 	ThreadData* data;
 	data = (ThreadData*)ptr;
 	
-	SocketEvent tSocketEvent;
-	SocketEventInfo eventInfo;
-	eventInfo.socketfd = data->connectionSocket.socketfd;
-	eventInfo.events = EVENT_RECEIVE;
-	int error = CreateSocketEvent(&eventInfo, &tSocketEvent);
+	int error = SetToNonBlock(&data->connectionSocket);
 	if(error == -1)
 	{
-		perror("CreateSocketEvent");
+		perror("SetToNonBlock");
+		CloseSocket(&data->connectionSocket);
+		free(data);
 		ExitThread();
 		return;
 	}
 	
-	error = SetToNonBlock(&data->connectionSocket);
+	SocketEvent socketEvent;
+	error = CreateSocketEvent(&socketEvent);
 	if(error == -1)
 	{
-		perror("SetToNonBlock");
+		perror("CreateSocketEvent");
+		CloseSocket(&data->connectionSocket);
+		free(data);
+		ExitThread();
+		return;
+	}
+	
+	error = AddSocket(&socketEvent, &data->connectionSocket, EVENT_RECEIVE);
+	if(error == -1)
+	{
+		perror("CreateSocketEvent");
+		CloseSocketEvent(&socketEvent);
+		CloseSocket(&data->connectionSocket);
+		free(data);
 		ExitThread();
 		return;
 	}
@@ -54,43 +66,67 @@ void ReceieveFromServer(void* ptr)
 	while(true)
 	{
 		//block until an event happens
-		error = WaitForEvent(&tSocketEvent);
+		error = WaitForEvent(&socketEvent);
 		if(error == -1)
 		{
 			perror("WaitForEvent");
+			CloseSocketEvent(&socketEvent);
+			CloseSocket(&data->connectionSocket);
+			free(data);
 			ExitThread();
 			return;
 		}
 		
-		if(tSocketEvent.event & EVENT_RECEIVE)
+		for(uint32_t i = 0; i < socketEvent.numFds; ++i)
 		{
-			int error = ReceiveChatPacket(&data->connectionSocket, &packet);
-			if(error == -1)
+			uint32_t event = CheckEvent(&socketEvent, i);
+			if(event & EVENT_RECEIVE)
 			{
-				perror("Recieve");
-				ExitThread();
-				return;
+				int error = ReceiveChatPacket(&data->connectionSocket, &packet);
+				if(error == -1)
+				{
+					perror("Recieve");
+					CloseSocketEvent(&socketEvent);
+					CloseSocket(&data->connectionSocket);
+					free(data);
+					ExitThread();
+					return;
+				}
+				if(error == 2)
+				{
+					//connection was closed
+					CloseSocketEvent(&socketEvent);
+					CloseSocket(&data->connectionSocket);
+					free(data);
+					ExitThread();
+					return;
+				}
+				
+				//Someone joined the chat
+				if(Empty(&packet.msg))
+					printf("%s joined the chat\n", packet.name.str);
+				else //someone sent a message
+					printf("%s: %s\n", packet.name.str, packet.msg.str);
+					
+				Clear(&packet.name);
+				Clear(&packet.msg);
 			}
-			if(error == 2)
-			{
-				//connection was closed
-				CloseSocketEvent(&tSocketEvent);
-				CloseSocket(&data->connectionSocket);
-				free(data);
-				ExitThread();
-				return;
-			}
-			
-			fflush(stdout);
-			printf("%s: %s", packet.name.str, packet.msg.str);
-			Clear(&packet.name);
-			Clear(&packet.msg);
 		}
 	}
 }
 
 int main(int argc, char **argv)
 {
+	ChatPacket packet;
+	
+	AllocateChatString(&packet.name);
+	printf("Enter your name for this session: ");
+	ReadInput(&packet.name);
+	
+	printf("Name = %s\n", packet.name.str);
+	
+	AllocateChatString(&packet.msg);
+	
 	AddressInfo info;
 	Addresses addresses;
 	info.family = FAMILY_UNSPEC;
@@ -136,21 +172,13 @@ int main(int argc, char **argv)
 	}
 	FreeAddresses(&addresses);
 	
-	error = SetToNonBlock(&socket);
-	if(error == -1)
-	{
-		perror("SetToNonBlock");
-		exit(1);
-	}
+	printf("You have joined the chat");
 	
-	SocketEvent socketEvent;
-	SocketEventInfo eventInfo;
-	eventInfo.socketfd = socket.socketfd;
-	eventInfo.events = EVENT_RECEIVE;
-	error = CreateSocketEvent(&eventInfo, &socketEvent);
+	//Send name to server
+	error = SendChatPacket(&socket, &packet);
 	if(error == -1)
 	{
-		perror("CreateSocketEvent");
+		perror("SendChatPacket: name");
 		exit(1);
 	}
 	
@@ -169,15 +197,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	ChatPacket packet;
-	
-	AllocateChatString(&packet.name);
-	printf("Enter your name for this session: ");
-	ReadInput(&packet.name);
-	
-	printf("Name = %s\n", packet.name.str);
-	AllocateChatString(&packet.msg);
-	
 	while(true)
 	{
 		printf("Enter a message: ");
@@ -191,7 +210,12 @@ int main(int argc, char **argv)
 		
 		printf("Message = %s\n", packet.msg.str);
 		
-		SendChatPacket(&socket, &packet);
+		error = SendChatPacket(&socket, &packet);
+		if(error == -1)
+		{
+			perror("SendChatPacket: while");
+			exit(1);
+		}
 		
 		Clear(&packet.msg);
 	}
@@ -199,7 +223,6 @@ int main(int argc, char **argv)
 	FreeChatString(&packet.msg);
 	FreeChatString(&packet.name);
 	
-	CloseSocketEvent(&socketEvent);
 	CloseSocket(&socket);
 	ExitThreadSystem();
 	

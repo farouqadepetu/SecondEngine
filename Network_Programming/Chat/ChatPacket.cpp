@@ -5,14 +5,14 @@ int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 {
 	//add 1 to account for null-terminating char
 	uint32_t nameSize = pPacket->name.size + 1;
-	printf("Size of name = %d\n", nameSize);
+	//printf("Size of name = %d\n", nameSize);
 	
 	uint32_t msgSize = pPacket->msg.size + 1;
-	printf("Size of msg = %d\n", msgSize);
+	//printf("Size of msg = %d\n", msgSize);
 	
 	//size of packet + size of name + name + size of msg + msg
 	uint32_t packetSize = sizeof(uint32_t) + sizeof(uint32_t) + nameSize + sizeof(uint32_t) + msgSize;
-	printf("Size of packet being sent = %d\n", packetSize);
+	//printf("Size of packet being sent = %d\n", packetSize);
 	
 	uint8_t* buffer = (uint8_t*)calloc(packetSize, sizeof(uint8_t));
 	
@@ -67,7 +67,7 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	{
 		return -2;
 	}
-	printf("Packet Length = %d\n", packetLength);
+	//printf("Packet Length = %d\n", packetLength);
 	
 	uint8_t* buffer = (uint8_t*)calloc(packetLength, sizeof(uint8_t));
 	numBytesRead = Recieve(pSocket, buffer, packetLength - 4);
@@ -89,25 +89,25 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	//Get size of name
 	uint32_t nameSize = 0;
 	memcpy(&nameSize, buffer, sizeof(uint32_t));
-	printf("Name Size = %d\n", nameSize);
+	//printf("Name Size = %d\n", nameSize);
 	offset += sizeof(uint32_t);
 	
 	//Get name
 	AllocateChatString(&pPacket->name);
 	AddString(&pPacket->name, (char*)(buffer + offset));
-	printf("Name = %s\n", pPacket->name.str);
+	//printf("Name = %s\n", pPacket->name.str);
 	offset += nameSize;
 	
 	//Get size of msg
 	uint32_t msgSize = 0;
 	memcpy(&msgSize, buffer + offset, sizeof(uint32_t));
-	printf("Msg Size = %d\n", msgSize);
+	//printf("Msg Size = %d\n", msgSize);
 	offset += sizeof(uint32_t);
 	
 	//Get msg
 	AllocateChatString(&pPacket->msg);
 	AddString(&pPacket->msg, (char*)(buffer + offset));
-	printf("Msg = %s\n", pPacket->msg.str);
+	//printf("Msg = %s\n", pPacket->msg.str);
 	
 	free(buffer);
 	

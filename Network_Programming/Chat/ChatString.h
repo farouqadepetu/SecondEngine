@@ -10,7 +10,6 @@ struct ChatString
 	uint32_t capacity; //how many chars str can hold
 	uint32_t size; //the number of chars in str
 	char* str;
-	
 };
 
 //Allocates a string with a default capacity of 32 bytes
@@ -32,5 +31,10 @@ void AddString(ChatString* pChatStr, char* str);
 //Removes all chars
 void Clear(ChatString* pChatStr);
 
+//Returns true if string is empty, false otherwise.
+bool Empty(const ChatString* pChatStr);
+
+//Returns the char at index i
+char GetChar(const ChatString* pChatStr, uint32_t i);
 
 #endif
