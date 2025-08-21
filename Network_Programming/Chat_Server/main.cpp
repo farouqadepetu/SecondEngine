@@ -13,6 +13,8 @@
 #define MAX_NUM_CONNECTIONS 16
 
 Socket* pConnectionSockets = nullptr;
+ConditionVariable chatThreadCv;
+Mutex socketEventMutex;
 
 struct ThreadData
 {
@@ -26,15 +28,10 @@ void ChatThread(void* ptr)
 	ChatPacket packet;
 	while(true)
 	{
-		//block until an event happens
-		int error = WaitForEvent(data->pSocketEvent);
-		if(error == -1)
-		{
-			perror("WaitForEvent: inside chat thread");
-			break;
-		}
-		
+		LockMutex(&socketEventMutex);
+		WaitConditionVariable(&chatThreadCv, &socketEventMutex);
 		printf("server: chatThread: An event happened. Checking...\n");
+		int error = 0;
 		for(uint32_t i = 0; i < data->pSocketEvent->numFds; ++i)
 		{
 			Socket currentSocket = GetSocket(data->pSocketEvent, i);
@@ -93,6 +90,7 @@ void ChatThread(void* ptr)
 				}
 			}
 		}
+		UnlockMutex(&socketEventMutex);
 	}
 	free(data);
 	FreeChatString(&packet.name);
@@ -208,6 +206,7 @@ int main(int argc, char **argv)
 		
 		printf("server: mainThread: an event happened. Checking...\n");
 		
+		LockMutex(&socketEventMutex);
 		Socket connectionSocket;
 		for(uint32_t i = 0; i < socketEvent.numFds; ++i)
 		{
@@ -231,8 +230,11 @@ int main(int argc, char **argv)
 						exit(1);
 					}
 				}
+				break;
 			}
 		}
+		UnlockMutex(&socketEventMutex);
+		SignalOneConditionVariable(&chatThreadCv);
 	}
 	
 	arrfree(pConnectionSockets);
