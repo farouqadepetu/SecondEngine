@@ -34,6 +34,7 @@ void ChatThread(void* ptr)
 			break;
 		}
 		
+		printf("server: chatThread: An event happened. Checking...\n");
 		for(uint32_t i = 0; i < data->pSocketEvent->numFds; ++i)
 		{
 			Socket currentSocket = GetSocket(data->pSocketEvent, i);
@@ -166,7 +167,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	error = AddSocket(&socketEvent, &listeningSocket, EVENT_RECEIVE);
+	error = AddSocket(&socketEvent, &listeningSocket, EVENT_RECEIVE | EVENT_EDGE_TRIGGERED);
 	if(error == -1)
 	{
 		perror("AddSocket");
@@ -205,7 +206,7 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		
-		printf("server: an event happened. Checking...\n");
+		printf("server: mainThread: an event happened. Checking...\n");
 		
 		Socket connectionSocket;
 		for(uint32_t i = 0; i < socketEvent.numFds; ++i)
@@ -223,7 +224,7 @@ int main(int argc, char **argv)
 						exit(1);
 					}
 					arrpush(pConnectionSockets, connectionSocket);
-					error = AddSocket(&socketEvent, &connectionSocket, EVENT_RECEIVE);
+					error = AddSocket(&socketEvent, &connectionSocket, EVENT_RECEIVE | EVENT_EDGE_TRIGGERED);
 					if(error == -1)
 					{
 						perror("AddSocket");

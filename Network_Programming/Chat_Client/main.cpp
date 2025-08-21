@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 	}
 	FreeAddresses(&addresses);
 	
-	printf("You have joined the chat");
+	printf("You have joined the chat\n");
 	
 	//Send name to server
 	error = SendChatPacket(&socket, &packet);
@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	int result = CreateThread(&tInfo, &receiveThread);
 	if(result != 0)
 	{
-		printf("Erorr creating a receieveThread, exiting program");
+		printf("Erorr creating a receieve thread, exiting program\n");
 		exit(1);
 	}
 	
