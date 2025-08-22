@@ -10,8 +10,8 @@ int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	uint32_t msgSize = pPacket->msg.size + 1;
 	//printf("Size of msg = %d\n", msgSize);
 	
-	//size of packet + size of name + name + size of msg + msg
-	uint32_t packetSize = sizeof(uint32_t) + sizeof(uint32_t) + nameSize + sizeof(uint32_t) + msgSize;
+	//size of packet + size of name + name + size of msg + msg + size of msgType
+	uint32_t packetSize = sizeof(uint32_t) + sizeof(uint32_t) + nameSize + sizeof(uint32_t) + msgSize + sizeof(uint32_t);
 	//printf("Size of packet being sent = %d\n", packetSize);
 	
 	uint8_t* buffer = (uint8_t*)calloc(packetSize, sizeof(uint8_t));
@@ -36,6 +36,10 @@ int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	
 	//copy the user's msg into the buffer
 	memcpy(buffer + offset, pPacket->msg.str, msgSize);
+	offset += msgSize;
+	
+	//copy the msg type into the buffer
+	memcpy(buffer + offset, &pPacket->msgType, sizeof(uint32_t));
 	
 	//SEND PACKET
 	int numBytesSent = Send(pSocket, buffer, packetSize);
@@ -108,6 +112,10 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	AllocateChatString(&pPacket->msg);
 	AddString(&pPacket->msg, (char*)(buffer + offset));
 	//printf("Msg = %s\n", pPacket->msg.str);
+	offset += sizeof(msgSize);
+	
+	//Get msgType
+	memcpy(&pPacket->msgType, buffer + offset, sizeof(uint32_t));
 	
 	free(buffer);
 	

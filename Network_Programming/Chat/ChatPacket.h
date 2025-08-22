@@ -15,7 +15,7 @@ struct ChatPacket
 {
 	ChatString name;
 	ChatString msg;
-	MessageType msgType;
+	uint32_t msgType;
 };
 
 //Returns -1 if error, 0 otherwise
