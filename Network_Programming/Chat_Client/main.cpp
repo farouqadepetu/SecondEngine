@@ -4,6 +4,10 @@
 #include "../Thread/Thread.h"
 #include <stdlib.h>
 
+//FOR SOCKETEVENT, DO ONE SOCKETEVENT PER THREAD, 
+//CAN ADD AS MANY SOCKETS TO THE SOCKETEVENT AS YOU WANT TO MONITOR EVENTS.
+//SO NO SYNCHRONIZATION WILL BE NEEDED
+
 #define PORT "12349"
 
 void ReadInput(ChatString* pChatStr)
@@ -103,10 +107,12 @@ void ReceieveFromServer(void* ptr)
 				}
 				
 				//Someone joined the chat
-				if(Empty(&packet.msg))
+				if(packet.msgType == JOINING)
 					printf("\n%s joined the chat\n", packet.name.str);
-				else //someone sent a message
-					printf("%s: %s\n", packet.name.str, packet.msg.str);
+				else if(packet.msgType == LEAVING)
+					printf("\n%s left the chat\n", packet.name.str);
+				else //msgType == REGULAR
+					printf("\n%s: %s\n", packet.name.str, packet.msg.str);
 					
 				Clear(&packet.name);
 				Clear(&packet.msg);
@@ -175,6 +181,7 @@ int main(int argc, char **argv)
 	printf("You have joined the chat\n");
 	
 	//Send name to server
+	packet.msgType = JOINING;
 	error = SendChatPacket(&socket, &packet);
 	if(error == -1)
 	{
@@ -197,6 +204,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
+	packet.msgType = REGULAR;
 	while(true)
 	{
 		printf("Enter a message: ");

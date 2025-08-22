@@ -4,10 +4,18 @@
 #include "../Chat/ChatString.h"
 #include "../Network/Network.h"
 
+enum MessageType
+{
+	JOINING,
+	LEAVING,
+	REGULAR
+}
+
 struct ChatPacket
 {
 	ChatString name;
 	ChatString msg;
+	MessageType msgType;
 };
 
 //Returns -1 if error, 0 otherwise

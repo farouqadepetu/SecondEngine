@@ -11,12 +11,17 @@
 #define MYPORT "12349"
 #define BACKLOG 10
 
-Socket* pConnectionSockets = nullptr;
+struct Chatter
+{
+	Socket key;
+	ChatPacket value;
+};
+Chatter* pChatter = nullptr;
+
 SocketEvent gChatThreadSE;
 
 void ChatThread(void* ptr)
 {
-	ChatPacket packet;
 	while(true)
 	{
 		int n = WaitForEvent(&gChatThreadSE);
@@ -34,55 +39,68 @@ void ChatThread(void* ptr)
 			
 			if(event & EVENT_RECEIVE)
 			{
-				int numBytesReceived = ReceiveChatPacket(&currentSocket, &packet);
+				ChatPacket* pPacket = &hmget(pChatter, currentSocket);;
+				int numBytesReceived = ReceiveChatPacket(&currentSocket, pPacket);
 				if(numBytesReceived == -1)
 				{
 					perror("ReceiveChatPacket");
 					break;
 				}
-				if(numBytesReceived == -2)
+				else if(numBytesReceived == -2)
 				{
 					//connection was closed
-					for(uint32_t i = 0; i < arrlenu(pConnectionSockets); ++i)
+					//Send to other clients that the user is leaving the chat
+					pPacket->msgType = LEAVING;
+					for(uint32_t j = 0; j < hmlenu(pChatter); ++j)
 					{
-						if(pConnectionSockets[i].socketfd == currentSocket.socketfd)
+						Socket* pSocket = &pChatter[j].key;
+						int numBytesSent = SendChatPacket(pSocket, pPacket);
+						if(numBytesSent == -1)
 						{
-							int error = RemoveSocket(&gChatThreadSE, &currentSocket);
-							if(error == -1)
-							{
-								perror("RemoveSocket");
-								break;
-							}
-							arrdel(pConnectionSockets, i);
+							perror("SendChatPacket: Erorr sending to other clients");
 							break;
 						}
 					}
+					//Remove user
+					int error = RemoveSocket(&gChatThreadSE, &currentSocket);
+					if(error == -1)
+					{
+						perror("RemoveSocket");
+						break;
+					}
+					hmdel(pChatter, currentSocket);
 					break;
 				}
 				else //recieved packet successfully
 				{
+					//hmput(pChatter, currentSocket, packet);
 					//Send to other clients
-					for(uint32_t i = 0; i < arrlenu(pConnectionSockets); ++i)
+					for(uint32_t j = 0; j < hmlenu(pChatter); ++j)
 					{
-						if(pConnectionSockets[i].socketfd != currentSocket.socketfd)
+						if(pChatter[j].key.socketfd != currentSocket.socketfd)
 						{
-							int numBytesSent = SendChatPacket(&pConnectionSockets[i], &packet);
+							Socket* pSocket = &pChatter[j].key;
+							int numBytesSent = SendChatPacket(pSocket, pPacket);
 							if(numBytesSent == -1)
 							{
 								perror("SendChatPacket: Erorr sending to other clients");
 								break;
 							}
+							//FreeChatString(&packet.name);
+							//FreeChatString(&packet.msg);
+							Clear(&pPacket->msg);
 						}
 					}
 				}
-				Clear(&packet.name);
-				Clear(&packet.msg);
 			}
 		}
 	}
 
-	FreeChatString(&packet.name);
-	FreeChatString(&packet.msg);
+	for(uint32_t i = 0; i < hmlenu(pChatter); ++i)
+	{
+		FreeChatString(&pChatter[i].value.name);
+		FreeChatString(&pChatter[i].value.msg);
+	}
 	ExitThread();
 	return;
 }
@@ -208,7 +226,7 @@ int main(int argc, char **argv)
 					perror("Accept");
 					exit(1);
 				}
-				arrpush(pConnectionSockets, connectionSocket);
+				hmput(pChatter, connectionSocket, ChatPacket{});
 				error = AddSocket(&gChatThreadSE, &connectionSocket, EVENT_RECEIVE | EVENT_EDGE_TRIGGERED);
 				if(error == -1)
 				{
@@ -219,7 +237,7 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	arrfree(pConnectionSockets);
+	hmfree(pChatter);
 	ExitThreadSystem();
 	return 0;
 }

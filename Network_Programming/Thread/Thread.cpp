@@ -125,17 +125,8 @@ void ExitThread()
 //Call if you want to handle joining of threads without making the main thread wait.
 void InitThreadSystem()
 {
-	ThreadInfo info{};
-	info.pFunc = ThreadJoin;
-	int result = CreateThread(&info, &gJoinThread);
-	if(result != 0)
-	{
-		printf("Error creating Join Thread. Exiting program!\n");
-		exit(1);
-	}
-	DeatchThread(&gJoinThread);
-	
-	result = CreateMutex(&gJoinThreadMutex);
+	gStoreId = true;
+	int result = CreateMutex(&gJoinThreadMutex);
 	if(result != 0)
 	{
 		printf("Error creating Join Thread Mutex. Exiting program!\n");
@@ -149,7 +140,15 @@ void InitThreadSystem()
 		exit(1);
 	}
 	
-	gStoreId = true;
+	ThreadInfo info{};
+	info.pFunc = ThreadJoin;
+	result = CreateThread(&info, &gJoinThread);
+	if(result != 0)
+	{
+		printf("Error creating Join Thread. Exiting program!\n");
+		exit(1);
+	}
+	DeatchThread(&gJoinThread);
 }
 
 void ExitThreadSystem()
