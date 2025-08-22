@@ -66,8 +66,8 @@ void ReceieveFromServer(void* ptr)
 	while(true)
 	{
 		//block until an event happens
-		error = WaitForEvent(&socketEvent);
-		if(error == -1)
+		int n = WaitForEvent(&socketEvent);
+		if(n == -1)
 		{
 			perror("WaitForEvent");
 			CloseSocketEvent(&socketEvent);
@@ -77,13 +77,13 @@ void ReceieveFromServer(void* ptr)
 			return;
 		}
 		
-		for(uint32_t i = 0; i < socketEvent.numFds; ++i)
+		for(uint32_t i = 0; i < n ; ++i)
 		{
 			uint32_t event = CheckEvent(&socketEvent, i);
 			if(event & EVENT_RECEIVE)
 			{
-				int error = ReceiveChatPacket(&data->connectionSocket, &packet);
-				if(error == -1)
+				int numBytesReceived = ReceiveChatPacket(&data->connectionSocket, &packet);
+				if(numBytesReceived == -1)
 				{
 					perror("Recieve");
 					CloseSocketEvent(&socketEvent);
@@ -92,7 +92,7 @@ void ReceieveFromServer(void* ptr)
 					ExitThread();
 					return;
 				}
-				if(error == 2)
+				if(numBytesReceived == -2)
 				{
 					//connection was closed
 					CloseSocketEvent(&socketEvent);
@@ -104,7 +104,7 @@ void ReceieveFromServer(void* ptr)
 				
 				//Someone joined the chat
 				if(Empty(&packet.msg))
-					printf("%s joined the chat\n", packet.name.str);
+					printf("\n%s joined the chat\n", packet.name.str);
 				else //someone sent a message
 					printf("%s: %s\n", packet.name.str, packet.msg.str);
 					
@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 		
-		printf("Message = %s\n", packet.msg.str);
+		//printf("Message = %s\n", packet.msg.str);
 		
 		error = SendChatPacket(&socket, &packet);
 		if(error == -1)

@@ -301,7 +301,6 @@ int CreateSocketEvent(SocketEvent* pEvent)
 		return -1;
 	}
 	
-	pEvent->numFds = 0;
 	return 0;
 }
 
@@ -323,8 +322,6 @@ int AddSocket(SocketEvent* pEvent, const Socket* pSocket, uint32_t events)
 	{
 		return -1;
 	}
-	
-	++pEvent->numFds;
 	return 0;
 }
 
@@ -362,43 +359,27 @@ int RemoveSocket(SocketEvent* pEvent, const Socket* pSocket)
 		return -1;
 	}
 	
-	--pEvent->numFds;
 	return 0;
 }
 
 void CloseSocketEvent(SocketEvent* pEvent)
 {
-		free(pEvent->events);
 	close(pEvent->epollInstance);
 }
 
 int WaitForEvent(SocketEvent* pEvent)
 {
-	if(pEvent->events == nullptr)
-	{
-		pEvent->events = (epoll_event*)calloc(pEvent->numFds, sizeof(epoll_event));
-	}
-	else
-	{
-		free(pEvent->events);
-		pEvent->events = (epoll_event*)calloc(pEvent->numFds, sizeof(epoll_event));
-	}
-	
 	//block until an event happens
-	int errorCheck = epoll_wait(pEvent->epollInstance, pEvent->events, pEvent->numFds, -1);
-	if(errorCheck == -1)
-	{
-		return -1;
-	}
-		
-	return 0;
+	int n = epoll_wait(pEvent->epollInstance, pEvent->events, MAX_EVENTS, -1);
+	
+	return n;
 }
 
 Socket GetSocket(const SocketEvent* pEvent, uint32_t i)
 {
-	Socket socket;
-	socket.socketfd = pEvent->events[i].data.fd;
-	return socket;
+	Socket returnSocket;
+	returnSocket.socketfd = pEvent->events[i].data.fd;
+	return returnSocket;
 }
 
 uint32_t CheckEvent(const SocketEvent* pEvent, uint32_t i)
@@ -406,7 +387,7 @@ uint32_t CheckEvent(const SocketEvent* pEvent, uint32_t i)
 	if(pEvent->events[i].events & EPOLLIN)
 		return EVENT_RECEIVE;
 	if(pEvent->events[i].events & EPOLLOUT)
-		return EVENT_RECEIVE;
+		return EVENT_SEND;
 		
 	return EVENT_NONE;
 }

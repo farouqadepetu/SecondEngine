@@ -8,6 +8,7 @@ void AllocateChatString(ChatString* pChatStr)
 	
 	//last char should be the null-terminating char so add one more byte
 	pChatStr->str = (char*)calloc(pChatStr->capacity + 1, sizeof(char));
+	pChatStr->str[0] = '\0';
 }
 
 void AllocateChatString(ChatString* pChatStr, uint32_t capacity)
@@ -17,6 +18,7 @@ void AllocateChatString(ChatString* pChatStr, uint32_t capacity)
 	
 	//last char should be the null-terminating char so add one more byte
 	pChatStr->str = (char*)calloc(pChatStr->capacity + 1, sizeof(char));
+	pChatStr->str[0] = '\0';
 }
 
 void ReallocateChatString(ChatString* pChatStr)
@@ -69,7 +71,7 @@ void Clear(ChatString* pChatStr)
 {
 	for(uint32_t i = 0; i < pChatStr->size; ++i)
 	{
-		pChatStr->str[i] = 0;
+		pChatStr->str[i] = '\0';
 	}
 	pChatStr->size = 0;
 }

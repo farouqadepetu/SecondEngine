@@ -10,89 +10,77 @@
 
 #define MYPORT "12349"
 #define BACKLOG 10
-#define MAX_NUM_CONNECTIONS 16
 
 Socket* pConnectionSockets = nullptr;
-ConditionVariable chatThreadCv;
-Mutex socketEventMutex;
-
-struct ThreadData
-{
-	SocketEvent* pSocketEvent;
-	Socket listeningSocket;
-};
+SocketEvent gChatThreadSE;
 
 void ChatThread(void* ptr)
 {
-	ThreadData* data = (ThreadData*)ptr;
 	ChatPacket packet;
 	while(true)
 	{
-		LockMutex(&socketEventMutex);
-		WaitConditionVariable(&chatThreadCv, &socketEventMutex);
-		printf("server: chatThread: An event happened. Checking...\n");
-		int error = 0;
-		for(uint32_t i = 0; i < data->pSocketEvent->numFds; ++i)
+		int n = WaitForEvent(&gChatThreadSE);
+		if(n == -1)
 		{
-			Socket currentSocket = GetSocket(data->pSocketEvent, i);
-			if(currentSocket.socketfd == data->listeningSocket.socketfd)
+			perror("WaitForEvent");
+			exit(1);
+		}
+		printf("server: chatThread: an event happened. Checking...\n");
+		
+		for(uint32_t i = 0; i < n; ++i)
+		{
+			Socket currentSocket = GetSocket(&gChatThreadSE, i);
+			uint32_t event = CheckEvent(&gChatThreadSE, i);
+			
+			if(event & EVENT_RECEIVE)
 			{
-				continue;
-			}
-			else
-			{
-				uint32_t event = CheckEvent(data->pSocketEvent, i);
-				if(event & EVENT_RECEIVE)
+				int numBytesReceived = ReceiveChatPacket(&currentSocket, &packet);
+				if(numBytesReceived == -1)
 				{
-					error = ReceiveChatPacket(&currentSocket, &packet);
-					if(error == -1)
+					perror("ReceiveChatPacket");
+					break;
+				}
+				if(numBytesReceived == -2)
+				{
+					//connection was closed
+					for(uint32_t i = 0; i < arrlenu(pConnectionSockets); ++i)
 					{
-						perror("ReceiveChatPacket");
-						break;
-					}
-					if(error == 2)
-					{
-						//connection was closed
-						for(uint32_t i = 0; i < arrlenu(pConnectionSockets); ++i)
+						if(pConnectionSockets[i].socketfd == currentSocket.socketfd)
 						{
-							if(pConnectionSockets[i].socketfd == currentSocket.socketfd)
+							int error = RemoveSocket(&gChatThreadSE, &currentSocket);
+							if(error == -1)
 							{
-								error = RemoveSocket(data->pSocketEvent, &currentSocket);
-								if(error == -1)
-								{
-									perror("RemoveSocket");
-									break;
-								}
-								arrdel(pConnectionSockets, i);
+								perror("RemoveSocket");
+								break;
+							}
+							arrdel(pConnectionSockets, i);
+							break;
+						}
+					}
+					break;
+				}
+				else //recieved packet successfully
+				{
+					//Send to other clients
+					for(uint32_t i = 0; i < arrlenu(pConnectionSockets); ++i)
+					{
+						if(pConnectionSockets[i].socketfd != currentSocket.socketfd)
+						{
+							int numBytesSent = SendChatPacket(&pConnectionSockets[i], &packet);
+							if(numBytesSent == -1)
+							{
+								perror("SendChatPacket: Erorr sending to other clients");
 								break;
 							}
 						}
-						break;
 					}
-					else //recieved packet successfully
-					{
-						//Send to other clients
-						for(uint32_t i = 0; i < arrlenu(pConnectionSockets); ++i)
-						{
-							if(pConnectionSockets[i].socketfd != currentSocket.socketfd)
-							{
-								error = SendChatPacket(&pConnectionSockets[i], &packet);
-								if(error == -1)
-								{
-									perror("SendChatPacket: Erorr sending to other clients");
-									break;
-								}
-							}
-						}
-					}
-					Clear(&packet.name);
-					Clear(&packet.msg);
 				}
+				Clear(&packet.name);
+				Clear(&packet.msg);
 			}
 		}
-		UnlockMutex(&socketEventMutex);
 	}
-	free(data);
+
 	FreeChatString(&packet.name);
 	FreeChatString(&packet.msg);
 	ExitThread();
@@ -157,15 +145,22 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	SocketEvent socketEvent;
-	error = CreateSocketEvent(&socketEvent);
+	SocketEvent listeningSE;
+	error = CreateSocketEvent(&listeningSE);
 	if(error == -1)
 	{
-		perror("CreateSocketEvent");
+		perror("CreateSocketEvent: listeningSE");
 		exit(1);
 	}
 	
-	error = AddSocket(&socketEvent, &listeningSocket, EVENT_RECEIVE | EVENT_EDGE_TRIGGERED);
+	error = CreateSocketEvent(&gChatThreadSE);
+	if(error == -1)
+	{
+		perror("CreateSocketEvent: chatThreadSE");
+		exit(1);
+	}
+	
+	error = AddSocket(&listeningSE, &listeningSocket, EVENT_RECEIVE);
 	if(error == -1)
 	{
 		perror("AddSocket");
@@ -176,16 +171,13 @@ int main(int argc, char **argv)
 	
 	Thread chatThread;
 	ThreadInfo tInfo{};
-	ThreadData* data = (ThreadData*)calloc(1, sizeof(ThreadData));
-	data->pSocketEvent = &socketEvent;
-	data->listeningSocket = listeningSocket;
 	tInfo.pFunc = ChatThread;
-	tInfo.pData = data;
+	tInfo.pData = nullptr;
 	int result = CreateThread(&tInfo, &chatThread);
 	if(result != 0)
 	{
-		printf("Erorr creating a chatThread, exiting program");
-		CloseSocketEvent(&socketEvent);
+		printf("Erorr creating a chatThread, exiting program\n");
+		CloseSocketEvent(&listeningSE);
 		CloseSocket(&listeningSocket);
 		exit(1);
 	}
@@ -193,48 +185,38 @@ int main(int argc, char **argv)
 	printf("Chat Server is up and running\n");
 	printf("Waiting for connections...\n");
 	
-	//epoll_event events[MAX_EVENTS];
 	while(true)
 	{
-		//block until an event happens
-		error = WaitForEvent(&socketEvent);
-		if(error == -1)
+		int n = WaitForEvent(&listeningSE);
+		if(n == -1)
 		{
 			perror("WaitForEvent");
 			exit(1);
 		}
-		
 		printf("server: mainThread: an event happened. Checking...\n");
 		
-		LockMutex(&socketEventMutex);
-		Socket connectionSocket;
-		for(uint32_t i = 0; i < socketEvent.numFds; ++i)
+		for(uint32_t i = 0; i < n; ++i)
 		{
-			Socket socket = GetSocket(&socketEvent, i);
-			if(socket.socketfd == listeningSocket.socketfd)
+			Socket currentSocket = GetSocket(&listeningSE, i);
+			uint32_t event = CheckEvent(&listeningSE, i);
+			if(event & EVENT_RECEIVE)
 			{
-				uint32_t event = CheckEvent(&socketEvent, i);
-				if(event & EVENT_RECEIVE)
+				Socket connectionSocket;
+				error = Accept(&listeningSocket, &connectionSocket);
+				if(error == -1)
 				{
-					error = Accept(&listeningSocket, &connectionSocket);
-					if(error == -1)
-					{
-						perror("Accept");
-						exit(1);
-					}
-					arrpush(pConnectionSockets, connectionSocket);
-					error = AddSocket(&socketEvent, &connectionSocket, EVENT_RECEIVE | EVENT_EDGE_TRIGGERED);
-					if(error == -1)
-					{
-						perror("AddSocket");
-						exit(1);
-					}
+					perror("Accept");
+					exit(1);
 				}
-				break;
+				arrpush(pConnectionSockets, connectionSocket);
+				error = AddSocket(&gChatThreadSE, &connectionSocket, EVENT_RECEIVE | EVENT_EDGE_TRIGGERED);
+				if(error == -1)
+				{
+					perror("AddSocket");
+					exit(1);
+				}
 			}
 		}
-		UnlockMutex(&socketEventMutex);
-		SignalOneConditionVariable(&chatThreadCv);
 	}
 	
 	arrfree(pConnectionSockets);

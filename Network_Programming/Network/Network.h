@@ -167,12 +167,12 @@ enum Events
 	EVENT_EDGE_TRIGGERED = 0x4
 };
 
+#define MAX_EVENTS 8
 //WRAPPER FOR EPOLL
 struct SocketEvent
 {
 	int epollInstance;
-	epoll_event* events = nullptr;
-	uint32_t numFds;
+	epoll_event events[MAX_EVENTS];
 };
 
 //Returns 0 if successful, -1 otherwise
@@ -189,8 +189,8 @@ int RemoveSocket(SocketEvent* pEvent, const Socket* pSocket);
 
 void CloseSocketEvent(SocketEvent* pEvent);
 
-//Blocks until an event is raised. The event that happens is store in pEvent->event
-//Returns 0 if successful, -1 otherwise
+//Blocks until an event is raised. The event that happens is stored in pEvent->event
+//Returns the number of of sockets with rasied events, -1 otherwise
 int WaitForEvent(SocketEvent* pEvent);
 
 //Returns the socket at index i.
