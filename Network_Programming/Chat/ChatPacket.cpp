@@ -89,13 +89,13 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	//Get size of name
 	uint32_t nameSize = 0;
 	memcpy(&nameSize, buffer, sizeof(uint32_t));
-	printf("Name Size = %d\n", nameSize);
+	//printf("Name Size = %d\n", nameSize);
 	offset += sizeof(uint32_t);
 	
 	//Get name
 	AllocateChatString(&pPacket->name);
 	AddString(&pPacket->name, (char*)(buffer + offset));
-	printf("Name = %s\n", pPacket->name.str);
+	//printf("Name = %s\n", pPacket->name.str);
 	offset += nameSize;
 	
 	//Get size of msg
