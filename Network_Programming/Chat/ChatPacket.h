@@ -9,7 +9,7 @@ enum MessageType
 	JOINING,
 	LEAVING,
 	REGULAR
-}
+};
 
 struct ChatPacket
 {
