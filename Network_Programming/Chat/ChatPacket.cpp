@@ -40,7 +40,7 @@ int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	memcpy(buffer + offset, pPacket->msg.str, msgSize);
 	offset += msgSize;
 	
-	printf("Msg Type b4 sending = %d\n", pPacket->msgType);
+	//printf("Msg Type b4 sending = %d\n", pPacket->msgType);
 	//copy the msg type into the buffer
 	memcpy(buffer + offset, &pPacket->msgType, sizeof(uint32_t));
 	
@@ -115,11 +115,11 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	AllocateChatString(&pPacket->msg);
 	AddString(&pPacket->msg, (char*)(buffer + offset), msgSize);
 	//printf("Msg = %s\n", pPacket->msg.str);
-	offset += sizeof(msgSize);
+	offset += msgSize;
 	
 	//Get msgType
 	memcpy(&pPacket->msgType, buffer + offset, sizeof(uint32_t));
-	printf("Msg Type = %d\n", pPacket->msgType);
+	//printf("Msg Type = %d\n", pPacket->msgType);
 	
 	free(buffer);
 	
