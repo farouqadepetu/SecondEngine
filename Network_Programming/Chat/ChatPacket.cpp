@@ -6,10 +6,10 @@
 int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 {
 	//add 1 to account for null-terminating char
-	uint32_t nameSize = pPacket->name.size + 1;
+	uint32_t nameSize = (pPacket->name.size > 0) ? pPacket->name.size + 1 : 0;
 	//printf("Size of name = %d\n", nameSize);
 	
-	uint32_t msgSize = pPacket->msg.size + 1;
+	uint32_t msgSize = (pPacket->msg.size > 0) ? pPacket->msg.size + 1 : 0;
 	//printf("Size of msg = %d\n", msgSize);
 	
 	//size of packet + size of nameSize + nameSize + size of msgSize + msg Size + size of msgType
