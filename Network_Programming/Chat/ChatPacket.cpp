@@ -40,10 +40,9 @@ int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	memcpy(buffer + offset, pPacket->msg.str, msgSize);
 	offset += msgSize;
 	
-	pPacket->msgType = htonl(pPacket->msgType);
 	printf("Msg Type b4 sending = %d\n", pPacket->msgType);
 	//copy the msg type into the buffer
-	memcpy(buffer + offset + 1, &pPacket->msgType, sizeof(uint32_t));
+	memcpy(buffer + offset, &pPacket->msgType, sizeof(uint32_t));
 	
 	//SEND PACKET
 	int numBytesSent = Send(pSocket, buffer, packetSize);
@@ -120,7 +119,6 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	
 	//Get msgType
 	memcpy(&pPacket->msgType, buffer + offset, sizeof(uint32_t));
-	pPacket->msgType = ntohl(pPacket->msgType);
 	printf("Msg Type = %d\n", pPacket->msgType);
 	
 	free(buffer);
