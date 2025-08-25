@@ -6,7 +6,7 @@
 
 enum MessageType
 {
-	JOINING,
+	JOINING = 1,
 	LEAVING,
 	REGULAR
 };

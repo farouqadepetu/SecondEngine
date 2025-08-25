@@ -3,6 +3,7 @@
 #include "../Network/Network.h"
 #include "../Thread/Thread.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 //FOR SOCKETEVENT, DO ONE SOCKETEVENT PER THREAD, 
 //CAN ADD AS MANY SOCKETS TO THE SOCKETEVENT AS YOU WANT TO MONITOR EVENTS.
