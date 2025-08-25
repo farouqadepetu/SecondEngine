@@ -1,5 +1,7 @@
 #include "ChatString.h"
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
 
 void AllocateChatString(ChatString* pChatStr)
 {
@@ -57,11 +59,9 @@ void AddChar(ChatString* pChatStr, char ch)
 	pChatStr->str[pChatStr->size] = '\0';
 }
 
-void AddString(ChatString* pChatStr, char* str)
+void AddString(ChatString* pChatStr, char* str, uint32_t size)
 {
-	uint32_t strSize = strlen(str);
-	
-	for(uint32_t i = 0; i < strSize; ++i)
+	for(uint32_t i = 0; i < size; ++i)
 	{
 		AddChar(pChatStr, str[i]);
 	}

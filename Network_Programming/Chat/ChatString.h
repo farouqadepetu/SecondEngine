@@ -1,9 +1,7 @@
 #ifndef _CHATSTRING_H_
 #define _CHATSTRING_H_
 
-#include <stdio.h>
 #include <stdint.h>
-#include <string.h>
 
 struct ChatString
 {
@@ -26,7 +24,7 @@ void AddChar(ChatString* pChatStr, char ch);
 
 //Appends str to the end of the string
 //str needs to be null-terminated
-void AddString(ChatString* pChatStr, char* str);
+void AddString(ChatString* pChatStr, char* str, uint32_t size);
 
 //Removes all chars
 void Clear(ChatString* pChatStr);

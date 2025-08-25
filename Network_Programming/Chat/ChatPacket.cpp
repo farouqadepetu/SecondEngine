@@ -1,5 +1,7 @@
 #include "ChatPacket.h"
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 {
@@ -10,7 +12,7 @@ int SendChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	uint32_t msgSize = pPacket->msg.size + 1;
 	//printf("Size of msg = %d\n", msgSize);
 	
-	//size of packet + size of name + name + size of msg + msg + size of msgType
+	//size of packet + size of nameSize + nameSize + size of msgSize + msg Size + size of msgType
 	uint32_t packetSize = sizeof(uint32_t) + sizeof(uint32_t) + nameSize + sizeof(uint32_t) + msgSize + sizeof(uint32_t);
 	//printf("Size of packet being sent = %d\n", packetSize);
 	
@@ -99,7 +101,7 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	
 	//Get name
 	AllocateChatString(&pPacket->name);
-	AddString(&pPacket->name, (char*)(buffer + offset));
+	AddString(&pPacket->name, (char*)(buffer + offset), nameSize);
 	//printf("Name = %s\n", pPacket->name.str);
 	offset += nameSize;
 	
@@ -111,7 +113,7 @@ int ReceiveChatPacket(Socket* pSocket, ChatPacket* pPacket)
 	
 	//Get msg
 	AllocateChatString(&pPacket->msg);
-	AddString(&pPacket->msg, (char*)(buffer + offset));
+	AddString(&pPacket->msg, (char*)(buffer + offset), msgSize);
 	//printf("Msg = %s\n", pPacket->msg.str);
 	offset += sizeof(msgSize);
 	

@@ -73,6 +73,7 @@ void ChatThread(void* ptr)
 				}
 				else //recieved packet successfully
 				{
+					
 					//hmput(pChatter, currentSocket, packet);
 					//Send to other clients
 					for(uint32_t j = 0; j < hmlenu(pChatter); ++j)
@@ -86,8 +87,6 @@ void ChatThread(void* ptr)
 								perror("SendChatPacket: Erorr sending to other clients");
 								break;
 							}
-							//FreeChatString(&packet.name);
-							//FreeChatString(&packet.msg);
 							Clear(&pPacket->msg);
 						}
 					}

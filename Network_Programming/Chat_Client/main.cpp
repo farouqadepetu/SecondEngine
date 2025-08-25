@@ -124,7 +124,6 @@ void ReceieveFromServer(void* ptr)
 int main(int argc, char **argv)
 {
 	ChatPacket packet;
-	
 	AllocateChatString(&packet.name);
 	printf("Enter your name for this session: ");
 	ReadInput(&packet.name);
@@ -139,7 +138,7 @@ int main(int argc, char **argv)
 	info.type = SOCKET_TYPE_STREAM;
 	info.prot = PROTOCOL_TCP;
 	info.flags = ADDRESS_INFO_FLAG_NONE;
-	info.name = "192.168.1.202";
+	info.name = "192.168.1.204";
 	info.port = PORT;
 	
 	int error = GetAddresses(&info, &addresses);
