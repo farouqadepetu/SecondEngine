@@ -14,16 +14,21 @@ struct PBRMaterial
     float ao;
 };
 
+//Computes the fraction of light reflectred from the optically flat surface.
+//F0 is the charatceristic specular reflectance of a material
 float3 FrenselSchlick(float3 halfwayDir, float3 viewDir, float3 f0)
 {
     float hDotV = dot(halfwayDir, viewDir);
     return f0 + (1.0f - f0) * pow(clamp(1.0f - hDotV, 0.0f, 1.0f), 5.0f);
 }
 
+//Tells us how many of the tiny facets are oriented in a certian direciton.
+//The more of the tiny facets line up in the same direction the smoother the object, the less the rougher
+//Determines the size, brightness and shape of the specular highlight.
+//The value returned is non-negative
 float DistributionGGX(float3 normal, float3 halfwayDir, float roughness)
 {
-    float a = roughness * roughness;
-    float a2 = a * a;
+    float a2 = roughness * roughness;
     float ndotH = max(dot(normal, halfwayDir), 0.0f);
     
     float denom = (ndotH * ndotH * (a2 - 1.0f) + 1.0f);
@@ -32,6 +37,10 @@ float DistributionGGX(float3 normal, float3 halfwayDir, float roughness)
     return a2 / denom;
 }
 
+//Geometry functions determines the probabilty that surface points with a given nomral 
+//will be visible from both the light direction and view direction. The value is between 0 and 1.
+//The rougher the surface the higher the probabilty that alot of the surface points are not seen from both the 
+//light vector and view vector. The smoother the higher the probabilty that they are.
 float GeometrySchlickGGX(float3 normal, float3 dir, float roughness)
 {
     float r = (roughness + 1.0f);
@@ -64,7 +73,11 @@ float3 ComputePointLight(PointLight light, PBRMaterial material, PixelDesc desc)
     float g = GeometrySmith(desc.normal, desc.viewDir, desc.lightDir, material.roughness);
     float3 f = FrenselSchlick(desc.halfwayDir, desc.viewDir, f0);
     
+    //for energy conservation
+    // The amount light relfected + the amount of light refracted (absorbed) must equal to the incoming light
     float3 kd = float3(1.0f, 1.0f, 1.0f) - f;
+    
+    
     kd = kd * (1.0f - material.metallic);
     
     float3 numerator = d * f * g;
@@ -112,7 +125,7 @@ float3 ComputeSpotlight(Spotlight light, PBRMaterial material, PixelDesc desc)
     float3 kd = float3(1.0f, 1.0f, 1.0f) - f;
     kd = kd * (1.0f - material.metallic);
     
-     //spotlight intensity = (theta - outerCutoff) / (innerCutoff - outerCutoff)
+    //spotlight intensity = (theta - outerCutoff) / (innerCutoff - outerCutoff)
     float theta = dot(desc.lightDir, normalize(-light.direction.xyz));
     float epsilon = (light.innerCutoff - light.outerCutoff);
     float spotLightIntensity = clamp((theta - light.outerCutoff) / epsilon, 0.0f, 1.0f);

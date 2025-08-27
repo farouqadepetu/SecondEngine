@@ -10,6 +10,7 @@ float psMain(VertexOutput vout) : SV_Depth
 {
     float lightDistance = length(vout.outPosW.xyz - lightPosition[constants.lightIndex].xyz);
     
+    //the denominator is the far plane 
     lightDistance = lightDistance / 10.0f;
     
     return lightDistance;
